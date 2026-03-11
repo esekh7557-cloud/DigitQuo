@@ -263,7 +263,7 @@
       }
     }
 
-    function applyMode() {
+    function applyMode(clearStatus = true) {
       const isLogin = mode === "login";
       title.textContent = isLogin ? "Welcome back" : "Create account";
       subtitle.textContent = isLogin
@@ -278,7 +278,9 @@
       phoneInput.required = !isLogin;
       toggleLabel.textContent = isLogin ? "Don't have an account?" : "Already have an account?";
       toggleMode.textContent = isLogin ? "Create one" : "Log in";
-      setStatus("");
+      if (clearStatus) {
+        setStatus("");
+      }
     }
 
     function loadRememberedLogin() {
@@ -397,9 +399,9 @@
             return;
           }
 
-          setStatus("Account created. Check your email if confirmation is enabled, then log in.", "ok");
           mode = "login";
-          applyMode();
+          applyMode(false);
+          setStatus("Account created. Check your email if confirmation is enabled, then log in.", "ok");
           return;
         }
 
