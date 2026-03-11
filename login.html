@@ -230,6 +230,8 @@
     <p class="footer">Back to <a href="index.html">Home</a></p>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
   <script>
     const authForm = document.getElementById("authForm");
     const statusText = document.getElementById("statusText");
@@ -249,6 +251,7 @@
     const passwordInput = document.getElementById("password");
     const rememberInput = document.getElementById("remember");
     const REMEMBERED_EMAIL_KEY = "dq_remembered_email";
+    const dqAuth = window.dqAuth;
 
     let mode = "login";
 
@@ -321,19 +324,25 @@
       });
     }
 
+    function getConfigErrorMessage() {
+      return "Add your Supabase project URL and anon key in supabase-config.js before using login.";
+    }
+
     async function checkSession() {
+      if (!dqAuth || !dqAuth.isConfigured()) {
+        setStatus(getConfigErrorMessage(), "error");
+        return;
+      }
+
       try {
-        const res = await fetch("/api/auth/me", { credentials: "same-origin" });
-        if (!res.ok) {
+        const user = await dqAuth.getCurrentUser();
+        if (!user) {
           return;
         }
 
-        const data = await res.json();
-        if (data.authenticated) {
-          setStatus(`Signed in as ${data.user.email}`, "ok");
-        }
-      } catch {
-        setStatus("Could not connect to backend. Start the server first.", "error");
+        setStatus(`Signed in as ${user.email}`, "ok");
+      } catch (error) {
+        setStatus(error.message || "Could not connect to Supabase.", "error");
       }
     }
 
@@ -362,47 +371,55 @@
       submitBtn.textContent = mode === "login" ? "Logging in..." : "Creating...";
 
       try {
+        if (!dqAuth || !dqAuth.isConfigured()) {
+          setStatus(getConfigErrorMessage(), "error");
+          return;
+        }
+
+        const client = await dqAuth.getClient();
+
         if (mode === "register") {
           const profilePhoto = await readPhotoFile(photoInput.files[0]);
-          const registerRes = await fetch("/api/auth/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "same-origin",
-            body: JSON.stringify({ fullName, email, phone, profilePhoto, password }),
+          const { error } = await client.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: fullName,
+                phone,
+                profile_photo: profilePhoto,
+              },
+            },
           });
-          const registerData = await registerRes.json();
 
-          if (!registerRes.ok) {
-            setStatus(registerData.error || "Could not create account.", "error");
+          if (error) {
+            setStatus(error.message || "Could not create account.", "error");
             return;
           }
 
-          setStatus("Account created. You can log in now.", "ok");
+          setStatus("Account created. Check your email if confirmation is enabled, then log in.", "ok");
           mode = "login";
           applyMode();
           return;
         }
 
-        const loginRes = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ email, password, remember }),
+        const { data, error } = await client.auth.signInWithPassword({
+          email,
+          password,
         });
-        const loginData = await loginRes.json();
 
-        if (!loginRes.ok) {
-          setStatus(loginData.error || "Login failed.", "error");
+        if (error) {
+          setStatus(error.message || "Login failed.", "error");
           return;
         }
 
         persistRememberedLogin(email, remember);
-        setStatus(`Welcome, ${loginData.user.email}`, "ok");
+        setStatus(`Welcome, ${data.user.email}`, "ok");
         window.setTimeout(() => {
           window.location.href = "index.html";
         }, 900);
-      } catch {
-        setStatus("Could not connect to backend. Start the server first.", "error");
+      } catch (error) {
+        setStatus(error.message || "Could not connect to Supabase.", "error");
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = mode === "login" ? "Log In" : "Create Account";

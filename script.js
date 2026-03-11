@@ -7,6 +7,7 @@ const contactForm = document.getElementById("contactForm");
 const cartItems = document.getElementById("cartItems");
 const cartSummary = document.getElementById("cartSummary");
 const CART_STORAGE_KEY = "dq_cart_items";
+const dqAuth = window.dqAuth;
 
 if (menuToggle && navLinks) {
   menuToggle.addEventListener("click", () => {
@@ -154,10 +155,9 @@ function buildProfileMenu(user) {
 
   logoutBtn.addEventListener("click", async () => {
     try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "same-origin",
-      });
+      if (dqAuth && dqAuth.isConfigured()) {
+        await dqAuth.signOut();
+      }
     } finally {
       window.location.href = "login.html";
     }
@@ -293,22 +293,23 @@ function renderProfilePage(user) {
 }
 
 async function initAuthUi() {
+  if (!dqAuth || !dqAuth.isConfigured()) {
+    renderCartPage(null);
+    renderProfilePage(null);
+    return;
+  }
+
   try {
-    const res = await fetch("/api/auth/me", { credentials: "same-origin" });
-    if (!res.ok) {
+    const user = await dqAuth.getCurrentUser();
+    if (!user) {
       renderCartPage(null);
+      renderProfilePage(null);
       return;
     }
 
-    const data = await res.json();
-    if (!data.authenticated || !data.user) {
-      renderCartPage(null);
-      return;
-    }
-
-    buildProfileMenu(data.user);
-    renderCartPage(data.user);
-    renderProfilePage(data.user);
+    buildProfileMenu(user);
+    renderCartPage(user);
+    renderProfilePage(user);
   } catch {
     renderCartPage(null);
     renderProfilePage(null);
