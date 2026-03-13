@@ -6,8 +6,83 @@ const navbar = document.querySelector(".navbar");
 const contactForm = document.getElementById("contactForm");
 const cartItems = document.getElementById("cartItems");
 const cartSummary = document.getElementById("cartSummary");
+const planDetailsRoot = document.getElementById("planDetailsRoot");
 const CART_STORAGE_KEY = "dq_cart_items";
 const dqAuth = window.dqAuth;
+const PLAN_DETAILS = {
+  basic: {
+    name: "Basic Plan",
+    oldPrice: 13999,
+    subtotal: 11999,
+    domainPrice: 999,
+    features: [
+      "1-3 Pages Website",
+      "Mobile Responsive",
+      "Contact Form",
+      "Free SSL",
+      ".in Domain",
+      "Hosting",
+    ],
+  },
+  business: {
+    name: "Business Plan",
+    oldPrice: 15999,
+    subtotal: 12999,
+    domainPrice: 999,
+    features: [
+      "5-7 Pages Website",
+      "Professional Design",
+      "Contact Forms",
+      "Google Map",
+      "Basic SEO",
+      "Domain + Hosting",
+    ],
+  },
+  professional: {
+    name: "Professional Plan",
+    oldPrice: 17999,
+    subtotal: 13999,
+    domainPrice: 999,
+    features: [
+      "8-12 Pages Website",
+      "Premium UI Design",
+      "Blog System",
+      "SEO Setup",
+      "Social Media Integration",
+      "Domain + Hosting",
+    ],
+  },
+  ecommerce: {
+    name: "E-Commerce Plan",
+    oldPrice: 41000,
+    subtotal: 32999,
+    domainPrice: 999,
+    features: [
+      "Online Store",
+      "Up to 50 Products",
+      "Payment Gateway",
+      "Cart & Checkout",
+      "Admin Panel",
+      "VPS Hosting",
+      "Domain",
+    ],
+  },
+  "advanced-ecommerce": {
+    name: "Advanced E-Commerce Plan",
+    oldPrice: 50000,
+    subtotal: 39999,
+    domainPrice: 999,
+    features: [
+      "Unlimited Products",
+      "Advanced Admin Panel",
+      "Payment Gateway",
+      "Coupons",
+      "Shipping Integration",
+      "VPS Hosting",
+      "Domain",
+    ],
+  },
+};
 
 if (menuToggle && navLinks) {
   menuToggle.addEventListener("click", () => {
@@ -71,6 +146,15 @@ function escapeHtml(value) {
     };
     return entities[char];
   });
+}
+
+function formatInr(value) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
 }
 
 function renderAvatar(name, profilePhoto, className = "avatar-photo") {
@@ -292,6 +376,78 @@ function renderProfilePage(user) {
   `;
 }
 
+function renderPlanDetailsPage() {
+  if (!planDetailsRoot) {
+    return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const planKey = params.get("plan") || "";
+  const plan = PLAN_DETAILS[planKey];
+
+  if (!plan) {
+    planDetailsRoot.innerHTML = `
+      <article class="card cart-empty">
+        <h1 class="section-title">Plan Not Found</h1>
+        <p class="section-subtitle">Select a pricing package first to view the website, domain, and GST breakdown.</p>
+        <a href="pricing.html" class="btn btn-primary">Back to Pricing</a>
+      </article>
+    `;
+    return;
+  }
+
+  const websitePrice = plan.subtotal - plan.domainPrice;
+  const gstAmount = Number((plan.subtotal * 0.18).toFixed(2));
+  const totalWithGst = Number((plan.subtotal + gstAmount).toFixed(2));
+  const savings = plan.oldPrice - plan.subtotal;
+
+  planDetailsRoot.innerHTML = `
+    <div class="plan-layout">
+      <article class="card plan-overview">
+        <span class="eyebrow">Selected Package</span>
+        <h1 class="section-title">${escapeHtml(plan.name)}</h1>
+        <p class="section-subtitle">This pricing includes website development, domain registration, and tax calculation at 18% GST.</p>
+        <div class="plan-price-strip">
+          <span class="old-price">${formatInr(plan.oldPrice)}</span>
+          <strong>${formatInr(plan.subtotal)}</strong>
+          <span class="plan-savings">You save ${formatInr(savings)}</span>
+        </div>
+        <ul class="plan-feature-list">
+          ${plan.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}
+        </ul>
+      </article>
+      <article class="card plan-summary-card">
+        <h2>Price Breakdown</h2>
+        <div class="plan-summary-row">
+          <span>Website Development</span>
+          <strong>${formatInr(websitePrice)}</strong>
+        </div>
+        <div class="plan-summary-row">
+          <span>Domain Registration</span>
+          <strong>${formatInr(plan.domainPrice)}</strong>
+        </div>
+        <div class="plan-summary-row">
+          <span>Subtotal</span>
+          <strong>${formatInr(plan.subtotal)}</strong>
+        </div>
+        <div class="plan-summary-row">
+          <span>GST (18%)</span>
+          <strong>${formatInr(gstAmount)}</strong>
+        </div>
+        <div class="plan-summary-row total">
+          <span>Total With GST</span>
+          <strong>${formatInr(totalWithGst)}</strong>
+        </div>
+        <p class="plan-note">Hosting and listed package features remain included in the selected plan.</p>
+        <div class="plan-actions">
+          <a href="contact.html" class="btn btn-primary">Proceed to Contact</a>
+          <a href="pricing.html" class="btn btn-secondary">Back to Pricing</a>
+        </div>
+      </article>
+    </div>
+  `;
+}
+
 async function initAuthUi() {
   if (!dqAuth || !dqAuth.isConfigured()) {
     renderCartPage(null);
@@ -316,4 +472,5 @@ async function initAuthUi() {
   }
 }
 
+renderPlanDetailsPage();
 initAuthUi();
