@@ -128,6 +128,20 @@
       accent-color: var(--primary);
     }
 
+    .link-btn {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--primary);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .link-btn:hover {
+      text-decoration: underline;
+    }
+
     a {
       color: var(--primary);
       text-decoration: none;
@@ -213,11 +227,27 @@
         <input id="password" name="password" type="password" placeholder="Enter your password" minlength="8" required />
       </div>
 
+      <div class="field" id="otpField" hidden>
+        <label for="otp">OTP code</label>
+        <input id="otp" name="otp" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="Enter the 6-digit code" maxlength="6" />
+      </div>
+
+      <div class="field" id="newPasswordField" hidden>
+        <label for="newPassword">New password</label>
+        <input id="newPassword" name="newPassword" type="password" placeholder="Create a new password" minlength="8" />
+      </div>
+
+      <div class="field" id="confirmPasswordField" hidden>
+        <label for="confirmPassword">Confirm new password</label>
+        <input id="confirmPassword" name="confirmPassword" type="password" placeholder="Re-enter your new password" minlength="8" />
+      </div>
+
       <div class="actions" id="rememberRow">
         <label class="remember" for="remember">
           <input id="remember" name="remember" type="checkbox" />
           Remember me
         </label>
+        <button class="link-btn" id="forgotPasswordBtn" type="button">Forgot password?</button>
       </div>
 
       <button class="btn" id="submitBtn" type="submit">Log In</button>
@@ -249,11 +279,19 @@
     const phoneInput = document.getElementById("phone");
     const photoInput = document.getElementById("profilePhoto");
     const passwordInput = document.getElementById("password");
+    const otpField = document.getElementById("otpField");
+    const otpInput = document.getElementById("otp");
+    const newPasswordField = document.getElementById("newPasswordField");
+    const newPasswordInput = document.getElementById("newPassword");
+    const confirmPasswordField = document.getElementById("confirmPasswordField");
+    const confirmPasswordInput = document.getElementById("confirmPassword");
     const rememberInput = document.getElementById("remember");
+    const forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
     const REMEMBERED_EMAIL_KEY = "dq_remembered_email";
     const dqAuth = window.dqAuth;
 
     let mode = "login";
+    let recoveryNeedsOtp = true;
 
     function setStatus(message, type) {
       statusText.textContent = message || "";
@@ -265,22 +303,76 @@
 
     function applyMode(clearStatus = true) {
       const isLogin = mode === "login";
-      title.textContent = isLogin ? "Welcome back" : "Create account";
+      const isRegister = mode === "register";
+      const isRecoveryRequest = mode === "recover-request";
+      const isRecoveryVerify = mode === "recover-verify";
+
+      title.textContent = isLogin
+        ? "Welcome back"
+        : isRegister
+          ? "Create account"
+          : isRecoveryRequest
+            ? "Forgot password"
+            : "Reset password";
+
       subtitle.textContent = isLogin
         ? "Sign in to access your DigtiQuo dashboard."
-        : "Create your account to start using DigtiQuo.";
-      submitBtn.textContent = isLogin ? "Log In" : "Create Account";
+        : isRegister
+          ? "Create your account to start using DigtiQuo."
+          : isRecoveryRequest
+            ? "Enter your email and we will send you a one-time recovery code."
+            : "Enter the OTP from your email and choose a new password.";
+
+      submitBtn.textContent = isLogin
+        ? "Log In"
+        : isRegister
+          ? "Create Account"
+          : isRecoveryRequest
+            ? "Send OTP"
+            : "Reset Password";
+
       rememberRow.style.display = isLogin ? "flex" : "none";
-      nameField.hidden = isLogin;
-      phoneField.hidden = isLogin;
-      photoField.hidden = isLogin;
-      nameInput.required = !isLogin;
-      phoneInput.required = !isLogin;
-      toggleLabel.textContent = isLogin ? "Don't have an account?" : "Already have an account?";
-      toggleMode.textContent = isLogin ? "Create one" : "Log in";
+      nameField.hidden = !isRegister;
+      phoneField.hidden = !isRegister;
+      photoField.hidden = !isRegister;
+      otpField.hidden = !isRecoveryVerify || !recoveryNeedsOtp;
+      newPasswordField.hidden = !isRecoveryVerify;
+      confirmPasswordField.hidden = !isRecoveryVerify;
+      passwordInput.parentElement.hidden = isRecoveryRequest || isRecoveryVerify;
+
+      nameInput.required = isRegister;
+      phoneInput.required = isRegister;
+      passwordInput.required = isLogin || isRegister;
+      otpInput.required = isRecoveryVerify && recoveryNeedsOtp;
+      newPasswordInput.required = isRecoveryVerify;
+      confirmPasswordInput.required = isRecoveryVerify;
+
+      toggleLabel.textContent = isLogin
+        ? "Don't have an account?"
+        : isRegister
+          ? "Already have an account?"
+          : "Remembered your password?";
+
+      toggleMode.textContent = isLogin
+        ? "Create one"
+        : "Log in";
+
+      forgotPasswordBtn.hidden = !isLogin;
+
+      if (!isRecoveryVerify) {
+        otpInput.value = "";
+        newPasswordInput.value = "";
+        confirmPasswordInput.value = "";
+      }
+
       if (clearStatus) {
         setStatus("");
       }
+    }
+
+    function setMode(nextMode, clearStatus = true) {
+      mode = nextMode;
+      applyMode(clearStatus);
     }
 
     function loadRememberedLogin() {
@@ -350,9 +442,70 @@
 
     toggleMode.addEventListener("click", (event) => {
       event.preventDefault();
-      mode = mode === "login" ? "register" : "login";
-      applyMode();
+
+      if (mode === "login") {
+        setMode("register");
+        return;
+      }
+
+      setMode("login");
     });
+
+    forgotPasswordBtn.addEventListener("click", () => {
+      recoveryNeedsOtp = true;
+      setMode("recover-request");
+    });
+
+    async function requestPasswordReset(client, email) {
+      const redirectTo = `${window.location.origin}${window.location.pathname}?mode=recovery`;
+      const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
+
+      if (error) {
+        throw error;
+      }
+
+      recoveryNeedsOtp = true;
+      setMode("recover-verify", false);
+      setStatus("OTP sent. Check your email for the recovery code, then enter it below with your new password.", "ok");
+    }
+
+    async function verifyRecoveryOtpAndResetPassword(client, email, otp, nextPassword) {
+      const { error: verifyError } = await client.auth.verifyOtp({
+        email,
+        token: otp,
+        type: "recovery",
+      });
+
+      if (verifyError) {
+        throw verifyError;
+      }
+
+      const { error: updateError } = await client.auth.updateUser({
+        password: nextPassword,
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+    }
+
+    async function handlePasswordRecoveryFromLink(client) {
+      const query = new URLSearchParams(window.location.search);
+      if (query.get("mode") !== "recovery") {
+        return;
+      }
+
+      const { data, error } = await client.auth.getSession();
+      if (error || !data.session) {
+        recoveryNeedsOtp = true;
+        setMode("recover-verify", false);
+        return;
+      }
+
+      recoveryNeedsOtp = false;
+      setMode("recover-verify", false);
+      setStatus("Recovery session detected. Enter your new password below. OTP is not required if you opened the recovery link from your email.", "ok");
+    }
 
     authForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -362,15 +515,43 @@
       const fullName = nameInput.value.trim();
       const phone = phoneInput.value.trim();
       const password = passwordInput.value;
+      const otp = otpInput.value.trim();
+      const newPassword = newPasswordInput.value;
+      const confirmPassword = confirmPasswordInput.value;
       const remember = rememberInput.checked;
 
-      if (!email || password.length < 8 || (mode === "register" && (!fullName || !phone))) {
+      if (!email) {
+        setStatus("Enter a valid email address.", "error");
+        return;
+      }
+
+      if (mode === "login" && password.length < 8) {
         setStatus("Enter a valid email and a password of at least 8 characters.", "error");
         return;
       }
 
+      if (mode === "register" && (password.length < 8 || !fullName || !phone)) {
+        setStatus("Enter a valid email and a password of at least 8 characters.", "error");
+        return;
+      }
+
+      if (mode === "recover-verify") {
+        const needsOtp = !otpField.hidden;
+
+        if ((needsOtp && otp.length !== 6) || newPassword.length < 8 || newPassword !== confirmPassword) {
+          setStatus("Enter the 6-digit OTP and matching passwords with at least 8 characters.", "error");
+          return;
+        }
+      }
+
       submitBtn.disabled = true;
-      submitBtn.textContent = mode === "login" ? "Logging in..." : "Creating...";
+      submitBtn.textContent = mode === "login"
+        ? "Logging in..."
+        : mode === "register"
+          ? "Creating..."
+          : mode === "recover-request"
+            ? "Sending..."
+            : "Resetting...";
 
       try {
         if (!dqAuth || !dqAuth.isConfigured()) {
@@ -399,9 +580,33 @@
             return;
           }
 
-          mode = "login";
-          applyMode(false);
+          setMode("login", false);
           setStatus("Account created. Check your email if confirmation is enabled, then log in.", "ok");
+          return;
+        }
+
+        if (mode === "recover-request") {
+          await requestPasswordReset(client, email);
+          return;
+        }
+
+        if (mode === "recover-verify") {
+          if (!otpField.hidden) {
+            await verifyRecoveryOtpAndResetPassword(client, email, otp, newPassword);
+          } else {
+            const { error } = await client.auth.updateUser({ password: newPassword });
+            if (error) {
+              setStatus(error.message || "Could not update password.", "error");
+              return;
+            }
+          }
+
+          setMode("login", false);
+          passwordInput.value = "";
+          newPasswordInput.value = "";
+          confirmPasswordInput.value = "";
+          otpInput.value = "";
+          setStatus("Password updated. You can now log in with your new password.", "ok");
           return;
         }
 
@@ -424,13 +629,34 @@
         setStatus(error.message || "Could not connect to Supabase.", "error");
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = mode === "login" ? "Log In" : "Create Account";
+        applyMode(false);
       }
     });
 
     applyMode();
     loadRememberedLogin();
     checkSession();
+    if (dqAuth && dqAuth.isConfigured()) {
+      dqAuth.getClient()
+        .then(async (client) => {
+          if (!client) {
+            return;
+          }
+
+          client.auth.onAuthStateChange((eventName) => {
+            if (eventName === "PASSWORD_RECOVERY") {
+              recoveryNeedsOtp = false;
+              setMode("recover-verify", false);
+              setStatus("Recovery link confirmed. Enter your new password below.", "ok");
+            }
+          });
+
+          await handlePasswordRecoveryFromLink(client);
+        })
+        .catch(() => {
+          // Keep the page usable even if the auth client cannot initialize here.
+        });
+    }
   </script>
 </body>
 </html>
