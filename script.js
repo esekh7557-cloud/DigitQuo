@@ -397,8 +397,6 @@ function renderPlanDetailsPage() {
   }
 
   const websitePrice = plan.subtotal - plan.domainPrice;
-  const gstAmount = Number((plan.subtotal * 0.18).toFixed(2));
-  const totalWithGst = Number((plan.subtotal + gstAmount).toFixed(2));
   const savings = plan.oldPrice - plan.subtotal;
 
   planDetailsRoot.innerHTML = `
@@ -406,7 +404,7 @@ function renderPlanDetailsPage() {
       <article class="card plan-overview">
         <span class="eyebrow">Selected Package</span>
         <h1 class="section-title">${escapeHtml(plan.name)}</h1>
-        <p class="section-subtitle">This pricing includes website development, domain registration, and tax calculation at 18% GST.</p>
+        <p class="section-subtitle">This pricing includes website development and domain registration for the selected package.</p>
         <div class="plan-price-strip">
           <span class="old-price">${formatInr(plan.oldPrice)}</span>
           <strong>${formatInr(plan.subtotal)}</strong>
@@ -426,17 +424,9 @@ function renderPlanDetailsPage() {
           <span>Domain Registration</span>
           <strong>${formatInr(plan.domainPrice)}</strong>
         </div>
-        <div class="plan-summary-row">
-          <span>Subtotal</span>
-          <strong>${formatInr(plan.subtotal)}</strong>
-        </div>
-        <div class="plan-summary-row">
-          <span>GST (18%)</span>
-          <strong>${formatInr(gstAmount)}</strong>
-        </div>
         <div class="plan-summary-row total">
-          <span>Total With GST</span>
-          <strong>${formatInr(totalWithGst)}</strong>
+          <span>Total Pricing</span>
+          <strong>${formatInr(plan.subtotal)}</strong>
         </div>
         <p class="plan-note">Hosting and listed package features remain included in the selected plan.</p>
         <div class="plan-actions">
