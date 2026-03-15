@@ -3,16 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DigtiQuo | Services</title>
+  <title>Our Services | DigitQuo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
+<body class="services-page">
   <header class="site-header">
     <div class="container navbar">
-      <a href="index.html" class="logo">Digti<span>Quo</span></a>
+      <a href="index.html" class="logo">Digit<span>Quo</span></a>
       <a href="login.html" class="mobile-login" aria-label="Login">&#128100;</a>
       <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">&#9776;</button>
       <ul class="nav-links" id="navLinks">
@@ -28,17 +29,112 @@
   </header>
 
   <main>
+    <section class="services-hero">
+      <div class="services-hero-flex">
+        <div class="services-hero-text">
+          <span class="services-eyebrow">Full-Stack Services for Modern Brands</span>
+          <h1>Specialized Web Solutions <span>Built for Growth.</span></h1>
+          <p>From custom code to SEO optimization, we provide the technical foundation your business needs to excel in the digital world without the agency price tag.</p>
+          <div class="services-hero-points">
+            <span><i class="fa-solid fa-bolt"></i> Fast delivery</span>
+            <span><i class="fa-solid fa-shield-halved"></i> Clean, reliable builds</span>
+            <span><i class="fa-solid fa-chart-line"></i> SEO-focused structure</span>
+          </div>
+          <a href="contact.html" class="services-cta-button">Get Started Today</a>
+        </div>
+
+        <div class="services-hero-visual">
+          <div class="services-hero-card">
+            <img src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&q=80&w=600" alt="DigitQuo development" />
+            <div class="services-hero-badge">
+              <strong>Custom builds</strong>
+              <span>Designed to convert and scale</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="section reveal">
-      <div class="container">
-        <h1 class="section-title">Services That Help Your Business Grow</h1>
-        <p class="section-subtitle">We build websites focused on speed, trust, conversion, and long-term maintainability.</p>
-        <div class="card-grid">
-          <article class="card"><div class="icon">BW</div><h3>Business Website Development</h3><p>Professional websites crafted to present your brand clearly and convert visitors into clients.</p></article>
-          <article class="card"><div class="icon">EC</div><h3>E-commerce Website Development</h3><p>Conversion-focused storefronts with smooth checkout and secure transactions.</p></article>
-          <article class="card"><div class="icon">CW</div><h3>Custom Web Development</h3><p>Tailored web applications built around your workflows and requirements.</p></article>
-          <article class="card"><div class="icon">RD</div><h3>Website Redesign</h3><p>Modern redesigns that improve visual trust, UX, and conversion performance.</p></article>
-          <article class="card"><div class="icon">WM</div><h3>Website Maintenance</h3><p>Ongoing updates, monitoring, and optimization to keep your site secure and reliable.</p></article>
-          <article class="card"><div class="icon">SEO</div><h3>SEO Optimization</h3><p>Technical and on-page SEO improvements to increase discoverability and rankings.</p></article>
+      <div class="services-content">
+        <div class="services-grid">
+          <article class="services-card">
+            <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=500" alt="Business website planning" class="services-card-img" />
+            <div class="services-card-content">
+              <div class="services-card-ribbon">BW</div>
+              <div class="services-card-header">
+                <i class="fa-solid fa-briefcase"></i>
+                <h3>Business Website Development</h3>
+              </div>
+              <p>Professional websites crafted to present your brand clearly and convert visitors into clients.</p>
+            </div>
+          </article>
+
+          <article class="services-card">
+            <img src="https://images.unsplash.com/photo-1557821552-17105176677c?auto=format&fit=crop&q=80&w=500" alt="E-commerce dashboard" class="services-card-img" />
+            <div class="services-card-content">
+              <div class="services-card-ribbon">EC</div>
+              <div class="services-card-header">
+                <i class="fa-solid fa-cart-shopping"></i>
+                <h3>E-commerce Website Development</h3>
+              </div>
+              <p>Conversion-focused storefronts with smooth checkout and secure transactions.</p>
+            </div>
+          </article>
+
+          <article class="services-card">
+            <img src="https://images.unsplash.com/photo-1542831371-29b0f74f9713?auto=format&fit=crop&q=80&w=500" alt="Custom web development code" class="services-card-img" />
+            <div class="services-card-content">
+              <div class="services-card-ribbon">CW</div>
+              <div class="services-card-header">
+                <i class="fa-solid fa-code"></i>
+                <h3>Custom Web Development</h3>
+              </div>
+              <p>Tailored web applications built around your workflows and requirements.</p>
+            </div>
+          </article>
+
+          <article class="services-card">
+            <img src="https://cdn.prod.website-files.com/666aa4fbe0e580742d2d8407/66f2c13c54c071713514be8f_Website-redesign.webp" alt="Website redesign workspace" class="services-card-img" />
+            <div class="services-card-content">
+              <div class="services-card-ribbon">RD</div>
+              <div class="services-card-header">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <h3>Website Redesign</h3>
+              </div>
+              <p>Modern redesigns that improve visual trust, UX, and conversion performance.</p>
+            </div>
+          </article>
+
+          <article class="services-card">
+            <img src="https://www.spinxdigital.com/app/uploads/2023/01/Image-Maintenance.jpg" alt="Website maintenance planning" class="services-card-img" />
+            <div class="services-card-content">
+              <div class="services-card-ribbon">WM</div>
+              <div class="services-card-header">
+                <i class="fa-solid fa-screwdriver-wrench"></i>
+                <h3>Website Maintenance</h3>
+              </div>
+              <p>Ongoing updates, monitoring, and optimization to keep your site secure and reliable.</p>
+            </div>
+          </article>
+
+          <article class="services-card">
+            <img src="https://www.intellibright.com/wp-content/uploads/2025/04/Search-Engine-Optimization.jpg" alt="SEO analytics graphs" class="services-card-img" />
+            <div class="services-card-content">
+              <div class="services-card-ribbon">SEO</div>
+              <div class="services-card-header">
+                <i class="fa-solid fa-magnifying-glass-chart"></i>
+                <h3>SEO Optimization</h3>
+              </div>
+              <p>Technical and on-page SEO improvements to increase discoverability and rankings.</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="services-footer-banner">
+          <h2>Ready to grow your digital identity?</h2>
+          <p>Let's build something beautiful and affordable together.</p>
+          <a href="contact.html" class="btn services-quote-btn">Get A Free Quote</a>
         </div>
       </div>
     </section>
@@ -54,7 +150,7 @@
         <li><a href="pricing.html">Pricing</a></li>
         <li><a href="contact.html">Contact</a></li>
       </ul>
-      <p>&copy; 2026 DigtiQuo. All Rights Reserved.</p>
+      <p>&copy; 2026 DigitQuo. All Rights Reserved.</p>
     </div>
   </footer>
 

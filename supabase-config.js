@@ -2,7 +2,7 @@ const SUPABASE_URL = "https://umflohaswnlwzrqbzmxs.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtZmxvaGFzd25sd3pycWJ6bXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMjMwMDMsImV4cCI6MjA4ODc5OTAwM30.XH45rX-2RW_gDAnN4gAm3O-P_b9jRyyvmoy2iuwJrfA";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BqSIT0GcmJ54v0PHVf7Hxw_COvYC9L7";
 
-(function initDigtiQuoAuth(global) {
+(function initDigitQuoAuth(global) {
   function hasValidConfig() {
     return (
       typeof SUPABASE_URL === "string" &&

@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DigtiQuo | Home</title>
+  <title>DigitQuo | Home</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
+<body class="home-page">
   <header class="site-header">
     <div class="container navbar">
-      <a href="index.html" class="logo">Digti<span>Quo</span></a>
+      <a href="index.html" class="logo">Digit<span>Quo</span></a>
       <a href="login.html" class="mobile-login" aria-label="Login">&#128100;</a>
       <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">&#9776;</button>
       <ul class="nav-links" id="navLinks">
@@ -28,24 +28,33 @@
   </header>
 
   <main>
-    <section class="hero section reveal">
-      <div class="container hero-wrap">
-        <div>
-          <span class="eyebrow">Trusted By Growing Businesses</span>
+    <section class="hero home-hero section reveal">
+      <div class="container hero-wrap home-hero-wrap">
+        <div class="home-hero-copy">
+          <span class="eyebrow home-eyebrow">Trusted By Growing Businesses</span>
           <h1>Build a Professional Website That Grows Your Business</h1>
           <p>We design and develop modern, fast, and SEO-optimized websites that help businesses earn trust, generate leads, and increase online revenue.</p>
+          <div class="home-hero-points">
+            <span>Fast launch cycles</span>
+            <span>Conversion-focused pages</span>
+            <span>Affordable custom builds</span>
+          </div>
           <div class="hero-actions">
             <a href="contact.html" class="btn btn-primary">Get a Quote</a>
             <a href="portfolio.html" class="btn btn-secondary">View Portfolio</a>
           </div>
         </div>
-        <div class="hero-card">
+        <div class="hero-card home-hero-card">
           <img src="https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1200&q=80" alt="Laptop showing website development interface" />
+          <div class="home-hero-badge">
+            <strong>DigitQuo websites</strong>
+            <span>Built for trust, speed, and real leads</span>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="section reveal">
+    <section class="section reveal home-stats-section">
       <div class="container stat-grid">
         <article class="stat"><h3>50+</h3><p>Websites Delivered</p></article>
         <article class="stat"><h3>30+</h3><p>Happy Clients</p></article>
@@ -55,7 +64,7 @@
 
     <section class="section reveal">
       <div class="container">
-        <article class="card quick-contact-card">
+        <article class="card quick-contact-card home-quick-contact">
           <h2>24 / 7 Available - Contact Anytime</h2>
           <p>Our team is available around the clock to discuss your website needs and answer your questions.</p>
           <a href="contact.html" class="btn btn-primary">Contact Now</a>
@@ -63,7 +72,7 @@
       </div>
     </section>
 
-    <section class="section reveal">
+    <section class="section reveal home-testimonials">
       <div class="container">
         <h2 class="section-title">Client Testimonials</h2>
         <p class="section-subtitle rating-line">
@@ -87,7 +96,7 @@
 
     <section class="section reveal">
       <div class="container">
-        <div class="cta">
+        <div class="cta home-cta">
           <h2>Ready to Build Your Website?</h2>
           <a href="contact.html" class="btn btn-primary">Start Your Project</a>
         </div>
@@ -105,7 +114,7 @@
         <li><a href="pricing.html">Pricing</a></li>
         <li><a href="contact.html">Contact</a></li>
       </ul>
-      <p>Copyright &copy; 2026 DigtiQuo. All Rights Reserved.</p>
+      <p>Copyright &copy; 2026 DigitQuo. All Rights Reserved.</p>
     </div>
   </footer>
 

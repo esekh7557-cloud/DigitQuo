@@ -3,16 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DigtiQuo | About</title>
+  <title>About Us | DigitQuo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
+<body class="about-page">
   <header class="site-header">
     <div class="container navbar">
-      <a href="index.html" class="logo">Digti<span>Quo</span></a>
+      <a href="index.html" class="logo">Digit<span>Quo</span></a>
       <a href="login.html" class="mobile-login" aria-label="Login">&#128100;</a>
       <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">&#9776;</button>
       <ul class="nav-links" id="navLinks">
@@ -28,29 +29,61 @@
   </header>
 
   <main>
-    <section class="section reveal">
-      <div class="container">
-        <h1 class="section-title">About Our Agency</h1>
-        <p class="section-subtitle">We are a web development agency focused on building clean, high-performance websites that help businesses grow with confidence.</p>
-        <div class="card-grid">
-          <article class="card"><h3>Business-Focused Approach</h3><p>Every decision is based on your goals: lead generation, brand trust, and long-term growth.</p></article>
-          <article class="card"><h3>Modern Engineering</h3><p>We prioritize performance, SEO, accessibility, and maintainable code in every project.</p></article>
-          <article class="card"><h3>Reliable Partnership</h3><p>From strategy to post-launch support, we provide clear communication and dependable delivery.</p></article>
-        </div>
+    <section class="about-hero">
+      <div class="about-hero-inner">
+        <h1>Empowering Your Digital Identity</h1>
+        <p>At DigitQuo, we believe every business deserves a powerful online presence without the burden of expensive development costs. We deliver high-quality, affordable website solutions.</p>
       </div>
     </section>
 
     <section class="section reveal">
-      <div class="container">
-        <h2 class="section-title">Our Process</h2>
-        <p class="section-subtitle">A clear workflow that keeps each project focused and on schedule.</p>
-        <div class="process-wrap">
-          <article class="step"><div class="icon">1</div><h3>Consultation</h3><p>Clarify goals and requirements.</p></article>
-          <article class="step"><div class="icon">2</div><h3>Planning</h3><p>Define architecture and timeline.</p></article>
-          <article class="step"><div class="icon">3</div><h3>Design</h3><p>Create an intentional UI direction.</p></article>
-          <article class="step"><div class="icon">4</div><h3>Development</h3><p>Implement robust front and back end.</p></article>
-          <article class="step"><div class="icon">5</div><h3>Testing</h3><p>Validate quality, speed, and SEO.</p></article>
-          <article class="step"><div class="icon">6</div><h3>Launch</h3><p>Deploy and monitor results.</p></article>
+      <div class="about-content">
+        <div class="about-section-header">What We Do</div>
+        <div class="about-what-we-do-grid">
+          <div class="about-service-row"><i class="fa-solid fa-code"></i><span>Custom Website Development</span></div>
+          <div class="about-service-row"><i class="fa-solid fa-user-tie"></i><span>Business & Portfolio Websites</span></div>
+          <div class="about-service-row"><i class="fa-solid fa-cart-shopping"></i><span>E-Commerce Development</span></div>
+          <div class="about-service-row"><i class="fa-solid fa-chart-line"></i><span>SEO & Optimization</span></div>
+        </div>
+
+        <h2 class="about-process-title">Getting Started is Simple</h2>
+        <div class="about-process-grid">
+          <div class="about-process-step">
+            <div class="about-step-number">1</div>
+            <h4>Consultation</h4>
+            <p>We discuss your goals and brand identity.</p>
+          </div>
+          <div class="about-process-step">
+            <div class="about-step-number">2</div>
+            <h4>Design & Dev</h4>
+            <p>We build your modern, fast-loading site.</p>
+          </div>
+          <div class="about-process-step">
+            <div class="about-step-number">3</div>
+            <h4>Launch</h4>
+            <p>Your business goes live to the world!</p>
+          </div>
+        </div>
+
+        <div class="about-why-choose-us">
+          <div class="about-section-header">Why Choose DigitQuo</div>
+          <div class="about-feature-item"><i class="fa-solid fa-circle-check"></i><strong>Affordable Pricing</strong> - Quality websites at budget-friendly plans.</div>
+          <div class="about-feature-item"><i class="fa-solid fa-circle-check"></i><strong>Modern & Clean Designs</strong> - Visually appealing and professional.</div>
+          <div class="about-feature-item"><i class="fa-solid fa-circle-check"></i><strong>SEO Ready</strong> - Built to rank and get noticed online.</div>
+          <div class="about-feature-item"><i class="fa-solid fa-circle-check"></i><strong>Client-Focused Approach</strong> - Solutions tailored to your needs.</div>
+        </div>
+
+        <div class="about-mv-container">
+          <div class="about-mv-card">
+            <div class="about-section-header">Our Mission</div>
+            <div class="about-mv-row"><i class="fa-solid fa-rocket"></i><strong>Affordable & Accessible Web Development for All</strong></div>
+            <div class="about-mv-row"><i class="fa-solid fa-bullseye"></i><p>Helping brands grow & succeed online.</p></div>
+          </div>
+          <div class="about-mv-card">
+            <div class="about-section-header">Our Vision</div>
+            <div class="about-mv-row"><i class="fa-solid fa-trophy"></i><strong>Trusted & Affordable Digital Solutions</strong></div>
+            <div class="about-mv-row"><i class="fa-solid fa-arrow-trend-up"></i><p>Empowering Businesses in the Digital Era.</p></div>
+          </div>
         </div>
       </div>
     </section>
@@ -66,7 +99,7 @@
         <li><a href="pricing.html">Pricing</a></li>
         <li><a href="contact.html">Contact</a></li>
       </ul>
-      <p>&copy; 2026 DigtiQuo. All Rights Reserved.</p>
+      <p>Copyright &copy; 2026 DigitQuo. All Rights Reserved.</p>
     </div>
   </footer>
 
@@ -75,10 +108,3 @@
   <script src="script.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-

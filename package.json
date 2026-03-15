@@ -2,7 +2,7 @@
   "name": "digtiquo-site",
   "version": "1.0.0",
   "private": true,
-  "description": "DigtiQuo website with backend authentication",
+  "description": "DigitQuo website with backend authentication",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

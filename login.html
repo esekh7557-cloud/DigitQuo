@@ -3,23 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DigtiQuo | Login</title>
+  <title>DigitQuo | Login</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg-1: #eef2ff;
-      --bg-2: #e0e7ff;
+      --bg-1: #fdfbff;
+      --bg-2: #f5f3ff;
       --card: #ffffff;
-      --text: #0f172a;
-      --muted: #475569;
-      --primary: #6366f1;
-      --primary-hover: #4f46e5;
-      --border: #cbd5e1;
-      --focus: #818cf8;
+      --text: #1f2937;
+      --muted: #4b5563;
+      --primary: #6d28d9;
+      --primary-hover: #4c1d95;
+      --accent: #a855f7;
+      --border: #e9ddfc;
+      --focus: #a855f7;
       --error: #c83232;
-      --ok: #4f46e5;
+      --ok: #4c1d95;
     }
 
     * {
@@ -36,19 +37,20 @@
       font-family: "Plus Jakarta Sans", sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at 15% 15%, #ffffff 0%, transparent 35%),
-        radial-gradient(circle at 85% 85%, #c7d2fe 0%, transparent 30%),
+        radial-gradient(circle at 14% 18%, rgba(255,255,255,0.95) 0%, transparent 34%),
+        radial-gradient(circle at 84% 82%, rgba(196,181,253,0.9) 0%, transparent 28%),
+        radial-gradient(circle at 78% 18%, rgba(233,221,252,0.9) 0%, transparent 22%),
         linear-gradient(135deg, var(--bg-1), var(--bg-2));
     }
 
     .login-card {
       width: 100%;
       max-width: 430px;
-      background: var(--card);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,245,255,0.98));
       border: 1px solid var(--border);
-      border-radius: 18px;
+      border-radius: 22px;
       padding: 34px 28px;
-      box-shadow: 0 20px 45px rgba(99, 102, 241, 0.14);
+      box-shadow: 0 24px 55px rgba(76, 29, 149, 0.14);
     }
 
     h1 {
@@ -102,7 +104,7 @@
 
     input:focus {
       border-color: var(--focus);
-      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.16);
+      box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.14);
     }
 
     .actions {
@@ -155,18 +157,21 @@
     .btn {
       width: 100%;
       border: 0;
-      border-radius: 11px;
+      border-radius: 12px;
       padding: 12px;
       font-size: 0.97rem;
       font-weight: 700;
       color: #fff;
-      background: var(--primary);
+      background: linear-gradient(135deg, var(--primary), var(--accent));
       cursor: pointer;
-      transition: background-color 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+      box-shadow: 0 12px 24px rgba(109, 40, 217, 0.22);
     }
 
     .btn:hover {
       background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 16px 30px rgba(109, 40, 217, 0.26);
     }
 
     .toggle {
@@ -198,7 +203,7 @@
 <body>
   <main class="login-card" role="main">
     <h1 id="title">Welcome back</h1>
-    <p class="subtitle" id="subtitle">Sign in to access your DigtiQuo dashboard.</p>
+    <p class="subtitle" id="subtitle">Sign in to access your DigitQuo dashboard.</p>
     <p class="status" id="statusText" aria-live="polite"></p>
 
     <form id="authForm" novalidate>
@@ -316,9 +321,9 @@
             : "Reset password";
 
       subtitle.textContent = isLogin
-        ? "Sign in to access your DigtiQuo dashboard."
+        ? "Sign in to access your DigitQuo dashboard."
         : isRegister
-          ? "Create your account to start using DigtiQuo."
+          ? "Create your account to start using DigitQuo."
           : isRecoveryRequest
             ? "Enter your email and we will send you a one-time recovery code."
             : "Enter the OTP from your email and choose a new password.";

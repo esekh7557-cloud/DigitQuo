@@ -106,6 +106,7 @@ const observer = new IntersectionObserver(
 );
 
 document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+applyImageFallbacks();
 
 if (contactForm) {
   contactForm.addEventListener("submit", (event) => {
@@ -155,6 +156,50 @@ function formatInr(value) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
+}
+
+function createImageFallbackDataUrl(label) {
+  const safeLabel = String(label || "DigitQuo")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 40);
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="${safeLabel}">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#f5f3ff" />
+          <stop offset="100%" stop-color="#ede9fe" />
+        </linearGradient>
+      </defs>
+      <rect width="1200" height="800" fill="url(#bg)" />
+      <circle cx="950" cy="180" r="140" fill="#ddd6fe" opacity="0.65" />
+      <circle cx="240" cy="620" r="170" fill="#c4b5fd" opacity="0.35" />
+      <rect x="150" y="170" width="900" height="460" rx="36" fill="#ffffff" stroke="#d8b4fe" stroke-width="3" />
+      <text x="600" y="360" text-anchor="middle" fill="#5b21b6" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="700">DigitQuo</text>
+      <text x="600" y="425" text-anchor="middle" fill="#7c3aed" font-family="Inter, Arial, sans-serif" font-size="26">${safeLabel}</text>
+    </svg>
+  `;
+
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function applyImageFallbacks(root = document) {
+  root.querySelectorAll("img").forEach((img) => {
+    if (img.dataset.fallbackBound === "true") {
+      return;
+    }
+
+    img.dataset.fallbackBound = "true";
+
+    img.addEventListener("error", () => {
+      if (img.dataset.fallbackApplied === "true") {
+        return;
+      }
+
+      img.dataset.fallbackApplied = "true";
+      img.src = createImageFallbackDataUrl(img.alt || "Website preview");
+    });
+  });
 }
 
 function renderAvatar(name, profilePhoto, className = "avatar-photo") {
@@ -221,6 +266,7 @@ function buildProfileMenu(user) {
   `;
 
   navbar.appendChild(userMenu);
+  applyImageFallbacks(userMenu);
 
   const trigger = userMenu.querySelector(".user-trigger");
   const logoutBtn = userMenu.querySelector("#logoutBtn");
@@ -374,6 +420,7 @@ function renderProfilePage(user) {
       </div>
     </div>
   `;
+  applyImageFallbacks(profileRoot);
 }
 
 function renderPlanDetailsPage() {
