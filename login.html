@@ -324,7 +324,7 @@
         : isRegister
           ? "Create Account"
           : isRecoveryRequest
-            ? "Send OTP"
+            ? "Reset Password"
             : "Reset Password";
 
       rememberRow.style.display = isLogin ? "flex" : "none";
@@ -456,7 +456,6 @@
         throw error;
       }
 
-      setMode("recover-verify", false);
       setStatus("Reset link sent. Check your email, open the link, then set your new password.", "ok");
     }
 
