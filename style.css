@@ -44,8 +44,32 @@ img { width: 100%; display: block; border-radius: 12px; }
   justify-content: space-between;
   gap: 24px;
 }
-.logo { font-size: 1.2rem; font-weight: 800; color: var(--secondary); }
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--secondary);
+}
 .logo span { color: var(--primary); }
+.logo-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.logo-word {
+  display: inline-block;
+  color: var(--secondary);
+}
+.logo-mark {
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+  border-radius: 0;
+  display: block;
+}
 .mobile-login {
   display: none;
   width: 40px;
