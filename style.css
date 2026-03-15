@@ -1490,6 +1490,8 @@ footer { padding: 30px 0 42px; border-top: 1px solid rgba(216, 180, 254, 0.25); 
     align-items: flex-start;
     transform: translateX(-100%);
     transition: var(--transition);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .nav-links.open { transform: translateX(0); }
   .menu-toggle {
