@@ -232,11 +232,6 @@
         <input id="password" name="password" type="password" placeholder="Enter your password" minlength="8" required />
       </div>
 
-      <div class="field" id="otpField" hidden>
-        <label for="otp">OTP code</label>
-        <input id="otp" name="otp" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="Enter the 6-digit code" maxlength="6" />
-      </div>
-
       <div class="field" id="newPasswordField" hidden>
         <label for="newPassword">New password</label>
         <input id="newPassword" name="newPassword" type="password" placeholder="Create a new password" minlength="8" />
@@ -284,8 +279,6 @@
     const phoneInput = document.getElementById("phone");
     const photoInput = document.getElementById("profilePhoto");
     const passwordInput = document.getElementById("password");
-    const otpField = document.getElementById("otpField");
-    const otpInput = document.getElementById("otp");
     const newPasswordField = document.getElementById("newPasswordField");
     const newPasswordInput = document.getElementById("newPassword");
     const confirmPasswordField = document.getElementById("confirmPasswordField");
@@ -296,8 +289,6 @@
     const dqAuth = window.dqAuth;
 
     let mode = "login";
-    let recoveryNeedsOtp = true;
-
     function setStatus(message, type) {
       statusText.textContent = message || "";
       statusText.className = "status";
@@ -325,8 +316,8 @@
         : isRegister
           ? "Create your account to start using DigitQuo."
           : isRecoveryRequest
-            ? "Enter your email and we will send you a one-time recovery code."
-            : "Enter the OTP from your email and choose a new password.";
+            ? "Enter your email and we will send you a password reset link."
+            : "Open the reset link from your email, then choose a new password.";
 
       submitBtn.textContent = isLogin
         ? "Log In"
@@ -340,7 +331,6 @@
       nameField.hidden = !isRegister;
       phoneField.hidden = !isRegister;
       photoField.hidden = !isRegister;
-      otpField.hidden = !isRecoveryVerify || !recoveryNeedsOtp;
       newPasswordField.hidden = !isRecoveryVerify;
       confirmPasswordField.hidden = !isRecoveryVerify;
       passwordInput.parentElement.hidden = isRecoveryRequest || isRecoveryVerify;
@@ -348,7 +338,6 @@
       nameInput.required = isRegister;
       phoneInput.required = isRegister;
       passwordInput.required = isLogin || isRegister;
-      otpInput.required = isRecoveryVerify && recoveryNeedsOtp;
       newPasswordInput.required = isRecoveryVerify;
       confirmPasswordInput.required = isRecoveryVerify;
 
@@ -365,7 +354,6 @@
       forgotPasswordBtn.hidden = !isLogin;
 
       if (!isRecoveryVerify) {
-        otpInput.value = "";
         newPasswordInput.value = "";
         confirmPasswordInput.value = "";
       }
@@ -457,7 +445,6 @@
     });
 
     forgotPasswordBtn.addEventListener("click", () => {
-      recoveryNeedsOtp = true;
       setMode("recover-request");
     });
 
@@ -469,29 +456,8 @@
         throw error;
       }
 
-      recoveryNeedsOtp = true;
       setMode("recover-verify", false);
-      setStatus("OTP sent. Check your email for the recovery code, then enter it below with your new password.", "ok");
-    }
-
-    async function verifyRecoveryOtpAndResetPassword(client, email, otp, nextPassword) {
-      const { error: verifyError } = await client.auth.verifyOtp({
-        email,
-        token: otp,
-        type: "recovery",
-      });
-
-      if (verifyError) {
-        throw verifyError;
-      }
-
-      const { error: updateError } = await client.auth.updateUser({
-        password: nextPassword,
-      });
-
-      if (updateError) {
-        throw updateError;
-      }
+      setStatus("Reset link sent. Check your email, open the link, then set your new password.", "ok");
     }
 
     async function handlePasswordRecoveryFromLink(client) {
@@ -502,14 +468,13 @@
 
       const { data, error } = await client.auth.getSession();
       if (error || !data.session) {
-        recoveryNeedsOtp = true;
-        setMode("recover-verify", false);
+        setMode("recover-request", false);
+        setStatus("Open the password reset link from your email to continue.", "error");
         return;
       }
 
-      recoveryNeedsOtp = false;
       setMode("recover-verify", false);
-      setStatus("Recovery session detected. Enter your new password below. OTP is not required if you opened the recovery link from your email.", "ok");
+      setStatus("Recovery session detected. Enter your new password below.", "ok");
     }
 
     authForm.addEventListener("submit", async (event) => {
@@ -520,7 +485,6 @@
       const fullName = nameInput.value.trim();
       const phone = phoneInput.value.trim();
       const password = passwordInput.value;
-      const otp = otpInput.value.trim();
       const newPassword = newPasswordInput.value;
       const confirmPassword = confirmPasswordInput.value;
       const remember = rememberInput.checked;
@@ -541,10 +505,8 @@
       }
 
       if (mode === "recover-verify") {
-        const needsOtp = !otpField.hidden;
-
-        if ((needsOtp && otp.length !== 6) || newPassword.length < 8 || newPassword !== confirmPassword) {
-          setStatus("Enter the 6-digit OTP and matching passwords with at least 8 characters.", "error");
+        if (newPassword.length < 8 || newPassword !== confirmPassword) {
+          setStatus("Enter matching passwords with at least 8 characters.", "error");
           return;
         }
       }
@@ -596,21 +558,16 @@
         }
 
         if (mode === "recover-verify") {
-          if (!otpField.hidden) {
-            await verifyRecoveryOtpAndResetPassword(client, email, otp, newPassword);
-          } else {
-            const { error } = await client.auth.updateUser({ password: newPassword });
-            if (error) {
-              setStatus(error.message || "Could not update password.", "error");
-              return;
-            }
+          const { error } = await client.auth.updateUser({ password: newPassword });
+          if (error) {
+            setStatus(error.message || "Could not update password.", "error");
+            return;
           }
 
           setMode("login", false);
           passwordInput.value = "";
           newPasswordInput.value = "";
           confirmPasswordInput.value = "";
-          otpInput.value = "";
           setStatus("Password updated. You can now log in with your new password.", "ok");
           return;
         }
@@ -650,7 +607,6 @@
 
           client.auth.onAuthStateChange((eventName) => {
             if (eventName === "PASSWORD_RECOVERY") {
-              recoveryNeedsOtp = false;
               setMode("recover-verify", false);
               setStatus("Recovery link confirmed. Enter your new password below.", "ok");
             }
