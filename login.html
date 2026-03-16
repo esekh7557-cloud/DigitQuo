@@ -290,6 +290,16 @@
     const dqAuth = window.dqAuth;
 
     let mode = "login";
+
+    function getPostLoginRedirect() {
+      const query = new URLSearchParams(window.location.search);
+      const redirect = query.get("redirect");
+      if (!redirect || !/^[a-zA-Z0-9-]+\.html$/.test(redirect)) {
+        return "index.html";
+      }
+
+      return redirect;
+    }
     function setStatus(message, type) {
       statusText.textContent = message || "";
       statusText.className = "status";
@@ -585,7 +595,7 @@
         persistRememberedLogin(email, remember);
         setStatus(`Welcome, ${data.user.email}`, "ok");
         window.setTimeout(() => {
-          window.location.href = "index.html";
+          window.location.href = getPostLoginRedirect();
         }, 900);
       } catch (error) {
         setStatus(error.message || "Could not connect to Supabase.", "error");

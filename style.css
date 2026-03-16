@@ -52,7 +52,7 @@ img { width: 100%; display: block; border-radius: 12px; }
   font-weight: 800;
   color: var(--secondary);
 }
-.logo span { color: var(--primary); }
+.logo-word span { color: var(--primary); }
 .logo-icon {
   display: inline-flex;
   align-items: center;
@@ -64,8 +64,8 @@ img { width: 100%; display: block; border-radius: 12px; }
   color: var(--secondary);
 }
 .logo-mark {
-  width: 62px;
-  height: 62px;
+  width: 42px;
+  height: 42px;
   object-fit: contain;
   border-radius: 0;
   display: block;
@@ -93,8 +93,33 @@ img { width: 100%; display: block; border-radius: 12px; }
   display: none !important;
 }
 .nav-links { display: flex; align-items: center; gap: 22px; list-style: none; }
-.nav-links a { color: #312e81; font-weight: 500; transition: var(--transition); }
+.nav-links a {
+  position: relative;
+  color: #312e81;
+  font-weight: 500;
+  transition: color 0.28s ease;
+}
+.nav-links a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -6px;
+  width: 100%;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 999px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.28s ease, height 0.28s ease;
+}
 .nav-links a:hover, .nav-links a.active { color: var(--primary); }
+.nav-links a:hover::after,
+.nav-links a.active::after {
+  transform: scaleX(1);
+}
+.nav-links a.active::after {
+  height: 4px;
+}
 .menu-toggle {
   display: none;
   background: none;
@@ -121,9 +146,17 @@ img { width: 100%; display: block; border-radius: 12px; }
 .btn-secondary { background: #fff; color: var(--secondary); border-color: var(--border); }
 .btn-secondary:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-2px); }
 
+.nav-cta {
+  min-width: 112px;
+  justify-content: center;
+}
+
 .user-menu {
   position: relative;
   margin-left: auto;
+  min-width: 112px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .user-trigger {
@@ -808,6 +841,14 @@ img { width: 100%; display: block; border-radius: 12px; }
   gap: 12px;
 }
 .field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.field-block {
+  display: grid;
+  gap: 8px;
+}
+.field-block label {
+  font-weight: 600;
+  color: var(--secondary);
+}
 input, textarea {
   width: 100%;
   border: 1px solid var(--border);
@@ -818,7 +859,44 @@ input, textarea {
   transition: var(--transition);
 }
 input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.16); }
+select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-family: inherit;
+  outline: none;
+  transition: var(--transition);
+  background: #fff;
+}
+select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.16); }
 textarea { min-height: 130px; resize: vertical; }
+
+.quote-request-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.quote-request-sidebar {
+  position: sticky;
+  top: 110px;
+}
+
+.quote-request-sidebar .card {
+  display: grid;
+  gap: 14px;
+}
+
+.quote-request-list {
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.quote-request-list li + li {
+  margin-top: 8px;
+}
 
 footer { padding: 30px 0 42px; border-top: 1px solid rgba(216, 180, 254, 0.25); margin-top: 88px; color: var(--surface); background: linear-gradient(135deg, #2e1065, #4c1d95); }
 .footer-wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -1478,11 +1556,24 @@ footer { padding: 30px 0 42px; border-top: 1px solid rgba(216, 180, 254, 0.25); 
   box-shadow: 0 14px 30px rgba(255, 255, 255, 0.18);
 }
 
+@media (min-width: 1001px) {
+  .navbar {
+    position: relative;
+  }
+
+  .nav-links {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
 @media (max-width: 1000px) {
   .hero-wrap, .contact-wrap { grid-template-columns: 1fr; }
   .navbar { justify-content: flex-start; }
   .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .plan-layout { grid-template-columns: 1fr; }
+  .quote-request-layout { grid-template-columns: 1fr; }
   .process-wrap { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .project-item,
   .project-item:nth-of-type(even) {
@@ -1500,6 +1591,9 @@ footer { padding: 30px 0 42px; border-top: 1px solid rgba(216, 180, 254, 0.25); 
   }
   .profile-grid {
     grid-template-columns: 1fr;
+  }
+  .quote-request-sidebar {
+    position: static;
   }
   .nav-links {
     position: fixed;

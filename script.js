@@ -4,9 +4,12 @@ const mobileLogin = document.querySelector(".mobile-login");
 const navCta = document.querySelector(".nav-cta");
 const navbar = document.querySelector(".navbar");
 const contactForm = document.getElementById("contactForm");
+const portfolioQuoteLink = document.getElementById("portfolioQuoteLink");
+const quoteRequestForm = document.getElementById("quoteRequestForm");
 const cartItems = document.getElementById("cartItems");
 const cartSummary = document.getElementById("cartSummary");
 const planDetailsRoot = document.getElementById("planDetailsRoot");
+const quoteRequestRoot = document.getElementById("quoteRequestRoot");
 const CART_STORAGE_KEY = "dq_cart_items";
 const dqAuth = window.dqAuth;
 const PLAN_DETAILS = {
@@ -127,6 +130,31 @@ if (contactForm) {
   });
 }
 
+if (quoteRequestForm) {
+  quoteRequestForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(quoteRequestForm);
+    const fullName = formData.get("fullName") || "";
+    const email = formData.get("email") || "";
+    const phone = formData.get("phone") || "";
+    const businessName = formData.get("businessName") || "";
+    const websiteType = formData.get("websiteType") || "";
+    const pageCount = formData.get("pageCount") || "";
+    const budget = formData.get("budget") || "";
+    const timeline = formData.get("timeline") || "";
+    const features = formData.get("features") || "";
+    const message = formData.get("message") || "";
+
+    const subject = encodeURIComponent(`Website Quote Request from ${fullName || "DigitQuo Client"}`);
+    const body = encodeURIComponent(
+      `Name: ${fullName}\nEmail: ${email}\nPhone: ${phone}\nBusiness Name: ${businessName}\nWebsite Type: ${websiteType}\nEstimated Pages: ${pageCount}\nBudget Range: ${budget}\nPreferred Timeline: ${timeline}\nKey Features: ${features}\n\nProject Details:\n${message}`
+    );
+
+    window.location.href = `mailto:digitquo@gmail.com?subject=${subject}&body=${body}`;
+  });
+}
+
 function getInitials(name) {
   return String(name || "")
     .split(/\s+/)
@@ -229,10 +257,6 @@ function buildProfileMenu(user) {
     mobileLogin.classList.add("is-hidden");
   }
 
-  if (navCta) {
-    navCta.classList.add("is-hidden");
-  }
-
   const userMenu = document.createElement("div");
   userMenu.className = "user-menu";
   userMenu.innerHTML = `
@@ -265,7 +289,11 @@ function buildProfileMenu(user) {
     </div>
   `;
 
-  navbar.appendChild(userMenu);
+  if (navCta && navCta.parentNode) {
+    navCta.replaceWith(userMenu);
+  } else {
+    navbar.appendChild(userMenu);
+  }
   applyImageFallbacks(userMenu);
 
   const trigger = userMenu.querySelector(".user-trigger");
@@ -485,27 +513,70 @@ function renderPlanDetailsPage() {
   `;
 }
 
+function bindPortfolioQuoteTrigger(user) {
+  if (!portfolioQuoteLink) {
+    return;
+  }
+
+  portfolioQuoteLink.href = user ? "quote-request.html" : "login.html?redirect=quote-request.html";
+}
+
+function renderQuoteRequestPage(user) {
+  if (!quoteRequestRoot) {
+    return;
+  }
+
+  if (!user) {
+    window.location.href = "login.html?redirect=quote-request.html";
+    return;
+  }
+
+  const quoteName = quoteRequestForm?.elements?.namedItem("fullName");
+  const quoteEmail = quoteRequestForm?.elements?.namedItem("email");
+  const quotePhone = quoteRequestForm?.elements?.namedItem("phone");
+
+  if (quoteName) {
+    quoteName.value = user.fullName || "";
+  }
+
+  if (quoteEmail) {
+    quoteEmail.value = user.email || "";
+  }
+
+  if (quotePhone) {
+    quotePhone.value = user.phone || "";
+  }
+}
+
 async function initAuthUi() {
   if (!dqAuth || !dqAuth.isConfigured()) {
+    bindPortfolioQuoteTrigger(null);
     renderCartPage(null);
     renderProfilePage(null);
+    renderQuoteRequestPage(null);
     return;
   }
 
   try {
     const user = await dqAuth.getCurrentUser();
     if (!user) {
+      bindPortfolioQuoteTrigger(null);
       renderCartPage(null);
       renderProfilePage(null);
+      renderQuoteRequestPage(null);
       return;
     }
 
+    bindPortfolioQuoteTrigger(user);
     buildProfileMenu(user);
     renderCartPage(user);
     renderProfilePage(user);
+    renderQuoteRequestPage(user);
   } catch {
+    bindPortfolioQuoteTrigger(null);
     renderCartPage(null);
     renderProfilePage(null);
+    renderQuoteRequestPage(null);
   }
 }
 

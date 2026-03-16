@@ -96,7 +96,9 @@
 
     .hero-text h1 span {
       background: linear-gradient(to right, #ddd6fe, #a78bfa);
+      background-clip: text;
       -webkit-background-clip: text;
+      color: transparent;
       -webkit-text-fill-color: transparent;
     }
 
@@ -114,6 +116,18 @@
       padding: 40px;
       border-radius: 24px;
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .quote-card-title {
+      margin-bottom: 15px;
+      color: var(--accent);
+    }
+
+    .glass-card .quote-card-text {
+      font-size: 0.95rem;
+      margin-bottom: 20px;
+      color: #ffffff;
+      line-height: 1.7;
     }
 
     .portfolio {
@@ -187,6 +201,10 @@
     .btn-visit:hover {
       transform: translateY(-2px);
       box-shadow: 0 16px 34px rgba(109, 40, 217, 0.34);
+    }
+
+    .quote-card-button {
+      width: 100%;
     }
 
     .project-visual {
@@ -287,9 +305,9 @@
               <a href="#portfolio" class="btn-visit">Explore Our Portfolio</a>
             </div>
             <div class="glass-card">
-              <h3 style="margin-bottom:15px; color:var(--accent);">Ready to Scale?</h3>
-              <p style="font-size:0.9rem; margin-bottom:20px;">Get a fully custom, SEO-ready website delivered in as little as 10 days.</p>
-              <button style="width:100%; padding:15px; border:none; border-radius:12px; background:var(--white); color:var(--primary-dark); font-weight:800; cursor:pointer;">Request Quote</button>
+              <h3 class="quote-card-title">Ready to Scale?</h3>
+              <p class="quote-card-text">Get a fully custom, SEO-ready website delivered in as little as 10 days.</p>
+              <a href="login.html?redirect=quote-request.html" class="btn-visit quote-card-button" id="portfolioQuoteLink">Request Quote</a>
             </div>
           </div>
         </div>

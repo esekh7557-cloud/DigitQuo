@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DigitQuo | Quote Request</title>
+  <link rel="icon" href="images/favicon.ico" type="image/x-icon" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container navbar">
+      <a href="index.html" class="logo"><span class="logo-icon"><img src="images/LOGO.png" alt="DigitQuo logo" class="logo-mark" /></span><span class="logo-word">Digit<span>Quo</span></span></a>
+      <a href="login.html" class="mobile-login" aria-label="Login">&#128100;</a>
+      <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">&#9776;</button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="portfolio.html">Portfolio</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+      <a href="login.html" class="btn btn-primary nav-cta">Login</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="section reveal">
+      <div class="container" id="quoteRequestRoot">
+        <div class="quote-request-layout">
+          <article class="card">
+            <span class="eyebrow">Custom Website Brief</span>
+            <h1 class="section-title">Tell us what you want built</h1>
+            <p class="section-subtitle">Share your website type, features, and timeline. On submit, your request opens an email addressed to digitquo@gmail.com with all details filled in.</p>
+
+            <form id="quoteRequestForm" class="contact-form">
+              <div class="field-row">
+                <div class="field-block">
+                  <label for="quoteFullName">Full Name</label>
+                  <input id="quoteFullName" name="fullName" type="text" placeholder="Your full name" required />
+                </div>
+                <div class="field-block">
+                  <label for="quoteEmail">Email</label>
+                  <input id="quoteEmail" name="email" type="email" placeholder="you@example.com" required />
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-block">
+                  <label for="quotePhone">Phone</label>
+                  <input id="quotePhone" name="phone" type="tel" placeholder="+91 98765 43210" />
+                </div>
+                <div class="field-block">
+                  <label for="quoteBusinessName">Business Name</label>
+                  <input id="quoteBusinessName" name="businessName" type="text" placeholder="Your company or brand" required />
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-block">
+                  <label for="quoteWebsiteType">Website Type</label>
+                  <select id="quoteWebsiteType" name="websiteType" required>
+                    <option value="">Select website type</option>
+                    <option>Business Website</option>
+                    <option>E-commerce Store</option>
+                    <option>Portfolio Website</option>
+                    <option>Landing Page</option>
+                    <option>Blog or Content Site</option>
+                    <option>Booking or Service Website</option>
+                    <option>Custom Web App</option>
+                  </select>
+                </div>
+                <div class="field-block">
+                  <label for="quotePageCount">Estimated Pages</label>
+                  <select id="quotePageCount" name="pageCount" required>
+                    <option value="">Select page count</option>
+                    <option>1-3 pages</option>
+                    <option>4-7 pages</option>
+                    <option>8-12 pages</option>
+                    <option>12+ pages</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-block">
+                  <label for="quoteBudget">Budget Range</label>
+                  <select id="quoteBudget" name="budget" required>
+                    <option value="">Select budget range</option>
+                    <option>Below INR 15,000</option>
+                    <option>INR 15,000 - 30,000</option>
+                    <option>INR 30,000 - 60,000</option>
+                    <option>INR 60,000+</option>
+                  </select>
+                </div>
+                <div class="field-block">
+                  <label for="quoteTimeline">Preferred Timeline</label>
+                  <select id="quoteTimeline" name="timeline" required>
+                    <option value="">Select timeline</option>
+                    <option>Within 10 days</option>
+                    <option>2-4 weeks</option>
+                    <option>1-2 months</option>
+                    <option>Flexible</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field-block">
+                <label for="quoteFeatures">Key Features Needed</label>
+                <input id="quoteFeatures" name="features" type="text" placeholder="SEO, payment gateway, booking, CMS, chat, forms..." />
+              </div>
+
+              <div class="field-block">
+                <label for="quoteMessage">Project Details</label>
+                <textarea id="quoteMessage" name="message" placeholder="Describe your business, goals, preferred style, pages, and anything else we should know." required></textarea>
+              </div>
+
+              <button type="submit" class="btn btn-primary">Send Quote Request</button>
+            </form>
+          </article>
+
+          <aside class="quote-request-sidebar">
+            <article class="card">
+              <h2>What to include</h2>
+              <ul class="quote-request-list">
+                <li>Your business type and who the website is for.</li>
+                <li>The main pages or features you need.</li>
+                <li>Your target launch timeline and budget range.</li>
+                <li>Any example websites or design direction.</li>
+              </ul>
+            </article>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-wrap">
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="portfolio.html">Portfolio</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+      <p>&copy; 2026 DigitQuo. All Rights Reserved.</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
