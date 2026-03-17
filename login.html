@@ -656,26 +656,28 @@
 
         if (mode === "register") {
           const profilePhoto = await readPhotoFile(photoInput.files[0]);
-          const { data: authData, error: authError } = await client.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                full_name: fullName,
-                phone,
-                profile_photo: profilePhoto,
-              },
+        const { data: authData, error: authError } = await client.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              phone,
+              profile_photo: profilePhoto,
             },
-          });
+          },
+        });
 
-          if (authError) {
-            setStatus(authError.message || "Could not create account.", "error");
-            return;
-          }
-
-          setMode("login", false);
-          setStatus("Account created successfully. Check your email if confirmation is enabled, then log in. Admin access must be granted manually.", "ok");
+        if (authError) {
+          setStatus(authError.message || "Could not create account.", "error");
           return;
+        }
+
+        await ensureProfile(client, authData.user);
+
+        setMode("login", false);
+        setStatus("Account created successfully. Check your email if confirmation is enabled, then log in. Admin access must be granted manually.", "ok");
+        return;
         }
 
         if (mode === "recover-request") {
