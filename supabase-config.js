@@ -77,5 +77,31 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BqSIT0GcmJ54v0PHVf7Hxw_COvYC9L7
     },
   };
 
-  global.dqAuth = auth;
+  // Extended auth methods for admin access
+  const authExtended = {
+    ...auth,
+    async getUserProfile(userId) {
+      const client = await this.getClient();
+      if (!client) return null;
+
+      const { data, error } = await client.from("profiles").select("*").eq("id", userId).single();
+
+      return error ? null : data;
+    },
+    async isAdmin(userId) {
+      const profile = await this.getUserProfile(userId);
+      return profile && profile.role === "admin";
+    },
+    async checkAdminAccess() {
+      const { data: sessionData } = await (await this.getClient()).auth.getSession();
+
+      if (!sessionData?.session) {
+        return false;
+      }
+
+      return this.isAdmin(sessionData.session.user.id);
+    },
+  };
+
+  global.dqAuth = authExtended;
 })(window);
