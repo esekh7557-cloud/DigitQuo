@@ -215,6 +215,24 @@ CREATE TRIGGER orders_update_updated_at BEFORE UPDATE ON orders
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
+-- Auto-create profile when auth.users row is added
+-- ============================================================================
+CREATE OR REPLACE FUNCTION create_profile_for_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO profiles (id, email, full_name, role, is_active)
+  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data ->> 'full_name', 'customer', true)
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER auth_users_after_insert
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION create_profile_for_new_user();
+
+-- ============================================================================ 
 -- MIGRATION: Add missing columns to profiles table
 -- ============================================================================
 -- Execute these if the table was already created without these columns:
