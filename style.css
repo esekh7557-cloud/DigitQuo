@@ -41,7 +41,7 @@ img { width: 100%; display: block; border-radius: 12px; }
   height: 76px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 24px;
 }
 .logo {
@@ -92,7 +92,13 @@ img { width: 100%; display: block; border-radius: 12px; }
 .nav-cta.is-hidden {
   display: none !important;
 }
-.nav-links { display: flex; align-items: center; gap: 22px; list-style: none; }
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  list-style: none;
+  margin-left: 0;
+}
 .nav-links a {
   position: relative;
   color: #312e81;
@@ -149,14 +155,17 @@ img { width: 100%; display: block; border-radius: 12px; }
 .nav-cta {
   min-width: 112px;
   justify-content: center;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .user-menu {
   position: relative;
-  margin-left: auto;
   min-width: 112px;
   display: flex;
   justify-content: flex-end;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .user-trigger {
@@ -1556,21 +1565,12 @@ footer { padding: 30px 0 42px; border-top: 1px solid rgba(216, 180, 254, 0.25); 
   box-shadow: 0 14px 30px rgba(255, 255, 255, 0.18);
 }
 
-@media (min-width: 1001px) {
-  .navbar {
-    position: relative;
-  }
-
-  .nav-links {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-}
-
 @media (max-width: 1000px) {
   .hero-wrap, .contact-wrap { grid-template-columns: 1fr; }
-  .navbar { justify-content: flex-start; }
+  .navbar {
+    justify-content: flex-start;
+    gap: 6px;
+  }
   .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .plan-layout { grid-template-columns: 1fr; }
   .quote-request-layout { grid-template-columns: 1fr; }
@@ -1610,12 +1610,13 @@ footer { padding: 30px 0 42px; border-top: 1px solid rgba(216, 180, 254, 0.25); 
     transition: var(--transition);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    margin-left: 0;
   }
   .nav-links.open { transform: translateX(0); }
   .menu-toggle {
     display: block;
     order: -1;
-    margin-right: 6px;
+    margin-right: 0;
   }
   .mobile-login {
     display: inline-flex;
