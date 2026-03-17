@@ -3,6 +3,8 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BqSIT0GcmJ54v0PHVf7Hxw_COvYC9L7";
 
 (function initDigitQuoAuth(global) {
+  const supabaseSdk = global.supabase;
+
   function hasValidConfig() {
     return (
       typeof SUPABASE_URL === "string" &&
@@ -28,19 +30,28 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BqSIT0GcmJ54v0PHVf7Hxw_COvYC9L7
     };
   }
 
+  function setDisplay(element, visible, visibleDisplay) {
+    if (!element) {
+      return;
+    }
+
+    element.style.display = visible ? visibleDisplay : "none";
+  }
+
   const auth = {
+    client: null,
     isConfigured: hasValidConfig,
     async getClient() {
       if (!hasValidConfig()) {
         return null;
       }
 
-      if (!global.supabase || typeof global.supabase.createClient !== "function") {
+      if (!supabaseSdk || typeof supabaseSdk.createClient !== "function") {
         throw new Error("Supabase SDK not loaded.");
       }
 
       if (!this.client) {
-        this.client = global.supabase.createClient(
+        this.client = supabaseSdk.createClient(
           SUPABASE_URL,
           SUPABASE_PUBLISHABLE_KEY || SUPABASE_ANON_KEY,
           {
@@ -50,22 +61,31 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BqSIT0GcmJ54v0PHVf7Hxw_COvYC9L7
             },
           }
         );
+        global.supabaseClient = this.client;
       }
 
       return this.client;
     },
-    async getCurrentUser() {
+    async getSession() {
       const client = await this.getClient();
       if (!client) {
         return null;
       }
 
-      const { data, error } = await client.auth.getUser();
-      if (error || !data.user) {
+      const { data, error } = await client.auth.getSession();
+      if (error) {
         return null;
       }
 
-      return normalizeUser(data.user);
+      return data.session || null;
+    },
+    async getCurrentUser() {
+      const session = await this.getSession();
+      if (!session) {
+        return null;
+      }
+
+      return normalizeUser(session.user);
     },
     async signOut() {
       const client = await this.getClient();
@@ -77,29 +97,66 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BqSIT0GcmJ54v0PHVf7Hxw_COvYC9L7
     },
   };
 
-  // Extended auth methods for admin access
   const authExtended = {
     ...auth,
     async getUserProfile(userId) {
       const client = await this.getClient();
-      if (!client) return null;
+      if (!client) {
+        return null;
+      }
 
       const { data, error } = await client.from("profiles").select("*").eq("id", userId).single();
-
       return error ? null : data;
+    },
+    async getCurrentProfile() {
+      const session = await this.getSession();
+      if (!session) {
+        return null;
+      }
+
+      return this.getUserProfile(session.user.id);
     },
     async isAdmin(userId) {
       const profile = await this.getUserProfile(userId);
-      return profile && profile.role === "admin";
+      return Boolean(profile && profile.role === "admin" && profile.is_active !== false);
     },
     async checkAdminAccess() {
-      const { data: sessionData } = await (await this.getClient()).auth.getSession();
+      const profile = await this.getCurrentProfile();
+      return Boolean(profile && profile.role === "admin" && profile.is_active !== false);
+    },
+    async bindAdminUi(options = {}) {
+      const {
+        loginButtonId,
+        adminButtonId,
+        adminNavItemId,
+        loginButtonDisplay = "inline-flex",
+        adminButtonDisplay = "inline-flex",
+        adminNavItemDisplay = "list-item",
+      } = options;
 
-      if (!sessionData?.session) {
-        return false;
+      const loginButton = loginButtonId ? document.getElementById(loginButtonId) : null;
+      const adminButton = adminButtonId ? document.getElementById(adminButtonId) : null;
+      const adminNavItem = adminNavItemId ? document.getElementById(adminNavItemId) : null;
+
+      const sync = async () => {
+        const hasAdminAccess = await this.checkAdminAccess();
+        setDisplay(loginButton, !hasAdminAccess, loginButtonDisplay);
+        setDisplay(adminButton, hasAdminAccess, adminButtonDisplay);
+        setDisplay(adminNavItem, hasAdminAccess, adminNavItemDisplay);
+      };
+
+      await sync();
+
+      const client = await this.getClient();
+      if (!client) {
+        return null;
       }
 
-      return this.isAdmin(sessionData.session.user.id);
+      return client.auth.onAuthStateChange(() => {
+        sync().catch((error) => {
+          console.error("Error updating admin controls:", error);
+        });
+      });
     },
   };
 

@@ -223,6 +223,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .top-bar {
@@ -316,14 +317,11 @@ body {
 }
 
 /* ========== CONTENT SECTIONS ========== */
-.main-content > div:first-of-type {
+.content-section {
+  display: none;
   flex: 1;
   overflow-y: auto;
   padding: 28px;
-}
-
-.content-section {
-  display: none;
 }
 
 .content-section.active {

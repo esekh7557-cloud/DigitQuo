@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE NOT NULL,
   full_name TEXT,
+  phone TEXT,
+  profile_photo TEXT,
   role TEXT DEFAULT 'customer' CHECK (role IN ('admin', 'customer')),
   subscription_plan TEXT DEFAULT 'free' CHECK (subscription_plan IN ('free', 'basic', 'business', 'professional')),
   is_active BOOLEAN DEFAULT true,
@@ -71,6 +73,19 @@ CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 
 -- ============================================================================
+-- HELPER FUNCTIONS
+-- ============================================================================
+-- Function to check if current user is admin
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin' AND is_active = true
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================================
 -- ROW LEVEL SECURITY (RLS) - Enable RLS on all tables
 -- ============================================================================
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -81,76 +96,55 @@ ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 -- ============================================================================
 -- PROFILES RLS POLICIES
 -- ============================================================================
--- Admins can see all profiles
-CREATE POLICY "Admins can view all profiles" ON profiles
-  FOR SELECT
-  USING (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE role = 'admin'
-    )
-  );
-
 -- Users can view only their own profile
 CREATE POLICY "Users can view own profile" ON profiles
   FOR SELECT
-  USING (auth.uid() = id);
+  USING (auth.uid() = id OR is_admin());
 
 -- Users can update only their own profile
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
+  USING (auth.uid() = id OR is_admin())
+  WITH CHECK (auth.uid() = id OR is_admin());
 
--- Only admins can insert new profiles
-CREATE POLICY "Admins can create profiles" ON profiles
+-- Users can create their own profile (no admin check to avoid recursion)
+CREATE POLICY "Users can create their own profile" ON profiles
   FOR INSERT
-  WITH CHECK (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE role = 'admin'
-    )
-  );
+  WITH CHECK (auth.uid() = id OR is_admin());
 
--- Only admins can delete profiles
-CREATE POLICY "Admins can delete profiles" ON profiles
-  FOR DELETE
-  USING (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE role = 'admin'
-    )
-  );
+-- Admins bypass all policies (check in INSERT/UPDATE/DELETE operations)
+CREATE POLICY "Service role access to profiles" ON profiles
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
 
 -- ============================================================================
 -- PROJECTS RLS POLICIES
 -- ============================================================================
--- Admins can view all projects
-CREATE POLICY "Admins can view all projects" ON projects
-  FOR SELECT
-  USING (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE role = 'admin'
-    )
-  );
-
 -- Users can view only their own projects
 CREATE POLICY "Users can view own projects" ON projects
   FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (auth.uid() = user_id OR is_admin());
 
 -- Users can create projects
 CREATE POLICY "Users can create projects" ON projects
   FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (auth.uid() = user_id OR is_admin());
 
 -- Users can update only their own projects
 CREATE POLICY "Users can update own projects" ON projects
   FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  USING (auth.uid() = user_id OR is_admin())
+  WITH CHECK (auth.uid() = user_id OR is_admin());
 
 -- Users can delete only their own projects
 CREATE POLICY "Users can delete own projects" ON projects
   FOR DELETE
-  USING (auth.uid() = user_id);
+  USING (auth.uid() = user_id OR is_admin());
+
+-- Service role (admin) bypass
+CREATE POLICY "Service role access to projects" ON projects
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
 
 -- ============================================================================
 -- COUPONS RLS POLICIES
@@ -158,88 +152,46 @@ CREATE POLICY "Users can delete own projects" ON projects
 -- Everyone can view active coupons (for validation at checkout)
 CREATE POLICY "Anyone can view active coupons" ON coupons
   FOR SELECT
-  USING (is_active = true);
+  USING (is_active = true OR is_admin());
 
--- Admins can view all coupons (including inactive)
-CREATE POLICY "Admins can view all coupons" ON coupons
-  FOR SELECT
-  USING (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE role = 'admin'
-    )
-  );
+-- Browser-authenticated admins can manage all coupons
+CREATE POLICY "Admins can manage coupons" ON coupons
+  FOR ALL
+  USING (is_admin())
+  WITH CHECK (is_admin());
 
--- Only admins can create coupons
-CREATE POLICY "Admins can create coupons" ON coupons
-  FOR INSERT
-  WITH CHECK (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE role = 'admin'
-    )
-  );
-
--- Only admins can update coupons
-CREATE POLICY "Admins can update coupons" ON coupons
-  FOR UPDATE
-  USING (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE role = 'admin'
-    )
-  );
-
--- Only admins can delete coupons
-CREATE POLICY "Admins can delete coupons" ON coupons
-  FOR DELETE
-  USING (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE role = 'admin'
-    )
-  );
+-- Service role can manage all coupons (admin access)
+CREATE POLICY "Service role access to coupons" ON coupons
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
 
 -- ============================================================================
 -- ORDERS RLS POLICIES
 -- ============================================================================
--- Admins can view all orders
-CREATE POLICY "Admins can view all orders" ON orders
-  FOR SELECT
-  USING (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE role = 'admin'
-    )
-  );
-
 -- Users can view only their own orders
 CREATE POLICY "Users can view own orders" ON orders
   FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (auth.uid() = user_id OR is_admin());
 
--- Service role (backend) can create orders
+-- Users can create their own orders
 CREATE POLICY "Users can create orders" ON orders
   FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (auth.uid() = user_id OR is_admin());
 
--- Only admins can update order status
+-- Browser-authenticated admins can update all orders
 CREATE POLICY "Admins can update orders" ON orders
   FOR UPDATE
-  USING (
-    auth.uid() IN (
-      SELECT id FROM profiles WHERE role = 'admin'
-    )
-  );
+  USING (is_admin())
+  WITH CHECK (is_admin());
+
+-- Service role (admin/backend) can manage all orders
+CREATE POLICY "Service role access to orders" ON orders
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
 
 -- ============================================================================
 -- HELPER FUNCTIONS
 -- ============================================================================
--- Function to check if current user is admin
-CREATE OR REPLACE FUNCTION is_admin()
-RETURNS BOOLEAN AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- Auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -261,3 +213,10 @@ CREATE TRIGGER coupons_update_updated_at BEFORE UPDATE ON coupons
 
 CREATE TRIGGER orders_update_updated_at BEFORE UPDATE ON orders
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- MIGRATION: Add missing columns to profiles table
+-- ============================================================================
+-- Execute these if the table was already created without these columns:
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS profile_photo TEXT;

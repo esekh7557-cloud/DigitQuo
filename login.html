@@ -175,6 +175,82 @@
       box-shadow: 0 16px 30px rgba(109, 40, 217, 0.26);
     }
 
+    .admin-toggle {
+      display: none;
+      margin-bottom: 18px;
+      padding: 14px;
+      background: #f3f4f6;
+      border-radius: 11px;
+      border: 1px solid var(--border);
+    }
+
+    .admin-toggle.visible {
+      display: block;
+    }
+
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .toggle-label {
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: var(--text);
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-flex;
+      width: 56px;
+      height: 28px;
+      background: #d1d5db;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      border: none;
+      padding: 0;
+    }
+
+    .toggle-switch.active {
+      background: #6d28d9;
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: left 0.3s ease;
+    }
+
+    .toggle-switch.active::after {
+      left: 30px;
+    }
+
+    .role-text {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .admin-notice {
+      font-size: 0.82rem;
+      color: #d97706;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .admin-notice.visible {
+      display: block;
+    }
+
     .toggle {
       margin-top: 14px;
       text-align: center;
@@ -243,6 +319,10 @@
         <input id="confirmPassword" name="confirmPassword" type="password" placeholder="Re-enter your new password" minlength="8" />
       </div>
 
+      <div class="admin-notice visible" id="adminNotice" hidden>
+        Admin access is assigned manually after account review.
+      </div>
+
       <div class="actions" id="rememberRow">
         <label class="remember" for="remember">
           <input id="remember" name="remember" type="checkbox" />
@@ -286,11 +366,11 @@
     const confirmPasswordInput = document.getElementById("confirmPassword");
     const rememberInput = document.getElementById("remember");
     const forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
+    const adminNotice = document.getElementById("adminNotice");
     const REMEMBERED_EMAIL_KEY = "dq_remembered_email";
     const dqAuth = window.dqAuth;
 
     let mode = "login";
-
     function getPostLoginRedirect() {
       const query = new URLSearchParams(window.location.search);
       const redirect = query.get("redirect");
@@ -342,6 +422,7 @@
       nameField.hidden = !isRegister;
       phoneField.hidden = !isRegister;
       photoField.hidden = !isRegister;
+      adminNotice.hidden = !isRegister;
       newPasswordField.hidden = !isRecoveryVerify;
       confirmPasswordField.hidden = !isRecoveryVerify;
       passwordInput.parentElement.hidden = isRecoveryRequest || isRecoveryVerify;
@@ -396,6 +477,41 @@
       }
 
       window.localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+    }
+
+    async function ensureProfile(client, user) {
+      if (!client || !user) {
+        return;
+      }
+
+      try {
+        const { data, error } = await client
+          .from("profiles")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (error) {
+          console.warn("ensureProfile lookup failed:", error);
+          return;
+        }
+
+        if (data) {
+          return;
+        }
+
+        const metadata = user.user_metadata || {};
+        await client.from("profiles").insert({
+          id: user.id,
+          email: user.email,
+          full_name: metadata.full_name || metadata.fullName || "",
+          phone: metadata.phone || "",
+          profile_photo: metadata.profile_photo || metadata.profilePhoto || "",
+          role: "customer",
+          is_active: true,
+        });
+      } catch (error) {
+        console.warn("ensureProfile failed:", error);
+      }
     }
 
     function readPhotoFile(file) {
@@ -540,7 +656,7 @@
 
         if (mode === "register") {
           const profilePhoto = await readPhotoFile(photoInput.files[0]);
-          const { error } = await client.auth.signUp({
+          const { data: authData, error: authError } = await client.auth.signUp({
             email,
             password,
             options: {
@@ -552,13 +668,13 @@
             },
           });
 
-          if (error) {
-            setStatus(error.message || "Could not create account.", "error");
+          if (authError) {
+            setStatus(authError.message || "Could not create account.", "error");
             return;
           }
 
           setMode("login", false);
-          setStatus("Account created. Check your email if confirmation is enabled, then log in.", "ok");
+          setStatus("Account created successfully. Check your email if confirmation is enabled, then log in. Admin access must be granted manually.", "ok");
           return;
         }
 
@@ -593,6 +709,7 @@
         }
 
         persistRememberedLogin(email, remember);
+        await ensureProfile(client, data.user);
         setStatus(`Welcome, ${data.user.email}`, "ok");
         window.setTimeout(() => {
           window.location.href = getPostLoginRedirect();
