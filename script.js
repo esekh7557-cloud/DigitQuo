@@ -11,6 +11,7 @@ const cartSummary = document.getElementById("cartSummary");
 const planDetailsRoot = document.getElementById("planDetailsRoot");
 const quoteRequestRoot = document.getElementById("quoteRequestRoot");
 const CART_STORAGE_KEY = "dq_cart_items";
+const SELECTED_PLAN_STORAGE_KEY = "dq_selected_plan";
 const dqAuth = window.dqAuth;
 const PLAN_DETAILS = {
   basic: {
@@ -97,18 +98,22 @@ if (menuToggle && navLinks) {
   });
 }
 
-const observer = new IntersectionObserver(
-  (entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add("visible");
-      }
-    });
-  },
-  { threshold: 0.1 }
-);
+if ("IntersectionObserver" in window) {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("visible");
+        }
+      });
+    },
+    { threshold: 0.1 }
+  );
 
-document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+  document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+} else {
+  document.querySelectorAll(".reveal").forEach((el) => el.classList.add("visible"));
+}
 applyImageFallbacks();
 
 if (contactForm) {
@@ -188,6 +193,107 @@ function formatInr(value) {
   }).format(Number(value || 0));
 }
 
+function getPlanByKey(planKey) {
+  return PLAN_DETAILS[String(planKey || "").trim()] || null;
+}
+
+function writeCartItems(items) {
+  window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+}
+
+function saveSelectedPlan(planKey) {
+  if (!planKey) {
+    return;
+  }
+
+  window.localStorage.setItem(SELECTED_PLAN_STORAGE_KEY, planKey);
+}
+
+function readSelectedPlan() {
+  return window.localStorage.getItem(SELECTED_PLAN_STORAGE_KEY) || "";
+}
+
+function buildCartItemFromPlan(planKey) {
+  const plan = getPlanByKey(planKey);
+  if (!plan) {
+    return null;
+  }
+
+  return {
+    planKey,
+    title: plan.name,
+    description: `${plan.features.length} included features with domain registration and hosting support.`,
+    price: formatInr(plan.subtotal),
+    amount: Number(plan.subtotal),
+  };
+}
+
+function upsertCartItem(item) {
+  if (!item) {
+    return { items: [], added: false, alreadyExists: false };
+  }
+
+  const items = readCartItems();
+  const alreadyExists = items.some((entry) => entry.planKey === item.planKey);
+  const nextItems = items.filter((entry) => entry.planKey !== item.planKey);
+  nextItems.push({
+    ...item,
+    addedAt: new Date().toISOString(),
+  });
+  writeCartItems(nextItems);
+  return { items: nextItems, added: !alreadyExists, alreadyExists };
+}
+
+function removeCartItem(planKey) {
+  const nextItems = readCartItems().filter((item) => item.planKey !== planKey);
+  writeCartItems(nextItems);
+  return nextItems;
+}
+
+function clearCart() {
+  writeCartItems([]);
+}
+
+function ensureCartToast() {
+  let toast = document.getElementById("cartToast");
+  if (toast) {
+    return toast;
+  }
+
+  toast = document.createElement("div");
+  toast.id = "cartToast";
+  toast.className = "cart-toast";
+  toast.setAttribute("role", "status");
+  toast.setAttribute("aria-live", "polite");
+  toast.innerHTML = `
+    <button class="cart-toast-close" type="button" aria-label="Close notification">&times;</button>
+    <div class="cart-toast-message"></div>
+  `;
+  document.body.appendChild(toast);
+
+  const closeButton = toast.querySelector(".cart-toast-close");
+  closeButton?.addEventListener("click", () => {
+    toast.classList.remove("visible");
+    window.clearTimeout(showCartToast.timeoutId);
+  });
+
+  return toast;
+}
+
+function showCartToast(message) {
+  const toast = ensureCartToast();
+  const messageNode = toast.querySelector(".cart-toast-message");
+  if (messageNode) {
+    messageNode.textContent = message;
+  }
+  toast.classList.add("visible");
+
+  window.clearTimeout(showCartToast.timeoutId);
+  showCartToast.timeoutId = window.setTimeout(() => {
+    toast.classList.remove("visible");
+  }, 4200);
+}
+
 function createImageFallbackDataUrl(label) {
   const safeLabel = String(label || "DigitQuo")
     .replace(/\s+/g, " ")
@@ -255,11 +361,12 @@ function buildProfileMenu(user) {
     return;
   }
 
+  const existingUserMenu = navbar.querySelector(".user-menu");
   if (mobileLogin) {
     mobileLogin.classList.add("is-hidden");
   }
 
-  const userMenu = document.createElement("div");
+  const userMenu = existingUserMenu || document.createElement("div");
   userMenu.className = "user-menu";
   userMenu.innerHTML = `
     <button class="btn user-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Open profile menu">
@@ -291,9 +398,9 @@ function buildProfileMenu(user) {
     </div>
   `;
 
-  if (navCta && navCta.parentNode) {
+  if (!existingUserMenu && navCta && navCta.parentNode) {
     navCta.replaceWith(userMenu);
-  } else {
+  } else if (!existingUserMenu) {
     navbar.appendChild(userMenu);
   }
   applyImageFallbacks(userMenu);
@@ -334,12 +441,19 @@ function readCartItems() {
   }
 }
 
+function updateQuoteActionLinks(user) {
+  document.querySelectorAll("[data-auth-quote-link]").forEach((link) => {
+    link.href = user ? "quote-request.html" : "login.html?redirect=quote-request.html";
+  });
+}
+
 function renderCartPage(user) {
   if (!cartItems || !cartSummary) {
     return;
   }
 
   const items = readCartItems();
+  const totalAmount = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
   if (!user) {
     cartItems.innerHTML = `
@@ -363,7 +477,10 @@ function renderCartPage(user) {
       <article class="card cart-empty">
         <h2>Your cart is empty</h2>
         <p>${escapeHtml(user.fullName)}, you have no saved website packages in your cart yet.</p>
-        <a href="pricing.html" class="btn btn-primary">Browse Pricing</a>
+        <div class="cart-empty-actions">
+          <a href="pricing.html" class="btn btn-primary">Browse Pricing</a>
+          <a href="portfolio.html" class="btn btn-secondary">View Portfolio</a>
+        </div>
       </article>
     `;
   } else {
@@ -371,11 +488,14 @@ function renderCartPage(user) {
       .map(
         (item) => `
           <article class="card cart-item">
-            <div>
+            <div class="cart-item-copy">
               <h3>${escapeHtml(item.title || "Website Package")}</h3>
               <p>${escapeHtml(item.description || "Saved from your recent visit.")}</p>
             </div>
-            <div class="cart-price">${escapeHtml(item.price || "Custom")}</div>
+            <div class="cart-item-actions">
+              <div class="cart-price">${escapeHtml(item.price || "Custom")}</div>
+              <button class="btn btn-secondary" type="button" data-cart-remove="${escapeHtml(item.planKey || "")}">Remove</button>
+            </div>
           </article>
         `
       )
@@ -388,7 +508,13 @@ function renderCartPage(user) {
       <p><strong>Name:</strong> ${escapeHtml(user.fullName)}</p>
       <p><strong>Phone:</strong> ${escapeHtml(user.phone || "Not added yet")}</p>
       <p><strong>Items:</strong> ${items.length}</p>
-      <a href="contact.html" class="btn btn-primary">Request Checkout</a>
+      <p class="cart-total-row"><strong>Total:</strong> <span>${formatInr(totalAmount)}</span></p>
+      <a href="quote-request.html" class="btn btn-primary">Request Checkout</a>
+      ${
+        items.length
+          ? '<button class="btn btn-secondary" type="button" data-cart-clear="true">Clear Cart</button>'
+          : ""
+      }
     </article>
   `;
 }
@@ -459,20 +585,21 @@ function renderPlanDetailsPage() {
   }
 
   const params = new URLSearchParams(window.location.search);
-  const planKey = params.get("plan") || "";
-  const plan = PLAN_DETAILS[planKey];
+  const planKey = params.get("plan") || readSelectedPlan();
+  const plan = getPlanByKey(planKey);
 
   if (!plan) {
     planDetailsRoot.innerHTML = `
       <article class="card cart-empty">
         <h1 class="section-title">Plan Not Found</h1>
-        <p class="section-subtitle">Select a pricing package first to view the website, domain, and GST breakdown.</p>
+        <p class="section-subtitle">Select a pricing package first to view the website and domain pricing breakdown.</p>
         <a href="pricing.html" class="btn btn-primary">Back to Pricing</a>
       </article>
     `;
     return;
   }
 
+  saveSelectedPlan(planKey);
   const websitePrice = plan.subtotal - plan.domainPrice;
   const savings = plan.oldPrice - plan.subtotal;
 
@@ -506,8 +633,10 @@ function renderPlanDetailsPage() {
           <strong>${formatInr(plan.subtotal)}</strong>
         </div>
         <p class="plan-note">Hosting and listed package features remain included in the selected plan.</p>
+        <p class="plan-feedback" id="planFeedback">Add this package to your cart to keep it saved while you continue browsing.</p>
         <div class="plan-actions">
-          <a href="contact.html" class="btn btn-primary">Proceed to Contact</a>
+          <button class="btn btn-primary" type="button" data-plan-add="${escapeHtml(planKey)}">Add to Cart</button>
+          <a href="login.html?redirect=quote-request.html" class="btn btn-secondary" data-auth-quote-link>Request Quote</a>
           <a href="pricing.html" class="btn btn-secondary">Back to Pricing</a>
         </div>
       </article>
@@ -521,6 +650,37 @@ function bindPortfolioQuoteTrigger(user) {
   }
 
   portfolioQuoteLink.href = user ? "quote-request.html" : "login.html?redirect=quote-request.html";
+}
+
+function bindPricingActions() {
+  document.querySelectorAll("[data-plan-link]").forEach((link) => {
+    link.addEventListener("click", () => {
+      saveSelectedPlan(link.dataset.planLink);
+    });
+  });
+}
+
+function handlePlanAdd(planKey) {
+  const item = buildCartItemFromPlan(planKey);
+  if (!item) {
+    return;
+  }
+
+  const result = upsertCartItem(item);
+  saveSelectedPlan(planKey);
+
+  const feedback = document.getElementById("planFeedback");
+  if (feedback) {
+    feedback.textContent = result.alreadyExists
+      ? `${item.title} is already added.`
+      : `${item.title} is added.`;
+  }
+
+  showCartToast(
+    result.alreadyExists
+      ? `${item.title} already added`
+      : `${item.title} is added`
+  );
 }
 
 function renderQuoteRequestPage(user) {
@@ -553,6 +713,7 @@ function renderQuoteRequestPage(user) {
 async function initAuthUi() {
   if (!dqAuth || !dqAuth.isConfigured()) {
     bindPortfolioQuoteTrigger(null);
+    updateQuoteActionLinks(null);
     renderCartPage(null);
     renderProfilePage(null);
     renderQuoteRequestPage(null);
@@ -563,6 +724,7 @@ async function initAuthUi() {
     const user = await dqAuth.getCurrentUser();
     if (!user) {
       bindPortfolioQuoteTrigger(null);
+      updateQuoteActionLinks(null);
       renderCartPage(null);
       renderProfilePage(null);
       renderQuoteRequestPage(null);
@@ -570,17 +732,47 @@ async function initAuthUi() {
     }
 
     bindPortfolioQuoteTrigger(user);
+    updateQuoteActionLinks(user);
     buildProfileMenu(user);
     renderCartPage(user);
     renderProfilePage(user);
     renderQuoteRequestPage(user);
   } catch {
     bindPortfolioQuoteTrigger(null);
+    updateQuoteActionLinks(null);
     renderCartPage(null);
     renderProfilePage(null);
     renderQuoteRequestPage(null);
   }
 }
 
+document.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+
+  const target = event.target.closest("[data-plan-add], [data-cart-remove], [data-cart-clear]");
+  if (!target) {
+    return;
+  }
+
+  if (target.dataset.planAdd) {
+    handlePlanAdd(target.dataset.planAdd);
+    return;
+  }
+
+  if (target.dataset.cartRemove) {
+    removeCartItem(target.dataset.cartRemove);
+    initAuthUi();
+    return;
+  }
+
+  if (target.dataset.cartClear === "true") {
+    clearCart();
+    initAuthUi();
+  }
+});
+
 renderPlanDetailsPage();
+bindPricingActions();
 initAuthUi();
