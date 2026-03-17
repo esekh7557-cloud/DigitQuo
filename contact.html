@@ -32,12 +32,12 @@
     <section class="section reveal">
       <div class="container contact-wrap">
         <article class="card">
-          <h1 class="section-title" style="font-size: clamp(1.55rem, 1.3rem + 1vw, 2rem); margin-bottom: 10px;">Contact Us</h1>
-          <p class="section-subtitle" style="margin-bottom: 18px;">Tell us about your project and we will get back to you within one business day.</p>
+          <h1 class="section-title" style="font-size: clamp(1.55rem, 1.3rem + 1vw, 2rem); margin-bottom: 10px;">Let's Start Your Digital Journey.</h1>
+          <p class="section-subtitle" style="margin-bottom: 18px;">Have a project in mind, or just want to see if we are a good fit? Fill out the form below and our team will get back to you within 24 hours to schedule a free discovery call.</p>
           <ul class="contact-list">
             <li><strong>Email:</strong> <a href="mailto:digitquo@gmail.com">digitquo@gmail.com</a></li>
             <li><strong>Phone:</strong> <a href="tel:+918177957990">81779 57990</a></li>
-            <li><strong>Address:</strong> Panjim, Goa, India</li>
+            <li><strong>Location:</strong> Serving clients globally from Goa, India</li>
           </ul>
           <div class="social-buttons">
             <a class="social-btn instagram" href="https://instagram.com/digitquo" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
@@ -56,11 +56,24 @@
         </article>
         <form id="contactForm" class="contact-form" action="mailto:digitquo@gmail.com" method="post" enctype="text/plain">
           <div class="field-row">
-            <label><input type="text" name="name" placeholder="Name" required /></label>
-            <label><input type="email" name="email" placeholder="Email" required /></label>
+            <label><input type="text" name="name" placeholder="Full Name" required /></label>
+            <label><input type="email" name="email" placeholder="Email Address" required /></label>
           </div>
-          <label><input type="tel" name="phone" placeholder="Phone" required /></label>
-          <label><textarea name="message" placeholder="Message" required></textarea></label>
+          <div class="field-row">
+            <label><input type="text" name="company" placeholder="Company Name" required /></label>
+            <label><input type="tel" name="phone" placeholder="Phone Number" required /></label>
+          </div>
+          <label>
+            <select name="service" required>
+              <option value="">What services are you interested in?</option>
+              <option value="Web Design">Web Design</option>
+              <option value="Custom Development">Custom Development</option>
+              <option value="Website Redesign">Website Redesign</option>
+              <option value="SEO Optimization">SEO Optimization</option>
+              <option value="Maintenance &amp; Support">Maintenance &amp; Support</option>
+            </select>
+          </label>
+          <label><textarea name="message" placeholder="Tell us briefly about your project goals." required></textarea></label>
           <button type="submit" class="btn btn-primary">Send Message</button>
         </form>
       </div>

@@ -118,12 +118,14 @@ if (contactForm) {
     const formData = new FormData(contactForm);
     const name = formData.get("name") || "";
     const email = formData.get("email") || "";
+    const company = formData.get("company") || "";
     const phone = formData.get("phone") || "";
+    const service = formData.get("service") || "";
     const message = formData.get("message") || "";
 
     const subject = encodeURIComponent(`New Website Inquiry from ${name}`);
     const body = encodeURIComponent(
-      `Name: ${name}\nEmail: ${email}\nPhone: ${phone}\n\nMessage:\n${message}`
+      `Name: ${name}\nEmail: ${email}\nCompany: ${company}\nPhone: ${phone}\nInterested In: ${service}\n\nProject Goals:\n${message}`
     );
 
     window.location.href = `mailto:digitquo@gmail.com?subject=${subject}&body=${body}`;
