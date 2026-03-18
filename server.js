@@ -8,6 +8,8 @@ const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 3000);
 const ROOT_DIR = __dirname;
 const DATA_DIR = path.join(ROOT_DIR, "data");
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://umflohaswnlwzrqbzmxs.supabase.co";
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const SESSION_COOKIE = "dq_session";
@@ -102,6 +104,18 @@ function isValidPhotoUrl(photoUrl) {
   } catch {
     return false;
   }
+}
+
+function isValidRole(role) {
+  return role === "admin" || role === "customer";
+}
+
+function isValidSubscriptionPlan(plan) {
+  return ["free", "basic", "business", "professional"].includes(plan);
+}
+
+function isValidPassword(password) {
+  return typeof password === "string" && password.length >= 8;
 }
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
@@ -342,6 +356,203 @@ async function readJsonBody(req) {
   });
 }
 
+function getAccessToken(req) {
+  const header = req.headers.authorization || "";
+  const match = /^Bearer\s+(.+)$/i.exec(header);
+  return match ? match[1].trim() : "";
+}
+
+function hasSupabaseAdminConfig() {
+  return Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
+}
+
+async function supabaseFetch(pathname, options = {}) {
+  if (!hasSupabaseAdminConfig()) {
+    throw new Error("Supabase admin backend is not configured.");
+  }
+
+  const response = await fetch(`${SUPABASE_URL}${pathname}`, {
+    method: options.method || "GET",
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      (data && typeof data === "object" && (data.msg || data.message || data.error_description || data.error)) ||
+      "Supabase request failed.";
+    const error = new Error(message);
+    error.status = response.status;
+    error.details = data;
+    throw error;
+  }
+
+  return data;
+}
+
+async function getSupabaseUser(accessToken) {
+  if (!accessToken) {
+    return null;
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    method: "GET",
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
+}
+
+async function requireAdminAccess(req, res) {
+  if (!hasSupabaseAdminConfig()) {
+    json(res, 500, {
+      error: "Server is missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.",
+    });
+    return null;
+  }
+
+  const accessToken = getAccessToken(req);
+  if (!accessToken) {
+    json(res, 401, { error: "Missing admin session token." });
+    return null;
+  }
+
+  const user = await getSupabaseUser(accessToken);
+  if (!user || !user.id) {
+    json(res, 401, { error: "Invalid or expired admin session." });
+    return null;
+  }
+
+  const profiles = await supabaseFetch(
+    `/rest/v1/profiles?select=id,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`
+  );
+  const profile = Array.isArray(profiles) ? profiles[0] : null;
+
+  if (!profile || profile.role !== "admin" || profile.is_active === false) {
+    json(res, 403, { error: "Admin access required." });
+    return null;
+  }
+
+  return { user, profile };
+}
+
+async function handleAdminCreateUser(req, res) {
+  const adminContext = await requireAdminAccess(req, res);
+  if (!adminContext) {
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  const fullName = normalizeName(body.fullName);
+  const email = normalizeEmail(body.email);
+  const phone = normalizePhone(body.phone);
+  const password = String(body.password || "");
+  const role = String(body.role || "customer").trim().toLowerCase();
+  const subscriptionPlan = String(body.subscriptionPlan || "free").trim().toLowerCase();
+
+  if (fullName.length < 2) {
+    json(res, 400, { error: "Please enter a valid full name." });
+    return;
+  }
+
+  if (!isValidEmail(email)) {
+    json(res, 400, { error: "Please enter a valid email address." });
+    return;
+  }
+
+  if (phone && !isValidPhone(phone)) {
+    json(res, 400, { error: "Please enter a valid phone number." });
+    return;
+  }
+
+  if (!isValidPassword(password)) {
+    json(res, 400, { error: "Password must be at least 8 characters long." });
+    return;
+  }
+
+  if (!isValidRole(role)) {
+    json(res, 400, { error: "Invalid user role." });
+    return;
+  }
+
+  if (!isValidSubscriptionPlan(subscriptionPlan)) {
+    json(res, 400, { error: "Invalid subscription plan." });
+    return;
+  }
+
+  try {
+    const createdUser = await supabaseFetch("/auth/v1/admin/users", {
+      method: "POST",
+      body: {
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: fullName,
+          phone,
+        },
+      },
+    });
+
+    await supabaseFetch("/rest/v1/profiles", {
+      method: "POST",
+      headers: {
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: {
+        id: createdUser.id,
+        email,
+        full_name: fullName,
+        phone,
+        role,
+        subscription_plan: subscriptionPlan,
+        is_active: true,
+      },
+    });
+
+    json(res, 201, {
+      message: "User created successfully.",
+      user: {
+        id: createdUser.id,
+        email,
+        full_name: fullName,
+        phone,
+        role,
+        subscription_plan: subscriptionPlan,
+        is_active: true,
+      },
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    json(res, status, {
+      error: error.message || "Could not create user.",
+    });
+  }
+}
+
 async function handleRegister(req, res) {
   const body = await readJsonBody(req);
   const fullName = normalizeName(body.fullName);
@@ -535,6 +746,11 @@ async function route(req, res) {
 
   if (req.method === "POST" && pathname === "/api/auth/logout") {
     await handleLogout(req, res);
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/admin/users") {
+    await handleAdminCreateUser(req, res);
     return;
   }
 

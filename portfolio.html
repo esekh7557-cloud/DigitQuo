@@ -132,7 +132,9 @@
 
     .portfolio {
       padding: 100px 0;
-      background: #fff;
+      background:
+        radial-gradient(circle at top left, rgba(221, 214, 254, 0.4) 0%, transparent 26%),
+        linear-gradient(180deg, #ffffff 0%, #f8f5ff 100%);
     }
 
     .section-tag {
@@ -148,18 +150,35 @@
     }
 
     .project-item {
+      position: relative;
       display: flex;
       align-items: center;
-      gap: 80px;
-      margin-bottom: 150px;
+      gap: 64px;
+      margin-bottom: 42px;
+      padding: 46px;
+      border-radius: 36px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(245,243,255,0.98));
+      border: 1px solid rgba(109, 40, 217, 0.12);
+      box-shadow: 0 28px 70px rgba(76, 29, 149, 0.12);
       opacity: 0;
       transform: translateY(40px);
       transition: 0.8s all ease-out;
+      overflow: hidden;
     }
 
     .project-item.visible {
       opacity: 1;
       transform: translateY(0);
+    }
+
+    .project-item::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 10% 16%, rgba(255,255,255,0.85) 0%, transparent 24%),
+        radial-gradient(circle at 86% 18%, rgba(168, 85, 247, 0.12) 0%, transparent 24%);
+      pointer-events: none;
     }
 
     .project-item:nth-child(even) {
@@ -168,19 +187,22 @@
 
     .project-info {
       flex: 1;
+      position: relative;
+      z-index: 1;
     }
 
     .project-info h2 {
-      font-size: 2.8rem;
+      font-size: clamp(2.3rem, 2rem + 1vw, 3.35rem);
       color: var(--primary-dark);
       margin-bottom: 20px;
+      line-height: 1.08;
     }
 
     .project-info p {
-      font-size: 1.1rem;
+      font-size: 1.04rem;
       color: var(--text-muted);
-      margin-bottom: 30px;
-      line-height: 1.8;
+      margin-bottom: 18px;
+      line-height: 1.82;
     }
 
     .btn-visit {
@@ -208,12 +230,14 @@
     }
 
     .project-visual {
-      flex: 1.2;
+      flex: 1.1;
+      position: relative;
+      z-index: 1;
     }
 
     .laptop {
       width: 100%;
-      max-width: 650px;
+      max-width: 720px;
       margin: 0 auto;
     }
 
@@ -247,6 +271,34 @@
       box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15);
     }
 
+    .project-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 28px 0 30px;
+    }
+
+    .project-metric {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid rgba(109, 40, 217, 0.1);
+    }
+
+    .project-metric strong {
+      display: block;
+      color: var(--primary-dark);
+      font-size: 1.08rem;
+      margin-bottom: 4px;
+    }
+
+    .project-metric span {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
     .portfolio-page-content iframe {
       width: 100%;
       height: 100%;
@@ -270,6 +322,11 @@
         flex-direction: column;
         text-align: center;
         gap: 40px;
+        padding: 32px 24px;
+      }
+
+      .project-summary {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -290,8 +347,7 @@
         <li id="adminNavItem" style="display: none;"><a href="admin.html" style="color: #ef4444; font-weight: 600;">⚡ Admin Panel</a></li>
       </ul>
       <a href="login.html" class="btn btn-primary nav-cta" id="loginBtn">Login</a>
-      <a href="admin.html" class="btn btn-danger" id="adminBtn" style="display: none; background: #ef4444; margin-left: 10px;">Admin Panel</a>
-    </div>
+          </div>
   </header>
 
   <main>
@@ -324,6 +380,20 @@
               <p><strong>The Challenge:</strong> The client was struggling with high cart abandonment due to a clunky, slow-loading mobile checkout experience.</p>
               <p><strong>Our Solution:</strong> DigitQuo redesigned the user journey with a mobile-first checkout flow, simplified browsing paths, and a leaner front-end architecture that removed unnecessary friction.</p>
               <p><strong>The Impact:</strong> 45% faster page loads, 120% growth in mobile conversions, and stronger search visibility for high-intent product keywords.</p>
+              <div class="project-summary">
+                <div class="project-metric">
+                  <strong>45% Faster</strong>
+                  <span>Page load improvements across key shopping journeys</span>
+                </div>
+                <div class="project-metric">
+                  <strong>120% Growth</strong>
+                  <span>Mobile conversion lift after the checkout rebuild</span>
+                </div>
+                <div class="project-metric">
+                  <strong>SEO Lift</strong>
+                  <span>Better visibility for high-intent product searches</span>
+                </div>
+              </div>
               <a href="https://digitquo.vercel.app/" class="btn-visit" target="_blank" rel="noopener noreferrer">Visit Project</a>
             </div>
             <div class="project-visual">
@@ -341,6 +411,20 @@
               <p><strong>The Challenge:</strong> The previous site looked dated, communicated value poorly, and failed to turn traffic into qualified inquiries.</p>
               <p><strong>Our Solution:</strong> We repositioned the messaging, designed a cleaner authority-driven interface, and built structured service pages with stronger calls to action and trust signals.</p>
               <p><strong>The Impact:</strong> Better lead quality, longer session times, and a clearer path from homepage visit to contact form submission.</p>
+              <div class="project-summary">
+                <div class="project-metric">
+                  <strong>Sharper Positioning</strong>
+                  <span>Cleaner messaging that explains value in seconds</span>
+                </div>
+                <div class="project-metric">
+                  <strong>Longer Sessions</strong>
+                  <span>Visitors stayed engaged deeper into the funnel</span>
+                </div>
+                <div class="project-metric">
+                  <strong>Better Leads</strong>
+                  <span>Higher-quality inquiries from a clearer user journey</span>
+                </div>
+              </div>
               <a href="https://digitquo.vercel.app/" class="btn-visit" target="_blank" rel="noopener noreferrer">Visit Project</a>
             </div>
             <div class="project-visual">
@@ -357,6 +441,20 @@
               <p><strong>The Challenge:</strong> The business needed a more professional online presence to compete against larger local competitors and earn trust immediately.</p>
               <p><strong>Our Solution:</strong> We rebuilt the site with faster load times, stronger visual hierarchy, persuasive service copy, and clear inquiry paths tailored for mobile users.</p>
               <p><strong>The Impact:</strong> Higher engagement, improved credibility, and a stronger digital storefront that better matched the quality of the business itself.</p>
+              <div class="project-summary">
+                <div class="project-metric">
+                  <strong>Higher Trust</strong>
+                  <span>A more polished brand presence from the first screen</span>
+                </div>
+                <div class="project-metric">
+                  <strong>Better Flow</strong>
+                  <span>Service pages built around clear inquiry paths</span>
+                </div>
+                <div class="project-metric">
+                  <strong>Mobile Ready</strong>
+                  <span>Stronger hierarchy for mobile-first visitors</span>
+                </div>
+              </div>
               <a href="https://digitquo.vercel.app/" class="btn-visit" target="_blank" rel="noopener noreferrer">Visit Project</a>
             </div>
             <div class="project-visual">
@@ -374,6 +472,20 @@
               <p><strong>The Challenge:</strong> A new product needed a launch-ready website that could communicate value quickly and build trust with first-time visitors.</p>
               <p><strong>Our Solution:</strong> DigitQuo created a focused landing experience with sharp positioning, modern visuals, and conversion-oriented sections built to support demos and sign-ups.</p>
               <p><strong>The Impact:</strong> Stronger first impressions, clearer messaging, and a launch asset that felt credible from day one.</p>
+              <div class="project-summary">
+                <div class="project-metric">
+                  <strong>Launch Ready</strong>
+                  <span>A focused page structure built for early momentum</span>
+                </div>
+                <div class="project-metric">
+                  <strong>Clear Messaging</strong>
+                  <span>Product value explained without friction or noise</span>
+                </div>
+                <div class="project-metric">
+                  <strong>Demo Support</strong>
+                  <span>Conversion-focused sections tuned for sign-ups</span>
+                </div>
+              </div>
               <a href="https://digitquo.vercel.app/" class="btn-visit" target="_blank" rel="noopener noreferrer">Visit Project</a>
             </div>
             <div class="project-visual">
@@ -390,6 +502,20 @@
               <p><strong>The Challenge:</strong> The client needed a content platform that could rank competitively without sacrificing speed or readability.</p>
               <p><strong>Our Solution:</strong> We structured the site around clean information architecture, semantic markup, fast-loading templates, and search-friendly content patterns.</p>
               <p><strong>The Impact:</strong> Improved discoverability, stronger content engagement, and a scalable foundation for long-term organic traffic growth.</p>
+              <div class="project-summary">
+                <div class="project-metric">
+                  <strong>Clean Structure</strong>
+                  <span>Architecture built to scale future content clusters</span>
+                </div>
+                <div class="project-metric">
+                  <strong>Faster Reads</strong>
+                  <span>Templates optimized for speed and readability</span>
+                </div>
+                <div class="project-metric">
+                  <strong>Organic Growth</strong>
+                  <span>A stronger long-term foundation for search visibility</span>
+                </div>
+              </div>
               <a href="https://digitquo.vercel.app/" class="btn-visit" target="_blank" rel="noopener noreferrer">Visit Project</a>
             </div>
             <div class="project-visual">
@@ -444,7 +570,6 @@
 
       window.dqAuth.bindAdminUi({
         loginButtonId: "loginBtn",
-        adminButtonId: "adminBtn",
         adminNavItemId: "adminNavItem",
       }).catch((error) => {
         console.error("Error binding admin controls:", error);
@@ -453,7 +578,6 @@
   </script>
 </body>
 </html>
-
 
 
 

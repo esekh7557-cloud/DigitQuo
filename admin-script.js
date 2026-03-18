@@ -338,8 +338,55 @@ function filterUsers() {
 }
 
 async function submitAddUser() {
-  alert("Add user requires a secure backend or Supabase Edge Function. Public-browser creation is disabled for safety.");
-  closeModal("addUserModal");
+  const fullName = document.getElementById("newUserName").value.trim();
+  const email = document.getElementById("newUserEmail").value.trim();
+  const phone = document.getElementById("newUserPhone").value.trim();
+  const password = document.getElementById("newUserPassword").value;
+  const role = document.getElementById("newUserRole").value;
+  const subscriptionPlan = document.getElementById("newUserPlan").value;
+  const submitButton = document.getElementById("submitAddUserBtn");
+
+  try {
+    submitButton.disabled = true;
+    submitButton.textContent = "Creating...";
+
+    const session = await dqAuth.getSession();
+    if (!session?.access_token) {
+      throw new Error("Admin session expired. Please log in again.");
+    }
+
+    const response = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        fullName,
+        email,
+        phone,
+        password,
+        role,
+        subscriptionPlan,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Could not create user.");
+    }
+
+    alert("User created successfully");
+    document.getElementById("addUserForm").reset();
+    closeModal("addUserModal");
+    await loadUsers();
+  } catch (error) {
+    console.error("Error creating user:", error);
+    alert(`Error creating user: ${error.message || "Unknown error"}`);
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "Create User";
+  }
 }
 
 async function suspendUser(userId) {

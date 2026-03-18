@@ -10,9 +10,20 @@ const cartItems = document.getElementById("cartItems");
 const cartSummary = document.getElementById("cartSummary");
 const planDetailsRoot = document.getElementById("planDetailsRoot");
 const quoteRequestRoot = document.getElementById("quoteRequestRoot");
+const reviewToggle = document.getElementById("reviewToggle");
+const reviewForm = document.getElementById("reviewForm");
+const reviewFeedback = document.getElementById("reviewFeedback");
+const reviewRatingInput = document.getElementById("reviewRating");
+const reviewStarsInput = document.getElementById("reviewStarsInput");
+const testimonialGrid = document.querySelector(".testimonial-grid");
+const testimonialSummaryStars = document.getElementById("testimonialSummaryStars");
+const testimonialSummaryText = document.getElementById("testimonialSummaryText");
 const CART_STORAGE_KEY = "dq_cart_items";
 const SELECTED_PLAN_STORAGE_KEY = "dq_selected_plan";
+const REVIEWS_STORAGE_KEY = "dq_reviews";
 const dqAuth = window.dqAuth;
+let activeReviewUser = null;
+let activeReviewIsAdmin = false;
 const PLAN_DETAILS = {
   basic: {
     name: "Basic Plan",
@@ -191,6 +202,358 @@ function formatInr(value) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
+}
+
+function readReviews() {
+  try {
+    const raw = window.localStorage.getItem(REVIEWS_STORAGE_KEY);
+    const reviews = JSON.parse(raw || "[]");
+    if (!Array.isArray(reviews)) {
+      return [];
+    }
+
+    const normalizedReviews = reviews.map((review, index) => ({
+      ...review,
+      id: review?.id || `legacy-review-${index + 1}`,
+    }));
+
+    if (JSON.stringify(normalizedReviews) !== JSON.stringify(reviews)) {
+      writeReviews(normalizedReviews);
+    }
+
+    return normalizedReviews;
+  } catch {
+    return [];
+  }
+}
+
+function writeReviews(reviews) {
+  window.localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
+}
+
+function renderStarMarkup(rating) {
+  const safeRating = Math.max(0, Math.min(5, Number(rating || 0)));
+  return Array.from({ length: 5 }, (_, index) => {
+    const level = index + 1;
+    return `<span class="star ${level <= safeRating ? "full" : "empty"}">&#9733;</span>`;
+  }).join("");
+}
+
+function createReviewCard(review) {
+  const card = document.createElement("article");
+  card.className = "card testimonial-card";
+  if (review.id) {
+    card.dataset.reviewId = review.id;
+  }
+  if (review.userId) {
+    card.dataset.reviewUserId = review.userId;
+  }
+  if (review.isUserReview) {
+    card.classList.add("user-review");
+  }
+  card.innerHTML = `
+    <div class="review-card-menu-wrap">
+      <button class="review-card-menu-button" type="button" aria-label="Review options">&#8942;</button>
+      <div class="review-card-menu" hidden>
+        <button class="review-card-menu-item" type="button" data-review-action="report">Report review</button>
+        <button class="review-card-menu-item danger" type="button" data-review-action="delete" hidden>Delete review</button>
+      </div>
+    </div>
+    <div class="stars rating-stars" aria-label="${escapeHtml(review.rating)} out of 5 stars">${renderStarMarkup(review.rating)}</div>
+    <p>"${escapeHtml(review.message)}"</p>
+    <h3>- ${escapeHtml(review.name)}</h3>
+  `;
+  syncReviewCardControls(card);
+  return card;
+}
+
+function closeReviewMenus() {
+  if (!testimonialGrid) {
+    return;
+  }
+
+  testimonialGrid.querySelectorAll(".review-card-menu").forEach((menu) => {
+    menu.hidden = true;
+  });
+}
+
+function syncReviewCardControls(card) {
+  if (!(card instanceof HTMLElement)) {
+    return;
+  }
+
+  const reportButton = card.querySelector('[data-review-action="report"]');
+  const deleteButton = card.querySelector('[data-review-action="delete"]');
+  if (!(reportButton instanceof HTMLElement) || !(deleteButton instanceof HTMLElement)) {
+    return;
+  }
+
+  const isOwner =
+    Boolean(activeReviewUser) &&
+    Boolean(card.dataset.reviewUserId) &&
+    card.dataset.reviewUserId === activeReviewUser.id;
+  const canDelete = isOwner || activeReviewIsAdmin;
+
+  reportButton.hidden = isOwner;
+  deleteButton.hidden = !canDelete;
+  card.classList.toggle("user-review", isOwner || Boolean(card.dataset.reviewUserId));
+}
+
+function syncAllReviewCardControls() {
+  if (!testimonialGrid) {
+    return;
+  }
+
+  testimonialGrid.querySelectorAll(".testimonial-card").forEach((card) => {
+    syncReviewCardControls(card);
+  });
+}
+
+function syncReviewAccess(user) {
+  activeReviewUser = user || null;
+
+  if (!reviewToggle) {
+    return;
+  }
+
+  if (!activeReviewUser) {
+    reviewToggle.textContent = "Login to Add Review";
+    if (reviewForm) {
+      reviewForm.hidden = true;
+    }
+    closeReviewMenus();
+    syncAllReviewCardControls();
+    return;
+  }
+
+  reviewToggle.textContent = reviewForm && !reviewForm.hidden ? "Close Review" : "Add Review";
+  const reviewNameInput = reviewForm?.elements?.namedItem("reviewName");
+  if (reviewNameInput && "value" in reviewNameInput) {
+    reviewNameInput.value = activeReviewUser.fullName || activeReviewUser.email || "";
+  }
+  syncAllReviewCardControls();
+}
+
+function focusUserReviewCard(card) {
+  if (!(card instanceof HTMLElement)) {
+    return;
+  }
+
+  testimonialGrid?.querySelectorAll(".testimonial-card.user-review").forEach((entry) => {
+    entry.classList.remove("is-focused");
+  });
+  card.classList.add("is-focused");
+  card.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+}
+
+function updateTestimonialSummary() {
+  if (!testimonialGrid || !testimonialSummaryStars || !testimonialSummaryText) {
+    return;
+  }
+
+  const ratings = Array.from(
+    testimonialGrid.querySelectorAll(".testimonial-card .rating-stars[aria-label]")
+  )
+    .map((node) => Number.parseFloat(String(node.getAttribute("aria-label") || "").split(" ")[0]))
+    .filter((value) => Number.isFinite(value));
+
+  if (!ratings.length) {
+    testimonialSummaryText.textContent = "No reviews yet";
+    testimonialSummaryStars.innerHTML = renderStarMarkup(0);
+    return;
+  }
+
+  const average = ratings.reduce((sum, value) => sum + value, 0) / ratings.length;
+  const roundedAverage = Math.round(average * 10) / 10;
+  testimonialSummaryText.textContent = `${roundedAverage.toFixed(1)}/5 Trusted by clients`;
+
+  const fullStars = Math.floor(average);
+  const hasHalfStar = average - fullStars >= 0.25 && average - fullStars < 0.75;
+  const extraFullStar = average - fullStars >= 0.75 ? 1 : 0;
+  const totalFullStars = Math.min(5, fullStars + extraFullStar);
+  const stars = [];
+
+  for (let index = 1; index <= 5; index += 1) {
+    if (index <= totalFullStars) {
+      stars.push('<span class="star full">&#9733;</span>');
+    } else if (hasHalfStar && index === totalFullStars + 1) {
+      stars.push('<span class="star half">&#9733;</span>');
+    } else {
+      stars.push('<span class="star empty">&#9733;</span>');
+    }
+  }
+
+  testimonialSummaryStars.innerHTML = stars.join("");
+}
+
+function renderStoredReviews() {
+  if (!testimonialGrid) {
+    return;
+  }
+
+  readReviews().forEach((review) => {
+    testimonialGrid.appendChild(createReviewCard({ ...review, isUserReview: true }));
+  });
+  updateTestimonialSummary();
+  syncAllReviewCardControls();
+}
+
+function syncReviewStars(rating) {
+  if (!reviewStarsInput) {
+    return;
+  }
+
+  reviewStarsInput.querySelectorAll(".review-star").forEach((star) => {
+    star.classList.toggle("is-active", Number(star.dataset.rating) <= rating);
+  });
+}
+
+function initReviewForm() {
+  if (!reviewForm || !reviewToggle || !reviewStarsInput || !reviewRatingInput) {
+    return;
+  }
+
+  reviewToggle.addEventListener("click", () => {
+    if (!activeReviewUser) {
+      window.location.href = "login.html?redirect=index.html";
+      return;
+    }
+
+    const nextHidden = !reviewForm.hidden;
+    reviewForm.hidden = nextHidden;
+    reviewToggle.textContent = nextHidden ? "Add Review" : "Close Review";
+    if (!nextHidden) {
+      reviewForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  });
+
+  reviewStarsInput.querySelectorAll(".review-star").forEach((star) => {
+    star.addEventListener("click", () => {
+      const rating = Number(star.dataset.rating || 0);
+      reviewRatingInput.value = String(rating);
+      syncReviewStars(rating);
+      if (reviewFeedback) {
+        reviewFeedback.textContent = "";
+      }
+    });
+  });
+
+  reviewForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    if (!activeReviewUser) {
+      window.location.href = "login.html?redirect=index.html";
+      return;
+    }
+
+    const formData = new FormData(reviewForm);
+    const name = String(formData.get("reviewName") || activeReviewUser.fullName || activeReviewUser.email || "").trim();
+    const message = String(formData.get("reviewMessage") || "").trim();
+    const rating = Number(reviewRatingInput.value || 0);
+
+    if (!name || !message || rating < 1 || rating > 5) {
+      if (reviewFeedback) {
+        reviewFeedback.textContent = "Add your name, review, and star rating.";
+      }
+      return;
+    }
+
+    const review = {
+      id: crypto.randomUUID(),
+      userId: activeReviewUser.id,
+      name,
+      message,
+      rating,
+    };
+    const reviews = readReviews();
+    reviews.push(review);
+    writeReviews(reviews);
+
+    if (testimonialGrid) {
+      const reviewCard = createReviewCard({ ...review, isUserReview: true });
+      testimonialGrid.appendChild(reviewCard);
+      focusUserReviewCard(reviewCard);
+    }
+    updateTestimonialSummary();
+    syncAllReviewCardControls();
+
+    reviewForm.reset();
+    reviewRatingInput.value = "";
+    syncReviewStars(0);
+    if (reviewFeedback) {
+      reviewFeedback.textContent = "Review added successfully.";
+    }
+    reviewForm.hidden = true;
+    syncReviewAccess(activeReviewUser);
+  });
+}
+
+function initReviewMenus() {
+  if (!testimonialGrid) {
+    return;
+  }
+
+  testimonialGrid.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
+    const menuButton = event.target.closest(".review-card-menu-button");
+    if (menuButton) {
+      const menuWrap = menuButton.closest(".review-card-menu-wrap");
+      const menu = menuWrap?.querySelector(".review-card-menu");
+      if (!(menu instanceof HTMLElement)) {
+        return;
+      }
+
+      const shouldOpen = menu.hidden;
+      closeReviewMenus();
+      menu.hidden = !shouldOpen;
+      return;
+    }
+
+    const actionButton = event.target.closest(".review-card-menu-item");
+    if (!actionButton) {
+      return;
+    }
+
+    const reviewCard = actionButton.closest(".testimonial-card");
+    const action = actionButton.getAttribute("data-review-action");
+    closeReviewMenus();
+
+    if (action === "report") {
+      showCartToast("Review reported.");
+      return;
+    }
+
+    if (action === "delete" && reviewCard instanceof HTMLElement) {
+      const isOwner =
+        Boolean(activeReviewUser) &&
+        Boolean(reviewCard.dataset.reviewUserId) &&
+        reviewCard.dataset.reviewUserId === activeReviewUser.id;
+
+      if (!isOwner && !activeReviewIsAdmin) {
+        return;
+      }
+
+      if (reviewCard.dataset.reviewId) {
+        const remainingReviews = readReviews().filter((review) => review.id !== reviewCard.dataset.reviewId);
+        writeReviews(remainingReviews);
+      }
+      reviewCard.remove();
+      updateTestimonialSummary();
+      syncAllReviewCardControls();
+      showCartToast("Review deleted.");
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element) || event.target.closest(".review-card-menu-wrap")) {
+      return;
+    }
+
+    closeReviewMenus();
+  });
 }
 
 function getPlanByKey(planKey) {
@@ -712,6 +1075,8 @@ function renderQuoteRequestPage(user) {
 
 async function initAuthUi() {
   if (!dqAuth || !dqAuth.isConfigured()) {
+    activeReviewIsAdmin = false;
+    syncReviewAccess(null);
     bindPortfolioQuoteTrigger(null);
     updateQuoteActionLinks(null);
     renderCartPage(null);
@@ -723,6 +1088,8 @@ async function initAuthUi() {
   try {
     const user = await dqAuth.getCurrentUser();
     if (!user) {
+      activeReviewIsAdmin = false;
+      syncReviewAccess(null);
       bindPortfolioQuoteTrigger(null);
       updateQuoteActionLinks(null);
       renderCartPage(null);
@@ -731,6 +1098,11 @@ async function initAuthUi() {
       return;
     }
 
+    activeReviewIsAdmin = typeof dqAuth.checkAdminAccess === "function"
+      ? await dqAuth.checkAdminAccess()
+      : false;
+    syncReviewAccess(user);
+    syncAllReviewCardControls();
     bindPortfolioQuoteTrigger(user);
     updateQuoteActionLinks(user);
     buildProfileMenu(user);
@@ -738,6 +1110,8 @@ async function initAuthUi() {
     renderProfilePage(user);
     renderQuoteRequestPage(user);
   } catch {
+    activeReviewIsAdmin = false;
+    syncReviewAccess(null);
     bindPortfolioQuoteTrigger(null);
     updateQuoteActionLinks(null);
     renderCartPage(null);
@@ -775,4 +1149,7 @@ document.addEventListener("click", (event) => {
 
 renderPlanDetailsPage();
 bindPricingActions();
+renderStoredReviews();
+initReviewForm();
+initReviewMenus();
 initAuthUi();

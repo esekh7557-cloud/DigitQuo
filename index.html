@@ -26,8 +26,7 @@
         <li id="adminNavItem" style="display: none;"><a href="admin.html" style="color: #ef4444; font-weight: 600;">⚡ Admin Panel</a></li>
       </ul>
       <a href="login.html" class="btn btn-primary nav-cta" id="loginBtn">Login</a>
-      <a href="admin.html" class="btn btn-danger" id="adminBtn" style="display: none; background: #ef4444; margin-left: 10px;">Admin Panel</a>
-    </div>
+          </div>
   </header>
 
   <main>
@@ -88,21 +87,83 @@
       <div class="container">
         <h2 class="section-title">Client Testimonials</h2>
         <p class="section-subtitle rating-line">
-          <span class="rating-stars" aria-hidden="true">
+          <span class="rating-stars" id="testimonialSummaryStars" aria-hidden="true">
             <span class="star full">&#9733;</span>
             <span class="star full">&#9733;</span>
             <span class="star full">&#9733;</span>
             <span class="star full">&#9733;</span>
             <span class="star half">&#9733;</span>
           </span>
-          <span class="rating-text">4.6/5 Trusted by clients</span>
+          <span class="rating-text" id="testimonialSummaryText">4.6/5 Trusted by clients</span>
         </p>
         <p class="section-subtitle">Feedback from businesses we partnered with.</p>
         <div class="card-grid testimonial-grid">
-          <article class="card testimonial-card"><div class="stars rating-stars" aria-label="4 out of 5 stars"><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star empty">&#9733;</span></div><p>"Their team delivered a fast, clean site that improved lead quality."</p><h3>- Sarah K.</h3></article>
-          <article class="card testimonial-card"><div class="stars rating-stars" aria-label="4.5 out of 5 stars"><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star half">&#9733;</span></div><p>"Excellent communication and execution from concept to launch."</p><h3>- Daniel M.</h3></article>
-          <article class="card testimonial-card"><div class="stars rating-stars" aria-label="5 out of 5 stars"><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span></div><p>"A professional process with measurable SEO and speed gains."</p><h3>- Priya R.</h3></article>
+          <article class="card testimonial-card">
+            <div class="review-card-menu-wrap">
+              <button class="review-card-menu-button" type="button" aria-label="Review options">&#8942;</button>
+              <div class="review-card-menu" hidden>
+                <button class="review-card-menu-item" type="button" data-review-action="report">Report review</button>
+              </div>
+            </div>
+            <div class="stars rating-stars" aria-label="4 out of 5 stars"><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star empty">&#9733;</span></div>
+            <p>"Their team delivered a fast, clean site that improved lead quality."</p>
+            <h3>- Sarah K.</h3>
+          </article>
+          <article class="card testimonial-card">
+            <div class="review-card-menu-wrap">
+              <button class="review-card-menu-button" type="button" aria-label="Review options">&#8942;</button>
+              <div class="review-card-menu" hidden>
+                <button class="review-card-menu-item" type="button" data-review-action="report">Report review</button>
+              </div>
+            </div>
+            <div class="stars rating-stars" aria-label="4.5 out of 5 stars"><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star half">&#9733;</span></div>
+            <p>"Excellent communication and execution from concept to launch."</p>
+            <h3>- Daniel M.</h3>
+          </article>
+          <article class="card testimonial-card">
+            <div class="review-card-menu-wrap">
+              <button class="review-card-menu-button" type="button" aria-label="Review options">&#8942;</button>
+              <div class="review-card-menu" hidden>
+                <button class="review-card-menu-item" type="button" data-review-action="report">Report review</button>
+              </div>
+            </div>
+            <div class="stars rating-stars" aria-label="5 out of 5 stars"><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span><span class="star full">&#9733;</span></div>
+            <p>"A professional process with measurable SEO and speed gains."</p>
+            <h3>- Priya R.</h3>
+          </article>
         </div>
+        <div class="review-actions">
+          <button class="btn btn-secondary review-toggle" id="reviewToggle" type="button">Add Review</button>
+        </div>
+        <form class="card review-form" id="reviewForm" hidden>
+          <div class="review-form-head">
+            <h3>Share Your Review</h3>
+            <p>Tell visitors how your experience with DigitQuo went.</p>
+          </div>
+          <div class="field-block">
+            <label for="reviewName">Your name</label>
+            <input id="reviewName" name="reviewName" type="text" placeholder="Enter your name" maxlength="60" required />
+          </div>
+          <div class="field-block">
+            <label for="reviewMessage">Your review</label>
+            <textarea id="reviewMessage" name="reviewMessage" placeholder="Write your feedback" maxlength="280" required></textarea>
+          </div>
+          <div class="field-block">
+            <span class="review-rating-label">Your rating</span>
+            <div class="review-stars-input" id="reviewStarsInput" role="radiogroup" aria-label="Review star rating">
+              <button type="button" class="review-star" data-rating="1" aria-label="Rate 1 star">&#9733;</button>
+              <button type="button" class="review-star" data-rating="2" aria-label="Rate 2 stars">&#9733;</button>
+              <button type="button" class="review-star" data-rating="3" aria-label="Rate 3 stars">&#9733;</button>
+              <button type="button" class="review-star" data-rating="4" aria-label="Rate 4 stars">&#9733;</button>
+              <button type="button" class="review-star" data-rating="5" aria-label="Rate 5 stars">&#9733;</button>
+            </div>
+            <input id="reviewRating" name="reviewRating" type="hidden" value="" required />
+          </div>
+          <p class="review-feedback" id="reviewFeedback" aria-live="polite"></p>
+          <div class="review-form-actions">
+            <button class="btn btn-primary" type="submit">Submit Review</button>
+          </div>
+        </form>
       </div>
     </section>
 
@@ -146,7 +207,6 @@
 
       window.dqAuth.bindAdminUi({
         loginButtonId: "loginBtn",
-        adminButtonId: "adminBtn",
         adminNavItemId: "adminNavItem",
       }).catch((error) => {
         console.error("Error binding admin controls:", error);

@@ -1,7 +1,7 @@
 /* ========== ROOT & VARIABLES ========== */
 :root {
-  --primary: #6366f1;
-  --primary-dark: #4f46e5;
+  --primary: #9e63f1;
+  --primary-dark: #9046e5;
   --secondary: #ec4899;
   --success: #10b981;
   --danger: #ef4444;
@@ -95,10 +95,38 @@ body {
 }
 
 .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 22px;
   font-weight: 700;
   color: var(--primary);
   line-height: 1.2;
+  text-decoration: none;
+}
+
+.admin-brand .logo-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.admin-brand .logo-word {
+  display: inline-block;
+  color: var(--primary);
+}
+
+.admin-brand .logo-word span {
+  color: #a78bfa;
+}
+
+.admin-brand .logo-mark {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: 0;
+  display: block;
 }
 
 .logo-subtitle {

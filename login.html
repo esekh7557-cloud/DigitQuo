@@ -280,7 +280,7 @@
 <body>
   <main class="login-card" role="main">
     <h1 id="title">Welcome back</h1>
-    <p class="subtitle" id="subtitle">Sign in to access your DigitQuo dashboard.</p>
+    <p class="subtitle" id="subtitle"></p>
     <p class="status" id="statusText" aria-live="polite"></p>
 
     <form id="authForm" novalidate>
@@ -299,11 +299,6 @@
         <input id="phone" name="phone" type="tel" placeholder="+91 98765 43210" />
       </div>
 
-      <div class="field" id="photoField" hidden>
-        <label for="profilePhoto">Profile photo</label>
-        <input id="profilePhoto" name="profilePhoto" type="file" accept="image/*" />
-      </div>
-
       <div class="field">
         <label for="password">Password</label>
         <input id="password" name="password" type="password" placeholder="Enter your password" minlength="8" required />
@@ -319,8 +314,11 @@
         <input id="confirmPassword" name="confirmPassword" type="password" placeholder="Re-enter your new password" minlength="8" />
       </div>
 
-      <div class="admin-notice visible" id="adminNotice" hidden>
-        Admin access is assigned manually after account review.
+      <div class="field terms-field" id="termsField" hidden>
+        <label class="remember" for="termsCheckbox">
+          <input id="termsCheckbox" type="checkbox" />
+          I agree to the <a href="terms-and-conditions.html" target="_blank" rel="noopener">Terms &amp; Conditions</a>
+        </label>
       </div>
 
       <div class="actions" id="rememberRow">
@@ -354,11 +352,11 @@
     const rememberRow = document.getElementById("rememberRow");
     const nameField = document.getElementById("nameField");
     const phoneField = document.getElementById("phoneField");
-    const photoField = document.getElementById("photoField");
+    const termsField = document.getElementById("termsField");
+    const termsCheckbox = document.getElementById("termsCheckbox");
     const nameInput = document.getElementById("fullName");
     const emailInput = document.getElementById("email");
     const phoneInput = document.getElementById("phone");
-    const photoInput = document.getElementById("profilePhoto");
     const passwordInput = document.getElementById("password");
     const newPasswordField = document.getElementById("newPasswordField");
     const newPasswordInput = document.getElementById("newPassword");
@@ -366,11 +364,39 @@
     const confirmPasswordInput = document.getElementById("confirmPassword");
     const rememberInput = document.getElementById("remember");
     const forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
-    const adminNotice = document.getElementById("adminNotice");
     const REMEMBERED_EMAIL_KEY = "dq_remembered_email";
     const dqAuth = window.dqAuth;
 
-    let mode = "login";
+    function readPageMode() {
+      const query = new URLSearchParams(window.location.search);
+      const queryMode = query.get("mode");
+
+      if (queryMode === "register") {
+        return "register";
+      }
+
+      if (queryMode === "forgot" || queryMode === "recovery") {
+        return "recover-request";
+      }
+
+      return "login";
+    }
+
+    function syncModeToUrl(nextMode) {
+      const url = new URL(window.location.href);
+
+      if (nextMode === "register") {
+        url.searchParams.set("mode", "register");
+      } else if (nextMode === "recover-request") {
+        url.searchParams.set("mode", "forgot");
+      } else if (nextMode !== "recover-verify") {
+        url.searchParams.delete("mode");
+      }
+
+      window.history.replaceState({}, "", url);
+    }
+
+    let mode = readPageMode();
     function getPostLoginRedirect() {
       const query = new URLSearchParams(window.location.search);
       const redirect = query.get("redirect");
@@ -403,7 +429,7 @@
             : "Reset password";
 
       subtitle.textContent = isLogin
-        ? "Sign in to access your DigitQuo dashboard."
+        ? ""
         : isRegister
           ? "Create your account to start using DigitQuo."
           : isRecoveryRequest
@@ -419,17 +445,17 @@
             : "Reset Password";
 
       rememberRow.style.display = isLogin ? "flex" : "none";
-      nameField.hidden = !isRegister;
-      phoneField.hidden = !isRegister;
-      photoField.hidden = !isRegister;
-      adminNotice.hidden = !isRegister;
-      newPasswordField.hidden = !isRecoveryVerify;
-      confirmPasswordField.hidden = !isRecoveryVerify;
-      passwordInput.parentElement.hidden = isRecoveryRequest || isRecoveryVerify;
+        nameField.hidden = !isRegister;
+        phoneField.hidden = !isRegister;
+        termsField.hidden = !isRegister;
+        newPasswordField.hidden = !isRecoveryVerify;
+        confirmPasswordField.hidden = !isRecoveryVerify;
+        passwordInput.parentElement.hidden = isRecoveryRequest || isRecoveryVerify;
 
-      nameInput.required = isRegister;
-      phoneInput.required = isRegister;
-      passwordInput.required = isLogin || isRegister;
+        nameInput.required = isRegister;
+        phoneInput.required = isRegister;
+        passwordInput.required = isLogin || isRegister;
+        termsCheckbox.required = isRegister;
       newPasswordInput.required = isRecoveryVerify;
       confirmPasswordInput.required = isRecoveryVerify;
 
@@ -457,6 +483,7 @@
 
     function setMode(nextMode, clearStatus = true) {
       mode = nextMode;
+      syncModeToUrl(nextMode);
       applyMode(clearStatus);
     }
 
@@ -512,30 +539,6 @@
       } catch (error) {
         console.warn("ensureProfile failed:", error);
       }
-    }
-
-    function readPhotoFile(file) {
-      return new Promise((resolve, reject) => {
-        if (!file) {
-          resolve("");
-          return;
-        }
-
-        if (!file.type.startsWith("image/")) {
-          reject(new Error("Please choose an image file."));
-          return;
-        }
-
-        if (file.size > 1_500_000) {
-          reject(new Error("Profile photo must be smaller than 1.5 MB."));
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-        reader.onerror = () => reject(new Error("Could not read the selected image."));
-        reader.readAsDataURL(file);
-      });
     }
 
     function getConfigErrorMessage() {
@@ -630,6 +633,11 @@
         return;
       }
 
+      if (mode === "register" && !termsCheckbox.checked) {
+        setStatus("Accept the Terms & Conditions before continuing.", "error");
+        return;
+      }
+
       if (mode === "recover-verify") {
         if (newPassword.length < 8 || newPassword !== confirmPassword) {
           setStatus("Enter matching passwords with at least 8 characters.", "error");
@@ -655,7 +663,6 @@
         const client = await dqAuth.getClient();
 
         if (mode === "register") {
-          const profilePhoto = await readPhotoFile(photoInput.files[0]);
         const { data: authData, error: authError } = await client.auth.signUp({
           email,
           password,
@@ -663,7 +670,6 @@
             data: {
               full_name: fullName,
               phone,
-              profile_photo: profilePhoto,
             },
           },
         });

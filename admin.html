@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin Panel - DigitQuote</title>
+    <title>Admin Panel - DigitQuo</title>
     <link rel="stylesheet" href="admin-style.css" />
     <link
       rel="stylesheet"
@@ -24,7 +24,12 @@
       <!-- SIDEBAR NAVIGATION -->
       <aside class="sidebar">
         <div class="sidebar-header">
-          <h1 class="logo">DigitQuote</h1>
+          <a href="index.html" class="logo admin-brand">
+            <span class="logo-icon">
+              <img src="images/LOGO.png" alt="DigitQuo logo" class="logo-mark" />
+            </span>
+            <span class="logo-word">Digit<span>Quo</span></span>
+          </a>
           <span class="logo-subtitle">Admin</span>
         </div>
 
@@ -451,6 +456,20 @@
           <div class="form-group">
             <label>Email</label>
             <input type="email" id="newUserEmail" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="newUserPhone" class="form-control" placeholder="+91 98765 43210" />
+          </div>
+          <div class="form-group">
+            <label>Temporary Password</label>
+            <input
+              type="password"
+              id="newUserPassword"
+              class="form-control"
+              minlength="8"
+              required
+            />
           </div>
           <div class="form-group">
             <label>Role</label>
