@@ -22,7 +22,7 @@
     <!-- ADMIN PANEL MAIN CONTENT (Hidden until auth verified) -->
     <div id="adminPanel" class="admin-panel" style="display: none">
       <!-- SIDEBAR NAVIGATION -->
-      <aside class="sidebar">
+      <aside class="sidebar" id="adminSidebar">
         <div class="sidebar-header">
           <a href="index.html" class="logo admin-brand">
             <span class="logo-icon">
@@ -90,17 +90,36 @@
         </div>
       </aside>
 
+      <button
+        type="button"
+        class="sidebar-overlay"
+        id="sidebarOverlay"
+        aria-label="Close navigation"
+      ></button>
+
       <!-- MAIN CONTENT AREA -->
       <main class="main-content">
         <!-- TOP BAR -->
         <div class="top-bar">
-          <div class="search-container">
-            <i class="fas fa-search"></i>
-            <input
-              type="text"
-              id="contextSearchBox"
-              placeholder="Search users, projects, or orders..."
-            />
+          <div class="top-bar-primary">
+            <button
+              type="button"
+              class="mobile-menu-btn"
+              id="sidebarToggle"
+              aria-label="Open navigation menu"
+              aria-controls="adminSidebar"
+              aria-expanded="false"
+            >
+              <i class="fas fa-bars"></i>
+            </button>
+            <div class="search-container">
+              <i class="fas fa-search"></i>
+              <input
+                type="text"
+                id="contextSearchBox"
+                placeholder="Search users, projects, or orders..."
+              />
+            </div>
           </div>
           <div class="top-bar-actions">
             <button id="refreshDashboardBtn" class="btn btn-secondary top-refresh-btn">
@@ -430,7 +449,7 @@
               </div>
               <div class="form-group">
                 <label>From Email Address</label>
-                <input type="email" id="fromEmail" class="form-control" placeholder="noreply@digitquote.com" />
+                <input type="email" id="fromEmail" class="form-control" placeholder="noreply@digitquo.in" />
               </div>
               <div class="form-group">
                 <label>

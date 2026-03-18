@@ -13,6 +13,7 @@ let allUsers = [];
 let allProjects = [];
 let allCoupons = [];
 let allOrders = [];
+const MOBILE_ADMIN_BREAKPOINT = 1024;
 
 function getPaymentStatusLabel(paymentStatus) {
   return String(paymentStatus || "").trim() === "paid" ? "Paid" : "Unpaid";
@@ -75,6 +76,54 @@ function getProjectWorkflowStatusClass(status) {
   };
 
   return classes[String(status || "").trim()] || "project-status project-status-pending";
+}
+
+function isCompactAdminViewport() {
+  return window.matchMedia(`(max-width: ${MOBILE_ADMIN_BREAKPOINT}px)`).matches;
+}
+
+function setSidebarState(isOpen) {
+  const sidebar = document.getElementById("adminSidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  const toggle = document.getElementById("sidebarToggle");
+  const shouldOpen = Boolean(isOpen) && isCompactAdminViewport();
+
+  if (sidebar) {
+    sidebar.classList.toggle("active", shouldOpen);
+  }
+
+  if (overlay) {
+    overlay.classList.toggle("active", shouldOpen);
+  }
+
+  document.body.classList.toggle("sidebar-open", shouldOpen);
+
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+  }
+}
+
+function syncResponsiveTableLabels() {
+  document.querySelectorAll(".data-table").forEach((table) => {
+    const labels = Array.from(table.querySelectorAll("thead th")).map((heading) =>
+      heading.textContent.trim()
+    );
+
+    table.querySelectorAll("tbody tr").forEach((row) => {
+      Array.from(row.children).forEach((cell, index) => {
+        if (cell.tagName !== "TD") {
+          return;
+        }
+
+        if (cell.classList.contains("empty-state")) {
+          cell.removeAttribute("data-label");
+          return;
+        }
+
+        cell.setAttribute("data-label", labels[index] || "");
+      });
+    });
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -151,11 +200,41 @@ function redirectToLogin(reason) {
 }
 
 function setupEventListeners() {
+  const sidebarToggle = document.getElementById("sidebarToggle");
+  const sidebarOverlay = document.getElementById("sidebarOverlay");
+
   document.querySelectorAll(".nav-link").forEach((link) => {
     link.addEventListener("click", (event) => {
       event.preventDefault();
       switchSection(link.dataset.section);
     });
+  });
+
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener("click", () => {
+      const sidebar = document.getElementById("adminSidebar");
+      setSidebarState(!sidebar?.classList.contains("active"));
+    });
+  }
+
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener("click", () => {
+      setSidebarState(false);
+    });
+  }
+
+  window.addEventListener("resize", () => {
+    if (!isCompactAdminViewport()) {
+      setSidebarState(false);
+    }
+
+    syncResponsiveTableLabels();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      setSidebarState(false);
+    }
   });
 
   document.getElementById("logoutBtn").addEventListener("click", logout);
@@ -197,6 +276,9 @@ function setupEventListeners() {
   document.getElementById("couponStatusFilter").addEventListener("change", filterCoupons);
   document.getElementById("orderFilter").addEventListener("input", filterOrders);
   document.getElementById("orderStatusFilter").addEventListener("change", filterOrders);
+
+  setSidebarState(false);
+  syncResponsiveTableLabels();
 }
 
 function setupModalControls() {
@@ -248,6 +330,8 @@ function switchSection(sectionId) {
   document.querySelectorAll(".nav-link").forEach((link) => {
     link.classList.toggle("active", link.dataset.section === sectionId);
   });
+
+  setSidebarState(false);
 }
 
 async function logout() {
@@ -360,6 +444,7 @@ function displayUsers(users) {
 
   if (!users.length) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No users found</td></tr>';
+    syncResponsiveTableLabels();
     return;
   }
 
@@ -401,6 +486,8 @@ function displayUsers(users) {
       `;
     })
     .join("");
+
+  syncResponsiveTableLabels();
 }
 
 function filterUsers() {
@@ -918,6 +1005,7 @@ function displayCoupons(coupons) {
 
   if (!coupons.length) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No coupons found</td></tr>';
+    syncResponsiveTableLabels();
     return;
   }
 
@@ -942,6 +1030,8 @@ function displayCoupons(coupons) {
       `;
     })
     .join("");
+
+  syncResponsiveTableLabels();
 }
 
 function filterCoupons() {
@@ -1051,6 +1141,7 @@ function displayOrders(orders) {
 
   if (!orders.length) {
     tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No orders found</td></tr>';
+    syncResponsiveTableLabels();
     return;
   }
 
@@ -1071,14 +1162,18 @@ function displayOrders(orders) {
           <td><span class="${getPaymentStatusClass(order.payment_status)}">${escapeHtml(getPaymentStatusLabel(order.payment_status))}</span></td>
           <td><span style="background: ${statusColors.bg}; color: ${statusColors.color}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">${escapeHtml(order.status || "pending")}</span></td>
           <td>${escapeHtml(orderDate)}</td>
-          <td style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button class="btn ${order.payment_status === "paid" ? "btn-secondary" : "btn-success"}" onclick="toggleOrderPaymentStatus('${escapeHtml(order.id)}', '${escapeHtml(order.payment_status || "unpaid")}')">${order.payment_status === "paid" ? "Mark Unpaid" : "Mark Paid"}</button>
-            <button class="btn btn-secondary" onclick="viewOrderDetails('${escapeHtml(order.id)}')">View</button>
+          <td>
+            <div class="table-actions-wrap">
+              <button class="btn ${order.payment_status === "paid" ? "btn-secondary" : "btn-success"}" onclick="toggleOrderPaymentStatus('${escapeHtml(order.id)}', '${escapeHtml(order.payment_status || "unpaid")}')">${order.payment_status === "paid" ? "Mark Unpaid" : "Mark Paid"}</button>
+              <button class="btn btn-secondary" onclick="viewOrderDetails('${escapeHtml(order.id)}')">View</button>
+            </div>
           </td>
         </tr>
       `;
     })
     .join("");
+
+  syncResponsiveTableLabels();
 }
 
 async function toggleOrderPaymentStatus(orderId, currentPaymentStatus, projectId) {
