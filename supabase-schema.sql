@@ -65,8 +65,11 @@ CREATE TABLE IF NOT EXISTS orders (
   amount DECIMAL(10, 2) NOT NULL,
   discount_amount DECIMAL(10, 2) DEFAULT 0,
   final_amount DECIMAL(10, 2) NOT NULL,
+  payment_status TEXT DEFAULT 'unpaid' CHECK (
+    payment_status IN ('paid', 'unpaid')
+  ),
   status TEXT DEFAULT 'pending' CHECK (
-    status IN ('pending', 'completed', 'failed', 'refunded')
+    status IN ('pending', 'ongoing', 'completed', 'failed', 'refunded')
   ),
   stripe_payment_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -284,3 +287,5 @@ EXECUTE FUNCTION create_profile_for_new_user();
 -- ============================================================================
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS profile_photo TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'unpaid';
+UPDATE orders SET payment_status = 'unpaid' WHERE payment_status IS NULL;

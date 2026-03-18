@@ -9,6 +9,7 @@ const quoteRequestForm = document.getElementById("quoteRequestForm");
 const cartItems = document.getElementById("cartItems");
 const cartSummary = document.getElementById("cartSummary");
 const planDetailsRoot = document.getElementById("planDetailsRoot");
+const planRequirementsRoot = document.getElementById("planRequirementsRoot");
 const quoteRequestRoot = document.getElementById("quoteRequestRoot");
 const reviewToggle = document.getElementById("reviewToggle");
 const reviewForm = document.getElementById("reviewForm");
@@ -560,6 +561,18 @@ function getPlanByKey(planKey) {
   return PLAN_DETAILS[String(planKey || "").trim()] || null;
 }
 
+function getPlanRequirementsPagePath(planKey) {
+  const pages = {
+    basic: "basic-plan-form.html",
+    business: "business-plan-form.html",
+    professional: "professional-plan-form.html",
+    ecommerce: "ecommerce-plan-form.html",
+    "advanced-ecommerce": "advanced-ecommerce-plan-form.html",
+  };
+
+  return pages[String(planKey || "").trim()] || "";
+}
+
 function writeCartItems(items) {
   window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
 }
@@ -655,6 +668,40 @@ function showCartToast(message) {
   showCartToast.timeoutId = window.setTimeout(() => {
     toast.classList.remove("visible");
   }, 4200);
+}
+
+function getOrderStatusLabel(status) {
+  const labels = {
+    pending: "Pending",
+    ongoing: "Ongoing",
+    completed: "Completed",
+    failed: "Failed",
+    refunded: "Refunded",
+  };
+
+  return labels[String(status || "").trim()] || "Pending";
+}
+
+function getOrderStatusClass(status) {
+  const classes = {
+    pending: "order-status pending",
+    ongoing: "order-status ongoing",
+    completed: "order-status completed",
+    failed: "order-status failed",
+    refunded: "order-status refunded",
+  };
+
+  return classes[String(status || "").trim()] || "order-status pending";
+}
+
+function getPaymentStatusLabel(paymentStatus) {
+  return String(paymentStatus || "").trim() === "paid" ? "Paid" : "Unpaid";
+}
+
+function getPaymentStatusClass(paymentStatus) {
+  return String(paymentStatus || "").trim() === "paid"
+    ? "payment-status paid"
+    : "payment-status unpaid";
 }
 
 function createImageFallbackDataUrl(label) {
@@ -755,6 +802,7 @@ function buildProfileMenu(user) {
       </div>
       <div class="user-panel-actions">
         <a class="btn btn-secondary" href="profile.html">Profile</a>
+        <a class="btn btn-secondary" href="orders.html">Orders</a>
         <a class="btn btn-secondary" href="cart.html">Cart</a>
         <button class="btn btn-primary" type="button" id="logoutBtn">Logout</button>
       </div>
@@ -810,6 +858,14 @@ function updateQuoteActionLinks(user) {
   });
 }
 
+function updatePlanBuyLinks(user) {
+  document.querySelectorAll("[data-plan-buy-link]").forEach((link) => {
+    const planKey = link.getAttribute("data-plan-buy-link") || readSelectedPlan();
+    const requirementsPage = getPlanRequirementsPagePath(planKey);
+    link.href = requirementsPage || "pricing.html";
+  });
+}
+
 function renderCartPage(user) {
   if (!cartItems || !cartSummary) {
     return;
@@ -817,6 +873,7 @@ function renderCartPage(user) {
 
   const items = readCartItems();
   const totalAmount = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const primaryPlanKey = items[items.length - 1]?.planKey || readSelectedPlan();
 
   if (!user) {
     cartItems.innerHTML = `
@@ -872,7 +929,8 @@ function renderCartPage(user) {
       <p><strong>Phone:</strong> ${escapeHtml(user.phone || "Not added yet")}</p>
       <p><strong>Items:</strong> ${items.length}</p>
       <p class="cart-total-row"><strong>Total:</strong> <span>${formatInr(totalAmount)}</span></p>
-      <a href="quote-request.html" class="btn btn-primary">Request Checkout</a>
+      <a href="${primaryPlanKey ? getPlanRequirementsPagePath(primaryPlanKey) || "pricing.html" : "pricing.html"}" class="btn btn-primary">${primaryPlanKey ? "Proceed to Buy" : "Browse Pricing"}</a>
+      <a href="orders.html" class="btn btn-secondary">View Orders</a>
       ${
         items.length
           ? '<button class="btn btn-secondary" type="button" data-cart-clear="true">Clear Cart</button>'
@@ -926,6 +984,10 @@ function renderProfilePage(user) {
             <span>Phone</span>
             <strong>${escapeHtml(user.phone || "Not added yet")}</strong>
           </div>
+          <div class="profile-item">
+            <span>Orders</span>
+            <strong><a href="orders.html">View your orders</a></strong>
+          </div>
         </article>
         <article class="card profile-section">
           <h3>Profile Photo</h3>
@@ -942,6 +1004,114 @@ function renderProfilePage(user) {
   applyImageFallbacks(profileRoot);
 }
 
+async function renderOrdersPage(user) {
+  const ordersRoot = document.getElementById("ordersContent");
+  if (!ordersRoot) {
+    return;
+  }
+
+  if (!user) {
+    ordersRoot.innerHTML = `
+      <article class="card cart-empty">
+        <h2>Please log in</h2>
+        <p>You need to sign in before viewing your orders.</p>
+        <a href="login.html" class="btn btn-primary">Go to Login</a>
+      </article>
+    `;
+    return;
+  }
+
+  if (!dqAuth || !dqAuth.isConfigured()) {
+    ordersRoot.innerHTML = `
+      <article class="card cart-empty">
+        <h2>Orders unavailable</h2>
+        <p>Supabase is not configured correctly.</p>
+      </article>
+    `;
+    return;
+  }
+
+  try {
+    const client = await dqAuth.getClient();
+    const { data, error } = await client
+      .from("orders")
+      .select("id, final_amount, discount_amount, amount, status, payment_status, created_at, projects(project_name, template_id)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    const orders = Array.isArray(data) ? data : [];
+
+    if (!orders.length) {
+      ordersRoot.innerHTML = `
+        <article class="card cart-empty">
+          <h2>No orders yet</h2>
+          <p>${escapeHtml(user.fullName)}, your purchased plans will appear here after checkout.</p>
+          <a href="pricing.html" class="btn btn-primary">Browse Pricing</a>
+        </article>
+      `;
+      return;
+    }
+
+    ordersRoot.innerHTML = `
+      <div class="orders-list">
+        ${orders
+          .map((order) => {
+            const title = order.projects?.project_name || order.projects?.template_id || "Website Plan";
+            const createdAt = order.created_at ? new Date(order.created_at).toLocaleString() : "Unknown date";
+            return `
+              <article class="card order-card">
+                <div class="order-card-top">
+                  <div>
+                    <h3>${escapeHtml(title)}</h3>
+                    <p class="order-id">Order #${escapeHtml(String(order.id || "").slice(0, 8))}</p>
+                  </div>
+                  <div class="order-badges">
+                    <span class="${getOrderStatusClass(order.status)}">${escapeHtml(getOrderStatusLabel(order.status))}</span>
+                    <span class="${getPaymentStatusClass(order.payment_status)}">Payment: ${escapeHtml(getPaymentStatusLabel(order.payment_status))}</span>
+                  </div>
+                </div>
+                <div class="order-card-grid">
+                  <div class="order-card-item">
+                    <span>Total</span>
+                    <strong>${formatInr(order.final_amount || 0)}</strong>
+                  </div>
+                  <div class="order-card-item">
+                    <span>Original Amount</span>
+                    <strong>${formatInr(order.amount || 0)}</strong>
+                  </div>
+                  <div class="order-card-item">
+                    <span>Discount</span>
+                    <strong>${formatInr(order.discount_amount || 0)}</strong>
+                  </div>
+                  <div class="order-card-item">
+                    <span>Purchased On</span>
+                    <strong>${escapeHtml(createdAt)}</strong>
+                  </div>
+                  <div class="order-card-item">
+                    <span>Payment</span>
+                    <strong>${escapeHtml(getPaymentStatusLabel(order.payment_status))}</strong>
+                  </div>
+                </div>
+              </article>
+            `;
+          })
+          .join("")}
+      </div>
+    `;
+  } catch (error) {
+    ordersRoot.innerHTML = `
+      <article class="card cart-empty">
+        <h2>Could not load orders</h2>
+        <p>${escapeHtml(error.message || "Unknown error")}</p>
+      </article>
+    `;
+  }
+}
+
 function renderPlanDetailsPage() {
   if (!planDetailsRoot) {
     return;
@@ -950,6 +1120,7 @@ function renderPlanDetailsPage() {
   const params = new URLSearchParams(window.location.search);
   const planKey = params.get("plan") || readSelectedPlan();
   const plan = getPlanByKey(planKey);
+  const requirementsPage = getPlanRequirementsPagePath(planKey);
 
   if (!plan) {
     planDetailsRoot.innerHTML = `
@@ -999,7 +1170,7 @@ function renderPlanDetailsPage() {
         <p class="plan-feedback" id="planFeedback">Add this package to your cart to keep it saved while you continue browsing.</p>
         <div class="plan-actions">
           <button class="btn btn-primary" type="button" data-plan-add="${escapeHtml(planKey)}">Add to Cart</button>
-          <a href="login.html?redirect=quote-request.html" class="btn btn-secondary" data-auth-quote-link>Request Quote</a>
+          <a href="${requirementsPage || "pricing.html"}" class="btn btn-secondary" data-plan-buy-link="${escapeHtml(planKey)}">Proceed to Buy</a>
           <a href="pricing.html" class="btn btn-secondary">Back to Pricing</a>
         </div>
       </article>
@@ -1073,28 +1244,519 @@ function renderQuoteRequestPage(user) {
   }
 }
 
+function renderCheckboxGroup(name, options, otherFieldName) {
+  const checkboxes = options
+    .map(
+      (option) => `
+        <label class="plan-check-option">
+          <input type="checkbox" name="${escapeHtml(name)}" value="${escapeHtml(option)}" />
+          <span>${escapeHtml(option)}</span>
+        </label>
+      `
+    )
+    .join("");
+
+  const otherField = otherFieldName
+    ? `
+      <div class="field-block">
+        <label for="${escapeHtml(otherFieldName)}">Other</label>
+        <input id="${escapeHtml(otherFieldName)}" name="${escapeHtml(otherFieldName)}" type="text" placeholder="Add other requirement" />
+      </div>
+    `
+    : "";
+
+  return `
+    <div class="plan-check-grid">
+      ${checkboxes}
+    </div>
+    ${otherField}
+  `;
+}
+
+function readCheckboxValues(formData, fieldName) {
+  return formData
+    .getAll(fieldName)
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+}
+
+function ensurePlanSuccessModal() {
+  let modal = document.getElementById("planSuccessModal");
+  if (modal) {
+    return modal;
+  }
+
+  modal = document.createElement("div");
+  modal.className = "plan-success-modal";
+  modal.id = "planSuccessModal";
+  modal.setAttribute("hidden", "");
+  modal.innerHTML = `
+    <div class="plan-success-dialog">
+      <h3>Submission Received</h3>
+      <p>Our team will contact you soon.</p>
+      <a class="btn btn-primary" href="index.html" id="planSuccessHomeBtn">Home</a>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function showPlanSuccessModal() {
+  const modal = ensurePlanSuccessModal();
+  const homeButton = document.getElementById("planSuccessHomeBtn");
+
+  window.clearTimeout(showPlanSuccessModal.timeoutId);
+  modal.removeAttribute("hidden");
+  homeButton?.addEventListener(
+    "click",
+    () => {
+      window.clearTimeout(showPlanSuccessModal.timeoutId);
+    },
+    { once: true }
+  );
+  showPlanSuccessModal.timeoutId = window.setTimeout(() => {
+    window.location.href = "index.html";
+  }, 5000);
+}
+
+function renderPlanRequirementsPage(user) {
+  if (!planRequirementsRoot) {
+    return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const pagePlanKey = planRequirementsRoot.dataset.planKey || "";
+  const planKey = pagePlanKey || params.get("plan") || readSelectedPlan();
+  const plan = getPlanByKey(planKey);
+  const requirementsPage = getPlanRequirementsPagePath(planKey);
+
+  if (!plan) {
+    planRequirementsRoot.innerHTML = `
+      <article class="card cart-empty">
+        <h1 class="section-title">Plan Not Found</h1>
+        <p class="section-subtitle">Choose a package first before filling the project requirement form.</p>
+        <a href="pricing.html" class="btn btn-primary">Back to Pricing</a>
+      </article>
+    `;
+    return;
+  }
+
+  if (!user) {
+    window.location.href = `login.html?redirect=${encodeURIComponent(requirementsPage || "pricing.html")}`;
+    return;
+  }
+
+  saveSelectedPlan(planKey);
+
+  const showBasicSection = planKey === "basic" || planKey === "business" || planKey === "professional";
+  const showBusinessSection = planKey === "business" || planKey === "professional";
+  const showProfessionalSection = planKey === "professional";
+  const showEcommerceSection = planKey === "ecommerce" || planKey === "advanced-ecommerce";
+  const showAdvancedEcommerceSection = planKey === "advanced-ecommerce";
+
+  planRequirementsRoot.innerHTML = `
+    <div class="plan-form-layout">
+      <article class="card plan-form-card">
+        <span class="eyebrow">Website Requirements Form</span>
+        <h1 class="section-title">${escapeHtml(plan.name)}</h1>
+        <p class="section-subtitle">Fill in your project requirements. After submission, our team will review the brief and contact you soon.</p>
+
+        <form id="planRequirementsForm" class="contact-form">
+          <div class="field-row">
+            <div class="field-block">
+              <label for="planCustomerName">Full Name</label>
+              <input id="planCustomerName" name="customerName" type="text" value="${escapeHtml(user.fullName || "")}" required />
+            </div>
+            <div class="field-block">
+              <label for="planCustomerEmail">Email</label>
+              <input id="planCustomerEmail" name="customerEmail" type="email" value="${escapeHtml(user.email || "")}" readonly required />
+            </div>
+          </div>
+
+          <div class="field-block">
+            <label for="planCustomerPhone">Phone</label>
+            <input id="planCustomerPhone" name="customerPhone" type="tel" value="${escapeHtml(user.phone || "")}" placeholder="+91 98765 43210" required />
+          </div>
+
+          <div class="field-block">
+            <label for="projectName">Project name</label>
+            <input id="projectName" name="projectName" type="text" placeholder="Enter your project name" required />
+          </div>
+
+          ${
+            showBasicSection
+              ? `
+                <div class="plan-form-section">
+                  <h3>Basic Plan Requirements</h3>
+                  <div class="field-block">
+                    <label for="websiteIdea">Describe your website idea</label>
+                    <textarea id="websiteIdea" name="websiteIdea" required></textarea>
+                  </div>
+                  <div class="field-block">
+                    <label for="businessDetails">Business details to show (About / Services / Contact)</label>
+                    <textarea id="businessDetails" name="businessDetails" required></textarea>
+                  </div>
+                  <div class="field-block">
+                    <label for="pageCount">Number of pages required (Up to 5)</label>
+                    <input id="pageCount" name="pageCount" type="text" placeholder="Example: 5 pages" required />
+                  </div>
+                </div>
+              `
+              : ""
+          }
+
+          ${
+            showBusinessSection
+              ? `
+                <div class="plan-form-section">
+                  <h3>Business Plan Requirements</h3>
+                  <div class="field-block">
+                    <label for="additionalSections">Additional pages or sections required (Gallery / Testimonials / FAQ / Team / Offers etc.)</label>
+                    <textarea id="additionalSections" name="additionalSections" placeholder="Gallery, Testimonials, FAQ, Team, Offers..."></textarea>
+                  </div>
+                  <div class="field-row">
+                    <div class="field-block">
+                      <label for="needsBlog">Do you need Blog setup?</label>
+                      <select id="needsBlog" name="needsBlog">
+                        <option value="">Select</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                      </select>
+                    </div>
+                    <div class="field-block">
+                      <label for="needsGoogleMap">Do you need Google Map integration?</label>
+                      <select id="needsGoogleMap" name="needsGoogleMap">
+                        <option value="">Select</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field-block">
+                    <label for="needsBasicSeo">Do you need Basic SEO setup?</label>
+                    <select id="needsBasicSeo" name="needsBasicSeo">
+                      <option value="">Select</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select>
+                  </div>
+                </div>
+              `
+              : ""
+          }
+
+          ${
+            showProfessionalSection
+              ? `
+                <div class="plan-form-section">
+                  <h3>Professional Plan Requirements</h3>
+                  <div class="field-block">
+                    <label for="designReference">Do you need custom UI/UX design or reference websites?</label>
+                    <textarea id="designReference" name="designReference"></textarea>
+                  </div>
+                  <div class="field-block">
+                    <label>Advanced features required</label>
+                    ${renderCheckboxGroup(
+                      "professionalFeatures",
+                      [
+                        "Login / Signup",
+                        "Booking / Appointment System",
+                        "Speed Optimization",
+                        "Advanced SEO",
+                        "Third-party Integrations",
+                      ],
+                      "professionalOtherFeature"
+                    )}
+                  </div>
+                  <div class="field-block">
+                    <label for="approxPagesModules">Approx total pages / modules required</label>
+                    <input id="approxPagesModules" name="approxPagesModules" type="text" />
+                  </div>
+                </div>
+              `
+              : ""
+          }
+
+          ${
+            showEcommerceSection
+              ? `
+                <div class="plan-form-section">
+                  <h3>${planKey === "advanced-ecommerce" ? "Advanced Ecommerce Plan Requirements" : "Ecommerce Plan Requirements"}</h3>
+                  <div class="field-block">
+                    <label for="storeIdea">Describe your online store idea</label>
+                    <textarea id="storeIdea" name="storeIdea" required></textarea>
+                  </div>
+                  <div class="field-row">
+                    <div class="field-block">
+                      <label for="initialProducts">Number of products to upload initially</label>
+                      <input id="initialProducts" name="initialProducts" type="text" required />
+                    </div>
+                    <div class="field-block">
+                      <label for="categories">Product categories required</label>
+                      <input id="categories" name="categories" type="text" required />
+                    </div>
+                  </div>
+                  ${
+                    showAdvancedEcommerceSection
+                      ? `
+                        <div class="field-block">
+                          <label for="futureScaling">Expected number of products in future scaling</label>
+                          <input id="futureScaling" name="futureScaling" type="text" />
+                        </div>
+                      `
+                      : ""
+                  }
+                  <div class="field-block">
+                    <label>${showAdvancedEcommerceSection ? "Advanced ecommerce features required" : "Required ecommerce features"}</label>
+                    ${renderCheckboxGroup(
+                      showAdvancedEcommerceSection ? "advancedEcommerceFeatures" : "ecommerceFeatures",
+                      showAdvancedEcommerceSection
+                        ? [
+                            "Cart System",
+                            "Checkout Page",
+                            "Payment Gateway Integration",
+                            "Order Confirmation Email",
+                            "Customer Login",
+                            "Product Search & Filters",
+                            "Coupon / Discount System",
+                            "Booking / Appointment System",
+                            "Admin Panel",
+                            "Dashboard",
+                            "Speed Optimization",
+                            "Advanced SEO",
+                            "Third-party Integrations",
+                            "Advanced Analytics & Reports",
+                            "Abandoned Cart Recovery",
+                            "Custom Admin Dashboard",
+                          ]
+                        : [
+                            "Cart System",
+                            "Checkout Page",
+                            "Payment Gateway Integration",
+                            "Order Confirmation Email",
+                            "Customer Login",
+                            "Product Search & Filters",
+                            "Booking / Appointment System",
+                            "Admin Panel",
+                            "Dashboard",
+                            "Speed Optimization",
+                            "Advanced SEO",
+                            "Third-party Integrations",
+                          ],
+                      showAdvancedEcommerceSection ? "advancedEcommerceOtherFeature" : "ecommerceOtherFeature"
+                    )}
+                  </div>
+                </div>
+              `
+              : ""
+          }
+
+          <div class="plan-form-actions">
+            <button type="submit" class="btn btn-primary">Continue</button>
+            <a href="plan-details.html?plan=${escapeHtml(planKey)}" class="btn btn-secondary">Back</a>
+          </div>
+        </form>
+      </article>
+
+      <aside class="plan-form-sidebar">
+        <article class="card">
+          <h2>Selected Plan</h2>
+          <p class="plan-form-price">${formatInr(plan.subtotal)}</p>
+          <ul class="plan-feature-list">
+            ${plan.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}
+          </ul>
+        </article>
+      </aside>
+    </div>
+  `;
+
+  const form = document.getElementById("planRequirementsForm");
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    if (!dqAuth || !dqAuth.isConfigured()) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    const client = await dqAuth.getClient();
+    const profile = typeof dqAuth.getCurrentProfile === "function" ? await dqAuth.getCurrentProfile() : null;
+    if (!client || !profile?.id) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    const formData = new FormData(form);
+    const customerName = String(formData.get("customerName") || "").trim();
+    const customerEmail = String(formData.get("customerEmail") || "").trim();
+    const customerPhone = String(formData.get("customerPhone") || "").trim();
+    const projectName = String(formData.get("projectName") || "").trim();
+
+    const requirements = {
+      basic: {
+        websiteIdea: String(formData.get("websiteIdea") || "").trim(),
+        businessDetails: String(formData.get("businessDetails") || "").trim(),
+        pageCount: String(formData.get("pageCount") || "").trim(),
+      },
+      business: showBusinessSection
+        ? {
+            additionalSections: String(formData.get("additionalSections") || "").trim(),
+            needsBlog: String(formData.get("needsBlog") || "").trim(),
+            needsGoogleMap: String(formData.get("needsGoogleMap") || "").trim(),
+            needsBasicSeo: String(formData.get("needsBasicSeo") || "").trim(),
+          }
+        : null,
+      professional: showProfessionalSection
+        ? {
+            designReference: String(formData.get("designReference") || "").trim(),
+            features: readCheckboxValues(formData, "professionalFeatures"),
+            otherFeature: String(formData.get("professionalOtherFeature") || "").trim(),
+            approxPagesModules: String(formData.get("approxPagesModules") || "").trim(),
+          }
+        : null,
+      ecommerce: showEcommerceSection
+        ? {
+            storeIdea: String(formData.get("storeIdea") || "").trim(),
+            initialProducts: String(formData.get("initialProducts") || "").trim(),
+            categories: String(formData.get("categories") || "").trim(),
+            features: readCheckboxValues(formData, "ecommerceFeatures"),
+            otherFeature: String(formData.get("ecommerceOtherFeature") || "").trim(),
+          }
+        : null,
+      advancedEcommerce: showAdvancedEcommerceSection
+        ? {
+            futureScaling: String(formData.get("futureScaling") || "").trim(),
+            features: readCheckboxValues(formData, "advancedEcommerceFeatures"),
+            otherFeature: String(formData.get("advancedEcommerceOtherFeature") || "").trim(),
+          }
+        : null,
+    };
+
+      const ideaSummary =
+        requirements.ecommerce?.storeIdea ||
+        requirements.basic.websiteIdea ||
+        `${plan.name} Requirement`;
+
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    try {
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = true;
+        submitButton.textContent = "Submitting...";
+      }
+
+      await client
+        .from("profiles")
+        .update({
+          full_name: customerName,
+          phone: customerPhone,
+        })
+        .eq("id", profile.id);
+
+      const { data: createdProjects, error } = await client.from("projects").insert({
+        user_id: profile.id,
+        project_name: (projectName || ideaSummary).slice(0, 120),
+        template_id: planKey,
+        site_config: {
+          source: "plan_requirements_form",
+          submitted_at: new Date().toISOString(),
+          contact: {
+            full_name: customerName,
+            email: customerEmail,
+            phone: customerPhone,
+          },
+          plan: {
+            key: planKey,
+            name: plan.name,
+            price: plan.subtotal,
+          },
+          summary: {
+            project_name: projectName,
+            idea: ideaSummary,
+          },
+          requirements,
+        },
+        is_active: true,
+      }).select("id");
+
+      if (error) {
+        throw error;
+      }
+
+      const createdProject = Array.isArray(createdProjects) ? createdProjects[0] : null;
+      const { error: orderError } = await client.from("orders").insert({
+        user_id: profile.id,
+        project_id: createdProject?.id || null,
+        amount: plan.subtotal,
+        discount_amount: 0,
+        final_amount: plan.subtotal,
+        payment_status: "unpaid",
+        status: "pending",
+      });
+
+      if (orderError) {
+        throw orderError;
+      }
+
+      removeCartItem(planKey);
+      showPlanSuccessModal();
+    } catch (error) {
+      showCartToast(error.message || "Could not submit your requirements.");
+    } finally {
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Continue";
+      }
+    }
+  });
+}
+
+function mergeUserAndProfile(user, profile) {
+  if (!user && !profile) {
+    return null;
+  }
+
+  return {
+    id: profile?.id || user?.id || "",
+    email: profile?.email || user?.email || "",
+    fullName: profile?.full_name || user?.fullName || user?.email || "User",
+    phone: profile?.phone || user?.phone || "",
+    profilePhoto: profile?.profile_photo || user?.profilePhoto || "",
+    role: profile?.role || "",
+    subscriptionPlan: profile?.subscription_plan || "",
+  };
+}
+
 async function initAuthUi() {
   if (!dqAuth || !dqAuth.isConfigured()) {
     activeReviewIsAdmin = false;
     syncReviewAccess(null);
     bindPortfolioQuoteTrigger(null);
     updateQuoteActionLinks(null);
+    updatePlanBuyLinks(null);
     renderCartPage(null);
     renderProfilePage(null);
+    renderOrdersPage(null);
     renderQuoteRequestPage(null);
+    renderPlanRequirementsPage(null);
     return;
   }
 
   try {
-    const user = await dqAuth.getCurrentUser();
+    const rawUser = await dqAuth.getCurrentUser();
+    const profile = typeof dqAuth.getCurrentProfile === "function" ? await dqAuth.getCurrentProfile() : null;
+    const user = mergeUserAndProfile(rawUser, profile);
     if (!user) {
       activeReviewIsAdmin = false;
       syncReviewAccess(null);
       bindPortfolioQuoteTrigger(null);
       updateQuoteActionLinks(null);
+      updatePlanBuyLinks(null);
       renderCartPage(null);
       renderProfilePage(null);
+      renderOrdersPage(null);
       renderQuoteRequestPage(null);
+      renderPlanRequirementsPage(null);
       return;
     }
 
@@ -1105,18 +1767,24 @@ async function initAuthUi() {
     syncAllReviewCardControls();
     bindPortfolioQuoteTrigger(user);
     updateQuoteActionLinks(user);
+    updatePlanBuyLinks(user);
     buildProfileMenu(user);
     renderCartPage(user);
     renderProfilePage(user);
+    renderOrdersPage(user);
     renderQuoteRequestPage(user);
+    renderPlanRequirementsPage(user);
   } catch {
     activeReviewIsAdmin = false;
     syncReviewAccess(null);
     bindPortfolioQuoteTrigger(null);
     updateQuoteActionLinks(null);
+    updatePlanBuyLinks(null);
     renderCartPage(null);
     renderProfilePage(null);
+    renderOrdersPage(null);
     renderQuoteRequestPage(null);
+    renderPlanRequirementsPage(null);
   }
 }
 

@@ -103,6 +103,10 @@
             />
           </div>
           <div class="top-bar-actions">
+            <button id="refreshDashboardBtn" class="btn btn-secondary top-refresh-btn">
+              <i class="fas fa-rotate-right"></i>
+              <span>Refresh</span>
+            </button>
             <button id="notificationsBell" class="icon-btn">
               <i class="fas fa-bell"></i>
               <span class="badge">0</span>
@@ -116,8 +120,10 @@
         <!-- DASHBOARD SECTION -->
         <section id="dashboard" class="content-section active">
           <div class="section-header">
-            <h2>Dashboard</h2>
-            <p class="subtitle">System overview and key metrics</p>
+            <div>
+              <h2>Dashboard</h2>
+              <p class="subtitle">System overview and key metrics</p>
+            </div>
           </div>
 
           <div class="stats-grid">
@@ -255,10 +261,26 @@
               <option value="business">Business</option>
               <option value="professional">Professional</option>
             </select>
+            <select id="projectStatusFilter" class="filter-input">
+              <option value="">All Project Status</option>
+              <option value="pending">Pending</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="completed">Completed</option>
+            </select>
           </div>
 
-          <div id="projectsList" class="projects-grid">
-            <p class="empty-state">Loading projects...</p>
+          <div class="projects-section-group">
+            <h3>Active Projects</h3>
+            <div id="projectsList" class="projects-grid">
+              <p class="empty-state">Loading projects...</p>
+            </div>
+          </div>
+
+          <div class="projects-section-group">
+            <h3>Completed Projects</h3>
+            <div id="completedProjectsList" class="projects-grid">
+              <p class="empty-state">No completed projects yet.</p>
+            </div>
           </div>
         </section>
 
@@ -327,6 +349,7 @@
             <select id="orderStatusFilter" class="filter-input">
               <option value="">All Status</option>
               <option value="completed">Completed</option>
+              <option value="ongoing">Ongoing</option>
               <option value="pending">Pending</option>
               <option value="failed">Failed</option>
               <option value="refunded">Refunded</option>
@@ -342,6 +365,7 @@
                   <th>Amount</th>
                   <th>Discount</th>
                   <th>Final Amount</th>
+                  <th>Payment</th>
                   <th>Status</th>
                   <th>Date</th>
                   <th>Actions</th>
@@ -349,7 +373,7 @@
               </thead>
               <tbody id="ordersTableBody">
                 <tr>
-                  <td colspan="8" class="empty-state">Loading orders...</td>
+                  <td colspan="9" class="empty-state">Loading orders...</td>
                 </tr>
               </tbody>
             </table>
@@ -530,6 +554,21 @@
         <div class="modal-footer">
           <button class="btn btn-secondary close-modal-btn">Cancel</button>
           <button class="btn btn-primary" id="submitCouponBtn">Create Coupon</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="projectDetailsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Project Details</h3>
+          <button class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body" id="projectDetailsContent">
+          <p class="empty-state">No project selected.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary close-modal-btn">Close</button>
         </div>
       </div>
     </div>

@@ -14,6 +14,69 @@ let allProjects = [];
 let allCoupons = [];
 let allOrders = [];
 
+function getPaymentStatusLabel(paymentStatus) {
+  return String(paymentStatus || "").trim() === "paid" ? "Paid" : "Unpaid";
+}
+
+function getPaymentStatusClass(paymentStatus) {
+  return String(paymentStatus || "").trim() === "paid"
+    ? "payment-status paid"
+    : "payment-status unpaid";
+}
+
+function getLatestProjectOrder(project) {
+  if (!Array.isArray(project?.orders) || !project.orders.length) {
+    return null;
+  }
+
+  return [...project.orders].sort((a, b) => {
+    const aTime = new Date(a?.created_at || 0).getTime();
+    const bTime = new Date(b?.created_at || 0).getTime();
+    return bTime - aTime;
+  })[0];
+}
+
+function isManagedProject(project) {
+  return (
+    String(project?.site_config?.source || "").trim() === "plan_requirements_form" ||
+    Boolean(getLatestProjectOrder(project))
+  );
+}
+
+function getProjectWorkflowStatus(project) {
+  const latestOrderStatus = String(getLatestProjectOrder(project)?.status || "").trim().toLowerCase();
+  if (latestOrderStatus === "pending" || latestOrderStatus === "ongoing" || latestOrderStatus === "completed") {
+    return latestOrderStatus;
+  }
+
+  const projectStatus = String(project?.site_config?.project_status || "pending").trim().toLowerCase();
+  if (projectStatus === "ongoing" || projectStatus === "completed") {
+    return projectStatus;
+  }
+
+  return "pending";
+}
+
+function getProjectWorkflowStatusLabel(status) {
+  const labels = {
+    pending: "Pending",
+    ongoing: "Ongoing",
+    completed: "Completed",
+  };
+
+  return labels[String(status || "").trim()] || "Pending";
+}
+
+function getProjectWorkflowStatusClass(status) {
+  const classes = {
+    pending: "project-status project-status-pending",
+    ongoing: "project-status project-status-ongoing",
+    completed: "project-status project-status-completed",
+  };
+
+  return classes[String(status || "").trim()] || "project-status project-status-pending";
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initializeAdmin().catch((error) => {
     console.error("Admin initialization error:", error);
@@ -96,6 +159,7 @@ function setupEventListeners() {
   });
 
   document.getElementById("logoutBtn").addEventListener("click", logout);
+  document.getElementById("refreshDashboardBtn").addEventListener("click", refreshAdminData);
   document.getElementById("addUserBtn").addEventListener("click", () => openModal("addUserModal"));
   document.getElementById("addProjectBtn").addEventListener("click", () => {
     alert("Create Project feature requires a dedicated backend workflow.");
@@ -128,6 +192,7 @@ function setupEventListeners() {
   document.getElementById("statusFilter").addEventListener("change", filterUsers);
   document.getElementById("projectFilter").addEventListener("input", filterProjects);
   document.getElementById("templateFilter").addEventListener("change", filterProjects);
+  document.getElementById("projectStatusFilter").addEventListener("change", filterProjects);
   document.getElementById("couponFilter").addEventListener("input", filterCoupons);
   document.getElementById("couponStatusFilter").addEventListener("change", filterCoupons);
   document.getElementById("orderFilter").addEventListener("input", filterOrders);
@@ -254,6 +319,22 @@ async function loadDashboardData() {
   }
 }
 
+async function refreshAdminData() {
+  const refreshButton = document.getElementById("refreshDashboardBtn");
+
+  try {
+    refreshButton.disabled = true;
+    refreshButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing';
+    await Promise.all([loadDashboardData(), loadUsers(), loadProjects(), loadCoupons(), loadOrders()]);
+  } catch (error) {
+    console.error("Error refreshing admin data:", error);
+    alert("Dashboard refresh failed.");
+  } finally {
+    refreshButton.disabled = false;
+    refreshButton.innerHTML = '<i class="fas fa-rotate-right"></i> Refresh';
+  }
+}
+
 async function loadUsers() {
   try {
     const { data, error } = await supabaseClient
@@ -296,6 +377,9 @@ function displayUsers(users) {
       const statusStyle = user.is_active
         ? "background: rgba(16, 185, 129, 0.1); color: var(--success);"
         : "background: rgba(107, 114, 128, 0.1); color: var(--gray);";
+      const actionLabel = user.is_active ? "Suspend" : "Unsuspend";
+      const actionClass = user.is_active ? "btn btn-danger" : "btn btn-success";
+      const nextStatus = user.is_active ? "false" : "true";
 
       return `
         <tr>
@@ -312,7 +396,7 @@ function displayUsers(users) {
           <td>${plan}</td>
           <td><span style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">${user.is_active ? "Active" : "Inactive"}</span></td>
           <td>${escapeHtml(joined)}</td>
-          <td><button class="btn btn-danger" onclick="suspendUser('${escapeHtml(user.id)}')">Suspend</button></td>
+          <td><button class="${actionClass}" onclick="setUserStatus('${escapeHtml(user.id)}', ${nextStatus})">${actionLabel}</button></td>
         </tr>
       `;
     })
@@ -389,22 +473,23 @@ async function submitAddUser() {
   }
 }
 
-async function suspendUser(userId) {
-  if (!window.confirm("Are you sure you want to suspend this user?")) {
+async function setUserStatus(userId, shouldActivate) {
+  const action = shouldActivate ? "unsuspend" : "suspend";
+  if (!window.confirm(`Are you sure you want to ${action} this user?`)) {
     return;
   }
 
   try {
-    const { error } = await supabaseClient.from("profiles").update({ is_active: false }).eq("id", userId);
+    const { error } = await supabaseClient.from("profiles").update({ is_active: shouldActivate }).eq("id", userId);
     if (error) {
       throw error;
     }
 
-    alert("User suspended successfully");
+    alert(`User ${shouldActivate ? "unsuspended" : "suspended"} successfully`);
     await loadUsers();
   } catch (error) {
-    console.error("Error suspending user:", error);
-    alert(`Error suspending user: ${error.message || "Unknown error"}`);
+    console.error(`Error trying to ${action} user:`, error);
+    alert(`Error trying to ${action} user: ${error.message || "Unknown error"}`);
   }
 }
 
@@ -412,14 +497,26 @@ async function loadProjects() {
   try {
     const { data, error } = await supabaseClient
       .from("projects")
-      .select("*, profiles(email)")
+      .select("*, profiles(full_name, email, phone), orders(id, status, payment_status, final_amount, created_at)")
       .order("created_at", { ascending: false });
 
     if (error) {
       throw error;
     }
 
-    allProjects = data || [];
+    allProjects = (data || [])
+      .filter(isManagedProject)
+      .map((project) => {
+        const syncedStatus = getProjectWorkflowStatus(project);
+
+        return {
+          ...project,
+          site_config: {
+            ...(project.site_config || {}),
+            project_status: syncedStatus,
+          },
+        };
+      });
     displayProjects(allProjects);
   } catch (error) {
     console.error("Error loading projects:", error);
@@ -427,49 +524,378 @@ async function loadProjects() {
   }
 }
 
-function displayProjects(projects) {
-  const container = document.getElementById("projectsList");
+function formatProjectValue(value) {
+  if (Array.isArray(value)) {
+    return value.length ? value.map((entry) => escapeHtml(entry)).join("\n") : "Not provided";
+  }
 
-  if (!projects.length) {
-    container.innerHTML = '<p class="empty-state" style="padding: 40px;">No projects found</p>';
+  if (typeof value === "boolean") {
+    return value ? "Yes" : "No";
+  }
+
+  if (value === null || value === undefined || value === "") {
+    return "Not provided";
+  }
+
+  return escapeHtml(String(value));
+}
+
+function buildProjectDetailSection(title, fields) {
+  const rows = fields
+    .map(
+      (field) => `
+        <div class="project-detail-row">
+          <span>${escapeHtml(field.label)}</span>
+          <strong>${formatProjectValue(field.value)}</strong>
+        </div>
+      `
+    )
+    .join("");
+
+  if (!fields.length) {
+    return "";
+  }
+
+  return `
+    <section class="project-detail-section">
+      <h4>${escapeHtml(title)}</h4>
+      ${rows}
+    </section>
+  `;
+}
+
+function isProjectDetailValueEmpty(value) {
+  if (value === null || value === undefined || value === "") {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.every(isProjectDetailValueEmpty);
+  }
+
+  if (typeof value === "object") {
+    return Object.values(value).every(isProjectDetailValueEmpty);
+  }
+
+  return false;
+}
+
+function toProjectDetailLabel(key) {
+  return String(key || "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function buildProjectDetailTree(value, label = "") {
+  if (isProjectDetailValueEmpty(value)) {
+    return "";
+  }
+
+  if (Array.isArray(value)) {
+    const items = value
+      .map((entry) => buildProjectDetailTree(entry))
+      .filter(Boolean)
+      .map((entry) => `<div class="project-detail-subitem">${entry}</div>`)
+      .join("");
+
+    if (!items) {
+      return "";
+    }
+
+    return `
+      <div class="project-detail-block">
+        ${label ? `<h5>${escapeHtml(label)}</h5>` : ""}
+        <div class="project-detail-subgrid">${items}</div>
+      </div>
+    `;
+  }
+
+  if (typeof value === "object") {
+    const entries = Object.entries(value)
+      .map(([key, entryValue]) => buildProjectDetailTree(entryValue, toProjectDetailLabel(key)))
+      .filter(Boolean)
+      .join("");
+
+    if (!entries) {
+      return "";
+    }
+
+    return `
+      <div class="project-detail-block">
+        ${label ? `<h5>${escapeHtml(label)}</h5>` : ""}
+        <div class="project-detail-subgrid">${entries}</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="project-detail-row">
+      ${label ? `<span>${escapeHtml(label)}</span>` : ""}
+      <strong>${formatProjectValue(value)}</strong>
+    </div>
+  `;
+}
+
+function displayProjects(projects) {
+  const activeContainer = document.getElementById("projectsList");
+  const completedContainer = document.getElementById("completedProjectsList");
+
+  if (!activeContainer || !completedContainer) {
     return;
   }
 
-  container.innerHTML = projects
-    .map((project) => {
+  if (!projects.length) {
+    activeContainer.innerHTML = '<p class="empty-state" style="padding: 40px;">No projects found</p>';
+    completedContainer.innerHTML = '<p class="empty-state" style="padding: 40px;">No completed projects found</p>';
+    return;
+  }
+
+  const renderProjectCard = (project) => {
       const projectName = escapeHtml(project.project_name || "Untitled Project");
-      const owner = escapeHtml(project.profiles?.email || "Unknown");
+      const ownerName = escapeHtml(project.profiles?.full_name || project.site_config?.contact?.full_name || "Unknown");
+      const ownerEmail = escapeHtml(project.profiles?.email || project.site_config?.contact?.email || "Unknown");
+      const ownerPhone = escapeHtml(project.profiles?.phone || project.site_config?.contact?.phone || "Not provided");
       const domain = escapeHtml(project.domain_name || "Not assigned");
-      const templateId = escapeHtml(project.template_id || "basic");
-      const statusClass = project.is_active ? "Active" : "Inactive";
+      const templateId = escapeHtml(project.site_config?.plan?.name || project.template_id || "basic");
+      const workflowStatus = getProjectWorkflowStatus(project);
+      const latestOrder = getLatestProjectOrder(project);
+      const paymentStatus = getPaymentStatusLabel(latestOrder?.payment_status);
+      const summaryIdea = escapeHtml(
+        project.site_config?.summary?.idea ||
+          project.site_config?.requirements?.basic?.websiteIdea ||
+          project.site_config?.requirements?.ecommerce?.storeIdea ||
+          "Project details submitted by customer."
+      );
 
       return `
         <div class="project-card">
-          <h4>${projectName}</h4>
-          <p class="project-meta"><strong>Owner:</strong> ${owner}</p>
+          <div class="project-card-top">
+            <h4>${projectName}</h4>
+            <span class="${getProjectWorkflowStatusClass(workflowStatus)}">${getProjectWorkflowStatusLabel(workflowStatus)}</span>
+          </div>
+          <p class="project-meta"><strong>Customer:</strong> ${ownerName}</p>
+          <p class="project-meta"><strong>Email:</strong> ${ownerEmail}</p>
+          <p class="project-meta"><strong>Phone:</strong> ${ownerPhone}</p>
           <p class="project-meta"><strong>Domain:</strong> ${domain}</p>
-          <p class="project-meta"><strong>Template:</strong> ${templateId}</p>
-          <span class="project-status">${statusClass}</span>
+          <p class="project-meta"><strong>Plan:</strong> ${templateId}</p>
+          <p class="project-meta"><strong>Payment:</strong> <span class="${getPaymentStatusClass(latestOrder?.payment_status)}">${paymentStatus}</span></p>
+          <p class="project-meta">${summaryIdea}</p>
+          <div class="project-card-controls">
+            <select class="filter-input project-status-select" onchange="updateProjectWorkflowStatus('${escapeHtml(project.id)}', this.value)">
+              <option value="pending" ${workflowStatus === "pending" ? "selected" : ""}>Pending</option>
+              <option value="ongoing" ${workflowStatus === "ongoing" ? "selected" : ""}>Ongoing</option>
+              <option value="completed" ${workflowStatus === "completed" ? "selected" : ""}>Completed</option>
+            </select>
+          </div>
+          <div style="margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-secondary" onclick="viewProjectDetails('${escapeHtml(project.id)}')">See Project Details</button>
+            ${
+              latestOrder?.id
+                ? `<button class="btn ${latestOrder?.payment_status === "paid" ? "btn-secondary" : "btn-success"}" onclick="toggleOrderPaymentStatus('${escapeHtml(latestOrder.id)}', '${escapeHtml(latestOrder.payment_status || "unpaid")}', '${escapeHtml(project.id)}')">${latestOrder?.payment_status === "paid" ? "Mark Unpaid" : "Mark Paid"}</button>`
+                : ""
+            }
+          </div>
         </div>
       `;
-    })
-    .join("");
+  };
+
+  const activeProjects = projects.filter((project) => getProjectWorkflowStatus(project) !== "completed");
+  const completedProjects = projects.filter((project) => getProjectWorkflowStatus(project) === "completed");
+
+  activeContainer.innerHTML = activeProjects.length
+    ? activeProjects.map(renderProjectCard).join("")
+    : '<p class="empty-state" style="padding: 40px;">No active projects found</p>';
+
+  completedContainer.innerHTML = completedProjects.length
+    ? completedProjects.map(renderProjectCard).join("")
+    : '<p class="empty-state" style="padding: 40px;">No completed projects found</p>';
+}
+
+function viewProjectDetails(projectId) {
+  const project = allProjects.find((entry) => entry.id === projectId);
+  const content = document.getElementById("projectDetailsContent");
+
+  if (!project || !content) {
+    return;
+  }
+
+  const contact = project.site_config?.contact || {};
+  const requirements = project.site_config?.requirements || {};
+  const professional = requirements.professional || {};
+  const ecommerce = requirements.ecommerce || {};
+  const advancedEcommerce = requirements.advancedEcommerce || {};
+  const latestOrder = getLatestProjectOrder(project);
+  const planKey = String(project.site_config?.plan?.key || project.template_id || "").trim().toLowerCase();
+  const showBasicRequirements =
+    ["basic", "business", "professional"].includes(planKey) && !isProjectDetailValueEmpty(requirements.basic);
+  const showBusinessRequirements =
+    ["business", "professional"].includes(planKey) && !isProjectDetailValueEmpty(requirements.business);
+  const showProfessionalRequirements =
+    planKey === "professional" && !isProjectDetailValueEmpty(requirements.professional);
+  const showEcommerceRequirements =
+    planKey === "ecommerce" && !isProjectDetailValueEmpty(requirements.ecommerce);
+  const showAdvancedEcommerceRequirements =
+    planKey === "advanced-ecommerce" &&
+    (!isProjectDetailValueEmpty(requirements.ecommerce) || !isProjectDetailValueEmpty(requirements.advancedEcommerce));
+
+  content.innerHTML = `
+    <div class="project-detail-grid">
+      ${buildProjectDetailSection("Customer", [
+        { label: "Name", value: project.profiles?.full_name || contact.full_name },
+        { label: "Email", value: project.profiles?.email || contact.email },
+        { label: "Phone", value: project.profiles?.phone || contact.phone },
+        { label: "Submitted", value: project.created_at ? new Date(project.created_at).toLocaleString() : "" },
+      ])}
+      ${buildProjectDetailSection("Plan", [
+        { label: "Plan", value: project.site_config?.plan?.name || project.template_id },
+        { label: "Quoted Price", value: project.site_config?.plan?.price ? formatCurrency(project.site_config.plan.price) : "" },
+        { label: "Project Name", value: project.project_name },
+        { label: "Project Status", value: getProjectWorkflowStatusLabel(getProjectWorkflowStatus(project)) },
+        { label: "Payment", value: getPaymentStatusLabel(latestOrder?.payment_status) },
+        { label: "Order Amount", value: latestOrder?.final_amount ? formatCurrency(latestOrder.final_amount) : "" },
+      ])}
+      ${
+        latestOrder?.id
+          ? `
+            <section class="project-detail-section">
+              <h4>Payment Control</h4>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <span class="${getPaymentStatusClass(latestOrder.payment_status)}">${escapeHtml(getPaymentStatusLabel(latestOrder.payment_status))}</span>
+                <button class="btn ${latestOrder.payment_status === "paid" ? "btn-secondary" : "btn-success"}" onclick="toggleOrderPaymentStatus('${escapeHtml(latestOrder.id)}', '${escapeHtml(latestOrder.payment_status || "unpaid")}', '${escapeHtml(project.id)}')">${latestOrder.payment_status === "paid" ? "Mark Unpaid" : "Mark Paid"}</button>
+              </div>
+            </section>
+          `
+          : ""
+      }
+      <section class="project-detail-section">
+        <h4>Project Workflow</h4>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+          <span class="${getProjectWorkflowStatusClass(getProjectWorkflowStatus(project))}">${getProjectWorkflowStatusLabel(getProjectWorkflowStatus(project))}</span>
+          <select class="filter-input project-status-select" onchange="updateProjectWorkflowStatus('${escapeHtml(project.id)}', this.value)">
+            <option value="pending" ${getProjectWorkflowStatus(project) === "pending" ? "selected" : ""}>Pending</option>
+            <option value="ongoing" ${getProjectWorkflowStatus(project) === "ongoing" ? "selected" : ""}>Ongoing</option>
+            <option value="completed" ${getProjectWorkflowStatus(project) === "completed" ? "selected" : ""}>Completed</option>
+          </select>
+        </div>
+      </section>
+      ${
+        showBasicRequirements
+          ? buildProjectDetailSection("Basic Plan Requirements", [
+              { label: "Describe your website idea", value: requirements.basic?.websiteIdea },
+              { label: "Business details to show (About / Services / Contact)", value: requirements.basic?.businessDetails },
+              { label: "Number of pages required (Up to 5)", value: requirements.basic?.pageCount },
+            ])
+          : ""
+      }
+      ${
+        showBusinessRequirements
+          ? buildProjectDetailSection("Business Plan Requirements", [
+              { label: "Additional pages or sections required (Gallery / Testimonials / FAQ / Team / Offers etc.)", value: requirements.business?.additionalSections },
+              { label: "Do you need Blog setup?", value: requirements.business?.needsBlog },
+              { label: "Do you need Google Map integration?", value: requirements.business?.needsGoogleMap },
+              { label: "Do you need Basic SEO setup?", value: requirements.business?.needsBasicSeo },
+            ])
+          : ""
+      }
+      ${
+        showProfessionalRequirements
+          ? buildProjectDetailSection("Professional Plan Requirements", [
+              { label: "Do you need custom UI/UX design or reference websites?", value: professional.designReference },
+              { label: "Advanced features required", value: professional.features },
+              { label: "Other", value: professional.otherFeature },
+              { label: "Approx total pages / modules required", value: professional.approxPagesModules },
+            ])
+          : ""
+      }
+      ${
+        showEcommerceRequirements
+          ? buildProjectDetailSection("Ecommerce Plan Requirements", [
+              { label: "Describe your online store idea", value: ecommerce.storeIdea },
+              { label: "Number of products to upload initially", value: ecommerce.initialProducts },
+              { label: "Product categories required", value: ecommerce.categories },
+              { label: "Required ecommerce features", value: ecommerce.features },
+              { label: "Other", value: ecommerce.otherFeature },
+            ])
+          : ""
+      }
+      ${
+        showAdvancedEcommerceRequirements
+          ? buildProjectDetailSection("Advanced Ecommerce Plan Requirements", [
+              { label: "Describe your online store idea", value: ecommerce.storeIdea },
+              { label: "Number of products to upload initially", value: ecommerce.initialProducts },
+              { label: "Product categories required", value: ecommerce.categories },
+              { label: "Expected number of products in future scaling", value: advancedEcommerce.futureScaling },
+              { label: "Advanced ecommerce features required", value: advancedEcommerce.features },
+              { label: "Other", value: advancedEcommerce.otherFeature },
+            ])
+          : ""
+      }
+    </div>
+  `;
+
+  openModal("projectDetailsModal");
 }
 
 function filterProjects() {
   const searchTerm = document.getElementById("projectFilter").value.toLowerCase();
   const templateFilter = document.getElementById("templateFilter").value;
+  const statusFilter = document.getElementById("projectStatusFilter").value;
 
   const filtered = allProjects.filter((project) => {
     const matchesSearch =
       String(project.project_name || "").toLowerCase().includes(searchTerm) ||
       String(project.domain_name || "").toLowerCase().includes(searchTerm);
     const matchesTemplate = !templateFilter || project.template_id === templateFilter;
+    const matchesStatus = !statusFilter || getProjectWorkflowStatus(project) === statusFilter;
 
-    return matchesSearch && matchesTemplate;
+    return matchesSearch && matchesTemplate && matchesStatus;
   });
 
   displayProjects(filtered);
+}
+
+async function updateProjectWorkflowStatus(projectId, status) {
+  if (!["pending", "ongoing", "completed"].includes(status)) {
+    return;
+  }
+
+  const project = allProjects.find((entry) => entry.id === projectId);
+  if (!project) {
+    return;
+  }
+
+  try {
+    const nextSiteConfig = {
+      ...(project.site_config || {}),
+      project_status: status,
+    };
+
+    const latestOrder = getLatestProjectOrder(project);
+    const projectUpdate = supabaseClient.from("projects").update({ site_config: nextSiteConfig }).eq("id", projectId);
+    const updates = [projectUpdate];
+
+    if (latestOrder?.id) {
+      updates.push(supabaseClient.from("orders").update({ status }).eq("id", latestOrder.id));
+    }
+
+    const results = await Promise.all(updates);
+    const firstError = results.find((result) => result.error)?.error;
+    if (firstError) {
+      throw firstError;
+    }
+
+    await Promise.all([loadProjects(), loadOrders(), loadDashboardData()]);
+
+    if (document.getElementById("projectDetailsModal")?.classList.contains("show")) {
+      viewProjectDetails(projectId);
+    }
+  } catch (error) {
+    console.error("Error updating project status:", error);
+    alert(`Error updating project status: ${error.message || "Unknown error"}`);
+  }
 }
 
 async function loadCoupons() {
@@ -611,6 +1037,7 @@ async function loadOrders() {
 function getStatusColor(status) {
   const colors = {
     completed: { bg: "rgba(16, 185, 129, 0.1)", color: "var(--success)" },
+    ongoing: { bg: "rgba(99, 102, 241, 0.1)", color: "var(--primary)" },
     pending: { bg: "rgba(245, 158, 11, 0.1)", color: "var(--warning)" },
     failed: { bg: "rgba(239, 68, 68, 0.1)", color: "var(--danger)" },
     refunded: { bg: "rgba(107, 114, 128, 0.1)", color: "var(--gray)" },
@@ -623,7 +1050,7 @@ function displayOrders(orders) {
   const tbody = document.getElementById("ordersTableBody");
 
   if (!orders.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No orders found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No orders found</td></tr>';
     return;
   }
 
@@ -641,13 +1068,42 @@ function displayOrders(orders) {
           <td>${escapeHtml(formatCurrency(order.amount || 0))}</td>
           <td>${escapeHtml(formatCurrency(order.discount_amount || 0))}</td>
           <td><strong>${escapeHtml(formatCurrency(order.final_amount || 0))}</strong></td>
+          <td><span class="${getPaymentStatusClass(order.payment_status)}">${escapeHtml(getPaymentStatusLabel(order.payment_status))}</span></td>
           <td><span style="background: ${statusColors.bg}; color: ${statusColors.color}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">${escapeHtml(order.status || "pending")}</span></td>
           <td>${escapeHtml(orderDate)}</td>
-          <td><button class="btn btn-secondary" onclick="viewOrderDetails('${escapeHtml(order.id)}')">View</button></td>
+          <td style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn ${order.payment_status === "paid" ? "btn-secondary" : "btn-success"}" onclick="toggleOrderPaymentStatus('${escapeHtml(order.id)}', '${escapeHtml(order.payment_status || "unpaid")}')">${order.payment_status === "paid" ? "Mark Unpaid" : "Mark Paid"}</button>
+            <button class="btn btn-secondary" onclick="viewOrderDetails('${escapeHtml(order.id)}')">View</button>
+          </td>
         </tr>
       `;
     })
     .join("");
+}
+
+async function toggleOrderPaymentStatus(orderId, currentPaymentStatus, projectId) {
+  const nextPaymentStatus = currentPaymentStatus === "paid" ? "unpaid" : "paid";
+  const nextPaymentLabel = nextPaymentStatus === "paid" ? "paid" : "unpaid";
+
+  if (!window.confirm(`Change payment status to ${nextPaymentLabel}?`)) {
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient.from("orders").update({ payment_status: nextPaymentStatus }).eq("id", orderId);
+    if (error) {
+      throw error;
+    }
+
+    await Promise.all([loadOrders(), loadProjects(), loadDashboardData()]);
+
+    if (projectId) {
+      viewProjectDetails(projectId);
+    }
+  } catch (error) {
+    console.error("Error updating payment status:", error);
+    alert(`Error updating payment status: ${error.message || "Unknown error"}`);
+  }
 }
 
 function filterOrders() {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DigitQuo | Plan Details</title>
+  <title>DigitQuo | My Orders</title>
   <link rel="icon" href="images/favicon.ico" type="image/x-icon" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -21,21 +21,20 @@
         <li><a href="services.html">Services</a></li>
         <li><a href="portfolio.html">Portfolio</a></li>
         <li><a href="about.html">About</a></li>
-        <li><a class="active" href="pricing.html">Pricing</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
         <li><a href="contact.html">Contact</a></li>
+        <li id="adminNavItem" style="display: none;"><a href="admin.html" style="color: #ef4444; font-weight: 600;">⚡ Admin Panel</a></li>
       </ul>
-      <a href="cart.html" class="btn btn-secondary nav-cart-link">Cart</a>
-      <a href="login.html" class="btn btn-primary nav-cta">Login</a>
+      <a href="login.html" class="btn btn-primary nav-cta" id="loginBtn">Login</a>
     </div>
   </header>
 
   <main>
     <section class="section reveal">
-      <div class="container plan-shell" id="planDetailsRoot">
-        <article class="card">
-          <h1 class="section-title">Loading Plan Details</h1>
-          <p class="section-subtitle">Preparing the pricing breakdown for your selected package.</p>
-        </article>
+      <div class="container orders-shell">
+        <h1 class="section-title">My Orders</h1>
+        <p class="section-subtitle">See the plans you purchased and their current status.</p>
+        <div id="ordersContent"></div>
       </div>
     </section>
   </main>
@@ -57,5 +56,19 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <script src="script.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (!window.dqAuth) {
+        return;
+      }
+
+      window.dqAuth.bindAdminUi({
+        loginButtonId: "loginBtn",
+        adminNavItemId: "adminNavItem",
+      }).catch((error) => {
+        console.error("Error binding admin controls:", error);
+      });
+    });
+  </script>
 </body>
 </html>
