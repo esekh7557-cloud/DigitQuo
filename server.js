@@ -23,6 +23,10 @@ const LOGIN_WINDOW_MS = 1000 * 60 * 15;
 const LOGIN_LOCK_MS = 1000 * 60 * 15;
 const LOGIN_MAX_ATTEMPTS = 5;
 const PLAN_CATALOG = {
+  test: {
+    name: "Test Form",
+    amount: 2,
+  },
   basic: {
     name: "The Starter",
     amount: 11999,
