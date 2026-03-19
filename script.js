@@ -24,6 +24,19 @@ const REVIEWS_STORAGE_KEY = "dq_reviews";
 const dqAuth = window.dqAuth;
 let activeReviewUser = null;
 let activeReviewIsAdmin = false;
+
+function ensureFooterFaqLink() {
+  document.querySelectorAll(".footer-links").forEach((list) => {
+    if (list.querySelector('a[href="faq.html"]')) {
+      return;
+    }
+
+    const item = document.createElement("li");
+    item.innerHTML = '<a href="faq.html">FAQ</a>';
+    list.appendChild(item);
+  });
+}
+
 const PLAN_DETAILS = {
   basic: {
     name: "The Starter",
@@ -108,6 +121,8 @@ if (menuToggle && navLinks) {
     link.addEventListener("click", () => navLinks.classList.remove("open"));
   });
 }
+
+ensureFooterFaqLink();
 
 if ("IntersectionObserver" in window) {
   const observer = new IntersectionObserver(

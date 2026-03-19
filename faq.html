@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FAQ | DigitQuo</title>
+  <link rel="canonical" href="https://digitquo.in/faq.html" />
+  <link rel="icon" href="images/favicon.ico" type="image/x-icon" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="legal-page">
+  <header class="site-header">
+    <div class="container navbar">
+      <a href="index.html" class="logo"><span class="logo-icon"><img src="images/LOGO.png" alt="DigitQuo logo" class="logo-mark" /></span><span class="logo-word">Digit<span>Quo</span></span></a>
+      <a href="login.html" class="mobile-login" aria-label="Login">&#128100;</a>
+      <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">&#9776;</button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="portfolio.html">Portfolio</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li id="adminNavItem" style="display: none;"><a href="admin.html" style="color: #ef4444; font-weight: 600;">Admin Panel</a></li>
+      </ul>
+      <a href="login.html" class="btn btn-primary nav-cta" id="loginBtn">Login</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="legal-hero">
+      <div class="container legal-shell">
+        <span class="legal-meta">Last Updated: 19 March 2026</span>
+        <div class="section" style="padding: 24px 0 0;">
+          <h1 class="section-title">Frequently Asked Questions</h1>
+          <p class="section-subtitle">Common questions about DigitQuo services, timelines, payment, and support.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top: 28px;">
+      <div class="container legal-shell">
+        <div class="card legal-content">
+          <section class="legal-section">
+            <h2>1. What services do you provide?</h2>
+            <p>We provide complete website development services including website design, development, domain setup, hosting guidance, deployment, maintenance, and basic SEO setup.</p>
+          </section>
+
+          <section class="legal-section">
+            <h2>2. How much time does it take to build a website?</h2>
+            <p>The timeline depends on the project scope. Most standard websites take around 10-15 days. Complex or custom projects may take longer.</p>
+          </section>
+
+          <section class="legal-section">
+            <h2>3. What information do you need from the client to start?</h2>
+            <p>We require:</p>
+            <ul class="legal-list">
+              <li>Business details and logo</li>
+              <li>Website content such as text, images, and product details</li>
+              <li>Required features and pages</li>
+              <li>Domain and hosting details if already purchased</li>
+            </ul>
+          </section>
+
+          <section class="legal-section">
+            <h2>4. Do you provide domain and hosting?</h2>
+            <p>Yes. Our plans include complete website development with domain and hosting included.</p>
+          </section>
+
+          <section class="legal-section">
+            <h2>5. Will my website be mobile friendly?</h2>
+            <p>Yes. All websites are built with responsive design, meaning they will work smoothly on mobile, tablet, and desktop devices.</p>
+          </section>
+
+          <section class="legal-section">
+            <h2>6. Do you provide SEO services?</h2>
+            <p>Basic SEO setup such as meta tags, page speed optimization, sitemap, and indexing setup is included. Advanced SEO can be provided as an additional service.</p>
+          </section>
+
+          <section class="legal-section">
+            <h2>8. Do you provide e-commerce functionality?</h2>
+            <p>Yes. We can build fully functional online stores with payment gateway integration, product management, order tracking, and email notifications.</p>
+          </section>
+
+          <section class="legal-section">
+            <h2>9. What happens after the project is completed?</h2>
+            <p>We perform final deployment and testing. After handover:</p>
+            <ul class="legal-list">
+              <li>Domain ownership is transferred if purchased via us</li>
+              <li>The client must follow deployment and hosting guidelines</li>
+              <li>Optional maintenance support can be continued</li>
+            </ul>
+          </section>
+
+          <section class="legal-section">
+            <h2>10. Do you offer revisions?</h2>
+            <p>Yes. Limited revisions are included depending on the selected plan. Additional revisions or major changes may involve extra cost.</p>
+          </section>
+
+          <section class="legal-section">
+            <h2>11. What are your payment terms?</h2>
+            <p>Typically, an advance payment is required to start the project and the remaining payment is due before final deployment or handover.</p>
+          </section>
+
+          <section class="legal-section">
+            <h2>12. Do you provide website maintenance?</h2>
+            <p>Yes. We offer monthly or yearly maintenance plans including updates, backups, security monitoring, and minor content changes.</p>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-wrap">
+      <ul class="footer-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="portfolio.html">Portfolio</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+      <p>&copy; 2026 DigitQuo. All Rights Reserved.</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="script.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (!window.dqAuth) {
+        return;
+      }
+
+      window.dqAuth.bindAdminUi({
+        loginButtonId: "loginBtn",
+        adminNavItemId: "adminNavItem",
+      }).catch((error) => {
+        console.error("Error binding admin controls:", error);
+      });
+    });
+  </script>
+</body>
+</html>
