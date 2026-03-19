@@ -900,6 +900,8 @@ function displayUsers(users) {
       const email = escapeHtml(user.email || "");
       const role = escapeHtml(user.role || "customer");
       const plan = escapeHtml(user.subscription_plan || "free");
+      const suspensionReason = String(user.suspension_reason || "").trim();
+      const reasonInputId = `suspension-reason-${String(user.id || "").replace(/[^a-zA-Z0-9_-]/g, "")}`;
       const joined = user.created_at ? new Date(user.created_at).toLocaleDateString() : "Unknown date";
       const roleStyle =
         user.role === "admin"
@@ -927,7 +929,18 @@ function displayUsers(users) {
           <td>${plan}</td>
           <td><span style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">${user.is_active ? "Active" : "Inactive"}</span></td>
           <td>${escapeHtml(joined)}</td>
-          <td><button class="${actionClass}" onclick="setUserStatus('${escapeHtml(user.id)}', ${nextStatus})">${actionLabel}</button></td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <button class="${actionClass}" onclick="setUserStatus('${escapeHtml(user.id)}', ${nextStatus}, '${reasonInputId}')">${actionLabel}</button>
+              <input
+                id="${reasonInputId}"
+                type="text"
+                placeholder="Reason"
+                value="${escapeHtml(suspensionReason)}"
+                style="min-width: 190px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;"
+              />
+            </div>
+          </td>
         </tr>
       `;
     })
@@ -1081,8 +1094,17 @@ async function submitAddProject() {
   }
 }
 
-async function setUserStatus(userId, shouldActivate) {
+async function setUserStatus(userId, shouldActivate, reasonInputId) {
   const action = shouldActivate ? "unsuspend" : "suspend";
+  const reasonInput = reasonInputId ? document.getElementById(reasonInputId) : null;
+  const suspensionReason = shouldActivate ? "" : String(reasonInput?.value || "").trim();
+
+  if (!shouldActivate && !suspensionReason) {
+    alert("Enter a suspension reason first.");
+    reasonInput?.focus();
+    return;
+  }
+
   if (!window.confirm(`Are you sure you want to ${action} this user?`)) {
     return;
   }
@@ -1101,6 +1123,7 @@ async function setUserStatus(userId, shouldActivate) {
       },
       body: JSON.stringify({
         isActive: shouldActivate,
+        suspensionReason,
       }),
     });
 
@@ -1110,6 +1133,9 @@ async function setUserStatus(userId, shouldActivate) {
     }
 
     alert(`User ${shouldActivate ? "unsuspended" : "suspended"} successfully`);
+    if (shouldActivate && reasonInput instanceof HTMLInputElement) {
+      reasonInput.value = "";
+    }
     await Promise.all([loadUsers(), loadDashboardData()]);
   } catch (error) {
     console.error(`Error trying to ${action} user:`, error);

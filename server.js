@@ -23,10 +23,6 @@ const LOGIN_WINDOW_MS = 1000 * 60 * 15;
 const LOGIN_LOCK_MS = 1000 * 60 * 15;
 const LOGIN_MAX_ATTEMPTS = 5;
 const PLAN_CATALOG = {
-  test: {
-    name: "Test Form",
-    amount: 2,
-  },
   basic: {
     name: "The Starter",
     amount: 11999,
@@ -479,12 +475,15 @@ async function requireAuthenticatedProfile(req, res) {
   }
 
   const profiles = await supabaseFetch(
-    `/rest/v1/profiles?select=id,email,full_name,phone,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`
+    `/rest/v1/profiles?select=id,email,full_name,phone,role,is_active,suspension_reason&id=eq.${encodeURIComponent(user.id)}&limit=1`
   );
   const profile = Array.isArray(profiles) ? profiles[0] : null;
 
   if (!profile || profile.is_active === false) {
-    json(res, 403, { error: "Your account is not active." });
+    const suspensionReason = String(profile?.suspension_reason || "").trim();
+    json(res, 403, {
+      error: suspensionReason ? `You are suspended. ${suspensionReason}` : "You are suspended.",
+    });
     return null;
   }
 
@@ -676,6 +675,12 @@ async function handleAdminUpdateUserStatus(req, res, userId) {
     return;
   }
 
+  const suspensionReason = String(body.suspensionReason || "").trim();
+  if (!body.isActive && !suspensionReason) {
+    json(res, 400, { error: "Suspension reason is required." });
+    return;
+  }
+
   if (normalizedUserId === adminContext.user.id && body.isActive === false) {
     json(res, 400, { error: "You cannot suspend your own admin account." });
     return;
@@ -689,6 +694,7 @@ async function handleAdminUpdateUserStatus(req, res, userId) {
       },
       body: {
         is_active: body.isActive,
+        suspension_reason: body.isActive ? null : suspensionReason,
       },
     });
 

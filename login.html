@@ -647,8 +647,13 @@
       }
 
       try {
+        const client = await dqAuth.getClient();
         const user = await dqAuth.getCurrentUser();
         if (!user) {
+          return;
+        }
+
+        if (await enforceActiveProfile(client, user)) {
           return;
         }
 
@@ -656,6 +661,37 @@
       } catch (error) {
         setStatus(error.message || "Could not connect to Supabase.", "error");
       }
+    }
+
+    async function getProfileStatus(client, userId) {
+      if (!client || !userId) {
+        return null;
+      }
+
+      const { data, error } = await client
+        .from("profiles")
+        .select("is_active, suspension_reason")
+        .eq("id", userId)
+        .single();
+
+      if (error) {
+        return null;
+      }
+
+      return data;
+    }
+
+    async function enforceActiveProfile(client, user) {
+      const profile = await getProfileStatus(client, user?.id);
+      if (!profile || profile.is_active !== false) {
+        return false;
+      }
+
+      const reason = String(profile.suspension_reason || "").trim();
+      await client.auth.signOut();
+      setMode("login", false);
+      setStatus(reason ? `You are suspended. ${reason}` : "You are suspended.", "error");
+      return true;
     }
 
     toggleMode.addEventListener("click", (event) => {
@@ -811,8 +847,12 @@
           return;
         }
 
-        persistRememberedLogin(email, remember);
         await ensureProfile(client, data.user);
+        if (await enforceActiveProfile(client, data.user)) {
+          return;
+        }
+
+        persistRememberedLogin(email, remember);
         setStatus(`Welcome, ${data.user.email}`, "ok");
         window.setTimeout(() => {
           window.location.href = getPostLoginRedirect();

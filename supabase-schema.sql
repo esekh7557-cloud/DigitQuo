@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     subscription_plan IN ('free', 'basic', 'business', 'professional')
   ),
   is_active BOOLEAN DEFAULT true,
+  suspension_reason TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -340,6 +341,7 @@ EXECUTE FUNCTION create_profile_for_new_user();
 -- ============================================================================
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS profile_photo TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS suspension_reason TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'unpaid';
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 UPDATE orders SET payment_status = 'unpaid' WHERE payment_status IS NULL;
