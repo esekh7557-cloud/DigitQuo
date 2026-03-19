@@ -13,7 +13,12 @@ let allUsers = [];
 let allProjects = [];
 let allCoupons = [];
 let allOrders = [];
+let orderSequenceMap = new Map();
+let unreadOrderNotifications = [];
+let notificationsPollingId = null;
 const MOBILE_ADMIN_BREAKPOINT = 1024;
+const ADMIN_THEME_STORAGE_KEY = "dq_admin_theme";
+const ADMIN_SEEN_ORDER_IDS_STORAGE_KEY = "dq_admin_seen_order_ids";
 
 function getPaymentStatusLabel(paymentStatus) {
   return String(paymentStatus || "").trim() === "paid" ? "Paid" : "Unpaid";
@@ -40,18 +45,23 @@ function getLatestProjectOrder(project) {
 function isManagedProject(project) {
   return (
     String(project?.site_config?.source || "").trim() === "plan_requirements_form" ||
+    String(project?.site_config?.source || "").trim() === "admin_panel" ||
     Boolean(getLatestProjectOrder(project))
   );
 }
 
 function getProjectWorkflowStatus(project) {
+  const projectStatus = String(project?.site_config?.project_status || "pending").trim().toLowerCase();
+  if (projectStatus === "terminated") {
+    return "terminated";
+  }
+
   const latestOrderStatus = String(getLatestProjectOrder(project)?.status || "").trim().toLowerCase();
   if (latestOrderStatus === "pending" || latestOrderStatus === "ongoing" || latestOrderStatus === "completed") {
     return latestOrderStatus;
   }
 
-  const projectStatus = String(project?.site_config?.project_status || "pending").trim().toLowerCase();
-  if (projectStatus === "ongoing" || projectStatus === "completed") {
+  if (projectStatus === "pending" || projectStatus === "ongoing" || projectStatus === "completed") {
     return projectStatus;
   }
 
@@ -63,6 +73,7 @@ function getProjectWorkflowStatusLabel(status) {
     pending: "Pending",
     ongoing: "Ongoing",
     completed: "Completed",
+    terminated: "Terminated",
   };
 
   return labels[String(status || "").trim()] || "Pending";
@@ -73,9 +84,51 @@ function getProjectWorkflowStatusClass(status) {
     pending: "project-status project-status-pending",
     ongoing: "project-status project-status-ongoing",
     completed: "project-status project-status-completed",
+    terminated: "project-status project-status-terminated",
   };
 
   return classes[String(status || "").trim()] || "project-status project-status-pending";
+}
+
+function rebuildOrderSequenceMap(orders) {
+  orderSequenceMap = new Map(
+    [...(orders || [])]
+      .sort((a, b) => {
+        const aTime = new Date(a?.created_at || 0).getTime();
+        const bTime = new Date(b?.created_at || 0).getTime();
+
+        if (aTime === bTime) {
+          return String(a?.id || "").localeCompare(String(b?.id || ""));
+        }
+
+        return aTime - bTime;
+      })
+      .map((order, index) => [order.id, index + 1])
+  );
+}
+
+function getOrderSequenceNumber(orderId) {
+  return orderSequenceMap.get(orderId) || null;
+}
+
+function getProjectOrderStatusForWorkflow(status) {
+  if (status === "terminated") {
+    return "failed";
+  }
+
+  return status;
+}
+
+function getPlanLabelFromKey(planKey) {
+  const labels = {
+    basic: "The Starter",
+    business: "The Professional",
+    professional: "Professional Plus",
+    ecommerce: "Enterprise",
+    "advanced-ecommerce": "Enterprise Plus",
+  };
+
+  return labels[String(planKey || "").trim().toLowerCase()] || "Custom";
 }
 
 function isCompactAdminViewport() {
@@ -151,6 +204,371 @@ function formatCurrency(value) {
   return currencyFormatter.format(Number(value || 0));
 }
 
+function isRevenueOrder(order) {
+  return (
+    String(order?.status || "").trim().toLowerCase() === "completed" &&
+    String(order?.payment_status || "").trim().toLowerCase() === "paid"
+  );
+}
+
+function formatDate(value, options) {
+  if (!value) {
+    return "Not available";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Not available";
+  }
+
+  return date.toLocaleString("en-IN", options);
+}
+
+function getStoredAdminTheme() {
+  return window.localStorage.getItem(ADMIN_THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
+}
+
+function applyAdminTheme(theme) {
+  const resolvedTheme = theme === "dark" ? "dark" : "light";
+  document.body.dataset.theme = resolvedTheme;
+  window.localStorage.setItem(ADMIN_THEME_STORAGE_KEY, resolvedTheme);
+  syncThemeToggle();
+}
+
+function syncThemeToggle() {
+  const themeToggle = document.getElementById("themeToggle");
+  if (!themeToggle) {
+    return;
+  }
+
+  const isDark = document.body.dataset.theme === "dark";
+  themeToggle.classList.toggle("is-active", isDark);
+  themeToggle.setAttribute("aria-label", isDark ? "Enable light mode" : "Enable dark mode");
+  themeToggle.innerHTML = `<i class="fas ${isDark ? "fa-sun" : "fa-moon"}"></i>`;
+}
+
+function readSeenOrderIds() {
+  try {
+    const raw = window.localStorage.getItem(ADMIN_SEEN_ORDER_IDS_STORAGE_KEY);
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSeenOrderIds(orderIds) {
+  window.localStorage.setItem(
+    ADMIN_SEEN_ORDER_IDS_STORAGE_KEY,
+    JSON.stringify(Array.from(new Set((orderIds || []).filter(Boolean))))
+  );
+}
+
+function renderOrderNotifications() {
+  const notificationsList = document.getElementById("notificationsList");
+  const notificationsBell = document.getElementById("notificationsBell");
+  const badge = notificationsBell?.querySelector(".badge");
+
+  if (!notificationsList || !badge) {
+    return;
+  }
+
+  badge.textContent = String(unreadOrderNotifications.length);
+  badge.classList.toggle("is-hidden", unreadOrderNotifications.length === 0);
+
+  if (!unreadOrderNotifications.length) {
+    notificationsList.innerHTML = '<p class="empty-state">No new order notifications.</p>';
+    return;
+  }
+
+  notificationsList.innerHTML = unreadOrderNotifications
+    .map((order) => {
+      const customer = getOrderCustomerDetails(order);
+      const orderNumber = getOrderSequenceNumber(order.id);
+      const orderDate = formatDate(order.created_at, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+
+      return `
+        <article class="notification-item">
+          <strong>New order ${orderNumber ? `#${escapeHtml(String(orderNumber))}` : ""}</strong>
+          <p>${escapeHtml(customer.name)} placed a ${escapeHtml(getOrderPlanName(order))} order.</p>
+          <div class="notification-item-meta">
+            <span>${escapeHtml(formatCurrency(order.final_amount || 0))} • ${escapeHtml(orderDate)}</span>
+            <button class="btn btn-secondary" type="button" onclick="viewOrderDetails('${escapeHtml(order.id)}')">View</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function syncOrderNotifications(orders) {
+  const orderIds = (orders || []).map((order) => order.id).filter(Boolean);
+  const stored = window.localStorage.getItem(ADMIN_SEEN_ORDER_IDS_STORAGE_KEY);
+
+  if (!stored) {
+    writeSeenOrderIds(orderIds);
+    unreadOrderNotifications = [];
+    renderOrderNotifications();
+    return;
+  }
+
+  const seenOrderIds = new Set(readSeenOrderIds());
+  unreadOrderNotifications = (orders || []).filter((order) => !seenOrderIds.has(order.id));
+  renderOrderNotifications();
+}
+
+function markAllNotificationsRead() {
+  writeSeenOrderIds(allOrders.map((order) => order.id));
+  unreadOrderNotifications = [];
+  renderOrderNotifications();
+}
+
+function refreshProjectOwnerOptions() {
+  const ownerSelect = document.getElementById("projectOwner");
+  if (!ownerSelect) {
+    return;
+  }
+
+  const ownerOptions = allUsers
+    .filter((user) => user.is_active !== false && String(user.role || "").trim().toLowerCase() !== "admin")
+    .map((user) => {
+      const label = `${user.full_name || user.email} (${user.email || "No email"})`;
+      return `<option value="${escapeHtml(user.id)}">${escapeHtml(label)}</option>`;
+    })
+    .join("");
+
+  ownerSelect.innerHTML = `<option value="">Select a customer</option>${ownerOptions}`;
+}
+
+function startNotificationsPolling() {
+  if (notificationsPollingId) {
+    window.clearInterval(notificationsPollingId);
+  }
+
+  notificationsPollingId = window.setInterval(() => {
+    Promise.all([loadOrders(), loadDashboardData()]).catch((error) => {
+      console.error("Notification refresh error:", error);
+    });
+  }, 45000);
+}
+
+function getOrderPlanName(order) {
+  return (
+    order?.projects?.site_config?.plan?.name ||
+    order?.projects?.template_id ||
+    "Not selected"
+  );
+}
+
+function getOrderCustomerDetails(order) {
+  const contact = order?.projects?.site_config?.contact || {};
+
+  return {
+    name: order?.profiles?.full_name || contact.full_name || "Unknown",
+    email: order?.profiles?.email || contact.email || "Unknown",
+    phone: order?.profiles?.phone || contact.phone || "Not provided",
+  };
+}
+
+function getRevenueTrendPoints(orders, days = 30) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const points = Array.from({ length: days }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (days - index - 1));
+
+    return {
+      key: date.toISOString().slice(0, 10),
+      label: date.toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+      amount: 0,
+    };
+  });
+
+  const pointMap = new Map(points.map((point) => [point.key, point]));
+
+  orders.forEach((order) => {
+    if (!isRevenueOrder(order) || !order?.created_at) {
+      return;
+    }
+
+    const createdDate = new Date(order.created_at);
+    if (Number.isNaN(createdDate.getTime())) {
+      return;
+    }
+
+    const key = createdDate.toISOString().slice(0, 10);
+    const point = pointMap.get(key);
+    if (!point) {
+      return;
+    }
+
+    point.amount += Number(order.final_amount || 0);
+  });
+
+  return points;
+}
+
+function renderRevenueChart(orders) {
+  const chartRoot = document.getElementById("revenueChart");
+  if (!chartRoot) {
+    return;
+  }
+
+  const points = getRevenueTrendPoints(orders, 30);
+  const maxAmount = Math.max(...points.map((point) => point.amount), 0);
+  const totalRevenue = points.reduce((sum, point) => sum + point.amount, 0);
+  const activeDays = points.filter((point) => point.amount > 0).length;
+  const peakPoint = points.reduce((best, point) => (point.amount > best.amount ? point : best), points[0] || {
+    label: "N/A",
+    amount: 0,
+  });
+
+  if (!maxAmount) {
+    chartRoot.classList.remove("chart-ready");
+    chartRoot.innerHTML = '<div class="revenue-chart-empty">No completed-order revenue recorded in the last 30 days.</div>';
+    return;
+  }
+
+  const width = 760;
+  const height = 300;
+  const paddingTop = 24;
+  const paddingBottom = 42;
+  const paddingLeft = 52;
+  const paddingRight = 18;
+  const graphHeight = height - paddingTop - paddingBottom;
+  const graphWidth = width - paddingLeft - paddingRight;
+  const barGap = 6;
+  const barWidth = graphWidth / points.length - barGap;
+  const yTicks = 4;
+
+  const gridLines = Array.from({ length: yTicks + 1 }, (_, index) => {
+    const value = (maxAmount / yTicks) * (yTicks - index);
+    const y = paddingTop + (graphHeight / yTicks) * index;
+
+    return `
+      <line x1="${paddingLeft}" y1="${y}" x2="${width - paddingRight}" y2="${y}" stroke="rgba(148, 163, 184, 0.2)" stroke-width="1" />
+      <text x="${paddingLeft - 10}" y="${y + 4}" text-anchor="end" font-size="11" fill="#6b7280">${escapeHtml(formatCurrency(value))}</text>
+    `;
+  }).join("");
+
+  const bars = points
+    .map((point, index) => {
+      const x = paddingLeft + index * (barWidth + barGap);
+      const barHeight = maxAmount ? Math.max((point.amount / maxAmount) * graphHeight, point.amount > 0 ? 4 : 0) : 0;
+      const y = paddingTop + graphHeight - barHeight;
+      const showLabel = index === 0 || index === points.length - 1 || index % 5 === 0;
+
+      return `
+        <g>
+          <title>${escapeHtml(`${point.label}: ${formatCurrency(point.amount)}`)}</title>
+          <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4" fill="url(#revenueGradient)" />
+          ${showLabel ? `<text x="${x + barWidth / 2}" y="${height - 14}" text-anchor="middle" font-size="10" fill="#6b7280">${escapeHtml(point.label)}</text>` : ""}
+        </g>
+      `;
+    })
+    .join("");
+
+  chartRoot.classList.add("chart-ready");
+  chartRoot.innerHTML = `
+    <div class="revenue-chart">
+      <div class="revenue-chart-summary">
+        <div class="revenue-chart-stat">
+          <span>Days tracked</span>
+          <strong>${points.length}</strong>
+        </div>
+        <div class="revenue-chart-stat">
+          <span>Revenue earned</span>
+          <strong>${escapeHtml(formatCurrency(totalRevenue))}</strong>
+        </div>
+        <div class="revenue-chart-stat">
+          <span>Best day</span>
+          <strong>${escapeHtml(`${peakPoint.label} • ${formatCurrency(peakPoint.amount)}`)}</strong>
+        </div>
+      </div>
+      <svg class="revenue-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Revenue trend for the last 30 days">
+        <defs>
+          <linearGradient id="revenueGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#6366f1" />
+            <stop offset="100%" stop-color="#22c55e" />
+          </linearGradient>
+        </defs>
+        ${gridLines}
+        <line x1="${paddingLeft}" y1="${paddingTop + graphHeight}" x2="${width - paddingRight}" y2="${paddingTop + graphHeight}" stroke="rgba(148, 163, 184, 0.35)" stroke-width="1" />
+        ${bars}
+      </svg>
+      <p class="recent-item-meta">${activeDays} day(s) recorded completed revenue in the last 30 days.</p>
+    </div>
+  `;
+}
+
+function buildRecentOrdersMarkup(orders) {
+  return orders
+    .map((order) => {
+      const customer = getOrderCustomerDetails(order);
+      const orderDate = formatDate(order.created_at, { day: "numeric", month: "short", year: "numeric" });
+      const planName = getOrderPlanName(order);
+      const orderNumber = getOrderSequenceNumber(order.id);
+
+      return `
+        <div class="recent-item">
+          <div class="recent-item-copy">
+            <strong>${escapeHtml(customer.name)}</strong>
+            <p class="recent-item-meta">${escapeHtml(customer.email)}</p>
+            <p class="recent-item-meta">Order ID: ${escapeHtml(String(orderNumber || ""))} • ${escapeHtml(orderDate)}</p>
+            <p class="recent-item-meta">${escapeHtml(planName)}</p>
+          </div>
+          <div class="recent-item-actions">
+            <span class="recent-item-amount">${escapeHtml(formatCurrency(order.final_amount || 0))}</span>
+            <button class="btn btn-secondary" type="button" onclick="viewOrderDetails('${escapeHtml(order.id)}')">View</button>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function buildOrderDetailsMarkup(order) {
+  const customer = getOrderCustomerDetails(order);
+  const planName = getOrderPlanName(order);
+  const orderNumber = getOrderSequenceNumber(order.id);
+  const createdAt = formatDate(order.created_at, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  return `
+    <div class="project-detail-grid">
+      ${buildProjectDetailSection("Order Summary", [
+        { label: "Order ID", value: orderNumber ? String(orderNumber) : "Not available" },
+        { label: "Order Date", value: createdAt },
+        { label: "Plan Chosen", value: planName },
+        { label: "Status", value: String(order.status || "pending").replace(/\b\w/g, (char) => char.toUpperCase()) },
+        { label: "Payment", value: getPaymentStatusLabel(order.payment_status) },
+      ])}
+      ${buildProjectDetailSection("Customer Details", [
+        { label: "Name", value: customer.name },
+        { label: "Email", value: customer.email },
+        { label: "Phone", value: customer.phone },
+      ])}
+      ${buildProjectDetailSection("Pricing", [
+        { label: "Order Amount", value: formatCurrency(order.amount || 0) },
+        { label: "Discount", value: formatCurrency(order.discount_amount || 0) },
+        { label: "Final Amount", value: formatCurrency(order.final_amount || 0) },
+      ])}
+    </div>
+  `;
+}
+
 function buildAvatarFallback(name) {
   const initial = escapeHtml((name || "A").charAt(0).toUpperCase());
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="32" fill="#6366f1"/><text x="32" y="39" text-anchor="middle" font-size="28" fill="#ffffff" font-family="Arial, sans-serif">${initial}</text></svg>`;
@@ -188,10 +606,13 @@ async function initializeAdmin() {
   document.getElementById("userName").textContent = profile.full_name || "Admin";
   document.getElementById("userEmail").textContent = profile.email || "";
   document.getElementById("userAvatar").src = profile.profile_photo || buildAvatarFallback(profile.full_name || "Admin");
+  applyAdminTheme(getStoredAdminTheme());
 
   setupEventListeners();
 
   await Promise.all([loadDashboardData(), loadUsers(), loadProjects(), loadCoupons(), loadOrders()]);
+  refreshProjectOwnerOptions();
+  startNotificationsPolling();
 }
 
 function redirectToLogin(reason) {
@@ -241,9 +662,15 @@ function setupEventListeners() {
   document.getElementById("refreshDashboardBtn").addEventListener("click", refreshAdminData);
   document.getElementById("addUserBtn").addEventListener("click", () => openModal("addUserModal"));
   document.getElementById("addProjectBtn").addEventListener("click", () => {
-    alert("Create Project feature requires a dedicated backend workflow.");
+    refreshProjectOwnerOptions();
+    openModal("addProjectModal");
   });
   document.getElementById("createCouponBtn").addEventListener("click", () => openModal("createCouponModal"));
+  document.getElementById("notificationsBell").addEventListener("click", () => openModal("notificationsModal"));
+  document.getElementById("markNotificationsReadBtn").addEventListener("click", markAllNotificationsRead);
+  document.getElementById("themeToggle").addEventListener("click", () => {
+    applyAdminTheme(document.body.dataset.theme === "dark" ? "light" : "dark");
+  });
 
   setupModalControls();
 
@@ -253,6 +680,14 @@ function setupEventListeners() {
   });
   document.getElementById("submitAddUserBtn").addEventListener("click", () => {
     document.getElementById("addUserForm").requestSubmit();
+  });
+
+  document.getElementById("addProjectForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await submitAddProject();
+  });
+  document.getElementById("submitAddProjectBtn").addEventListener("click", () => {
+    document.getElementById("addProjectForm").requestSubmit();
   });
 
   document.getElementById("createCouponForm").addEventListener("submit", async (event) => {
@@ -279,6 +714,7 @@ function setupEventListeners() {
 
   setSidebarState(false);
   syncResponsiveTableLabels();
+  renderOrderNotifications();
 }
 
 function setupModalControls() {
@@ -346,13 +782,17 @@ async function logout() {
 
 async function loadDashboardData() {
   try {
-    const [ordersResponse, usersResponse, projectsResponse, recentOrdersResponse] = await Promise.all([
-      supabaseClient.from("orders").select("final_amount").eq("status", "completed"),
-      supabaseClient.from("profiles").select("id").eq("is_active", true),
-      supabaseClient.from("projects").select("id").eq("is_active", true),
+    const [ordersResponse, usersResponse, projectsResponse, couponsResponse, recentOrdersResponse] = await Promise.all([
       supabaseClient
         .from("orders")
-        .select("id, user_id, final_amount, status, created_at, profiles(email)")
+        .select("id, final_amount, status, payment_status, created_at")
+        .order("created_at", { ascending: false }),
+      supabaseClient.from("profiles").select("id").eq("is_active", true),
+      supabaseClient.from("projects").select("id, is_active, site_config"),
+      supabaseClient.from("coupons").select("id").eq("is_active", true),
+      supabaseClient
+        .from("orders")
+        .select("id, user_id, final_amount, status, payment_status, created_at, profiles(full_name, email, phone), projects(project_name, template_id, site_config)")
         .order("created_at", { ascending: false })
         .limit(5),
     ]);
@@ -366,38 +806,43 @@ async function loadDashboardData() {
     if (projectsResponse.error) {
       throw projectsResponse.error;
     }
+    if (couponsResponse.error) {
+      throw couponsResponse.error;
+    }
     if (recentOrdersResponse.error) {
       throw recentOrdersResponse.error;
     }
 
     const totalRevenue = (ordersResponse.data || []).reduce((sum, order) => {
+      if (!isRevenueOrder(order)) {
+        return sum;
+      }
+
       return sum + Number(order.final_amount || 0);
     }, 0);
 
+    rebuildOrderSequenceMap(ordersResponse.data || []);
+    const activeSitesCount = (projectsResponse.data || []).filter((project) => {
+      if (project.is_active === false) {
+        return false;
+      }
+
+      return String(project.site_config?.project_status || "").trim().toLowerCase() !== "terminated";
+    }).length;
     document.getElementById("totalRevenue").textContent = formatCurrency(totalRevenue);
     document.getElementById("activeUsers").textContent = String((usersResponse.data || []).length);
-    document.getElementById("activeSites").textContent = String((projectsResponse.data || []).length);
-
-    const recentOrdersHtml = (recentOrdersResponse.data || [])
-      .map((order) => {
-        const email = escapeHtml(order.profiles?.email || "Unknown");
-        const createdAt = order.created_at ? new Date(order.created_at).toLocaleDateString() : "Unknown date";
-        return `
-          <div class="recent-item" style="padding: 12px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <p style="font-weight: 600; margin: 0; font-size: 13px;">${email}</p>
-              <p style="margin: 4px 0 0; font-size: 12px; color: var(--gray);">${escapeHtml(createdAt)}</p>
-            </div>
-            <span style="font-weight: 600; color: var(--primary);">${escapeHtml(formatCurrency(order.final_amount || 0))}</span>
-          </div>
-        `;
-      })
-      .join("");
-
+    document.getElementById("activeSites").textContent = String(activeSitesCount);
+    document.getElementById("couponCount").textContent = String((couponsResponse.data || []).length);
+    renderRevenueChart(ordersResponse.data || []);
     document.getElementById("recentOrders").innerHTML =
-      recentOrdersHtml || '<p class="empty-state">No recent orders</p>';
+      buildRecentOrdersMarkup(recentOrdersResponse.data || []) || '<p class="empty-state">No recent orders</p>';
   } catch (error) {
     console.error("Error loading dashboard data:", error);
+    const chartRoot = document.getElementById("revenueChart");
+    if (chartRoot) {
+      chartRoot.classList.remove("chart-ready");
+      chartRoot.innerHTML = '<p>Chart could not be loaded.</p>';
+    }
     document.getElementById("recentOrders").innerHTML =
       '<p class="empty-state">Dashboard data could not be loaded.</p>';
   }
@@ -433,6 +878,7 @@ async function loadUsers() {
 
     allUsers = data || [];
     displayUsers(allUsers);
+    refreshProjectOwnerOptions();
   } catch (error) {
     console.error("Error loading users:", error);
     displayUsers([]);
@@ -550,13 +996,88 @@ async function submitAddUser() {
     alert("User created successfully");
     document.getElementById("addUserForm").reset();
     closeModal("addUserModal");
-    await loadUsers();
+    await Promise.all([loadUsers(), loadDashboardData()]);
   } catch (error) {
     console.error("Error creating user:", error);
     alert(`Error creating user: ${error.message || "Unknown error"}`);
   } finally {
     submitButton.disabled = false;
     submitButton.textContent = "Create User";
+  }
+}
+
+async function submitAddProject() {
+  const ownerId = document.getElementById("projectOwner").value;
+  const projectName = document.getElementById("newProjectName").value.trim();
+  const domainName = document.getElementById("newProjectDomain").value.trim().toLowerCase();
+  const planKey = document.getElementById("newProjectPlan").value;
+  const priceValue = document.getElementById("newProjectPrice").value;
+  const workflowStatus = document.getElementById("newProjectStatus").value;
+  const summary = document.getElementById("newProjectSummary").value.trim();
+  const submitButton = document.getElementById("submitAddProjectBtn");
+  const ownerProfile = allUsers.find((user) => user.id === ownerId);
+
+  if (!ownerId || !ownerProfile) {
+    alert("Select a valid customer for the project.");
+    return;
+  }
+
+  if (!projectName) {
+    alert("Project name is required.");
+    return;
+  }
+
+  if (!["pending", "ongoing", "completed", "terminated"].includes(workflowStatus)) {
+    alert("Select a valid project status.");
+    return;
+  }
+
+  try {
+    submitButton.disabled = true;
+    submitButton.textContent = "Creating...";
+
+    const planPrice = priceValue ? Number(priceValue) : 0;
+    const { error } = await supabaseClient.from("projects").insert({
+      user_id: ownerId,
+      project_name: projectName,
+      domain_name: domainName || null,
+      template_id: planKey,
+      site_config: {
+        source: "admin_panel",
+        created_by_admin: true,
+        submitted_at: new Date().toISOString(),
+        contact: {
+          full_name: ownerProfile.full_name || "",
+          email: ownerProfile.email || "",
+          phone: ownerProfile.phone || "",
+        },
+        plan: {
+          key: planKey,
+          name: getPlanLabelFromKey(planKey),
+          price: planPrice,
+        },
+        summary: {
+          idea: summary || "Project created from admin panel.",
+        },
+        project_status: workflowStatus,
+      },
+      is_active: true,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    alert("Project created successfully");
+    document.getElementById("addProjectForm").reset();
+    closeModal("addProjectModal");
+    await Promise.all([loadProjects(), loadDashboardData()]);
+  } catch (error) {
+    console.error("Error creating project:", error);
+    alert(`Error creating project: ${error.message || "Unknown error"}`);
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "Create Project";
   }
 }
 
@@ -567,13 +1088,29 @@ async function setUserStatus(userId, shouldActivate) {
   }
 
   try {
-    const { error } = await supabaseClient.from("profiles").update({ is_active: shouldActivate }).eq("id", userId);
-    if (error) {
-      throw error;
+    const session = await dqAuth.getSession();
+    if (!session?.access_token) {
+      throw new Error("Admin session expired. Please log in again.");
+    }
+
+    const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        isActive: shouldActivate,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || `Could not ${action} this user.`);
     }
 
     alert(`User ${shouldActivate ? "unsuspended" : "suspended"} successfully`);
-    await loadUsers();
+    await Promise.all([loadUsers(), loadDashboardData()]);
   } catch (error) {
     console.error(`Error trying to ${action} user:`, error);
     alert(`Error trying to ${action} user: ${error.message || "Unknown error"}`);
@@ -590,7 +1127,6 @@ async function loadProjects() {
     if (error) {
       throw error;
     }
-
     allProjects = (data || [])
       .filter(isManagedProject)
       .map((project) => {
@@ -729,14 +1265,16 @@ function buildProjectDetailTree(value, label = "") {
 function displayProjects(projects) {
   const activeContainer = document.getElementById("projectsList");
   const completedContainer = document.getElementById("completedProjectsList");
+  const terminatedContainer = document.getElementById("terminatedProjectsList");
 
-  if (!activeContainer || !completedContainer) {
+  if (!activeContainer || !completedContainer || !terminatedContainer) {
     return;
   }
 
   if (!projects.length) {
     activeContainer.innerHTML = '<p class="empty-state" style="padding: 40px;">No projects found</p>';
     completedContainer.innerHTML = '<p class="empty-state" style="padding: 40px;">No completed projects found</p>';
+    terminatedContainer.innerHTML = '<p class="empty-state" style="padding: 40px;">No terminated projects found</p>';
     return;
   }
 
@@ -775,6 +1313,7 @@ function displayProjects(projects) {
               <option value="pending" ${workflowStatus === "pending" ? "selected" : ""}>Pending</option>
               <option value="ongoing" ${workflowStatus === "ongoing" ? "selected" : ""}>Ongoing</option>
               <option value="completed" ${workflowStatus === "completed" ? "selected" : ""}>Completed</option>
+              <option value="terminated" ${workflowStatus === "terminated" ? "selected" : ""}>Terminated</option>
             </select>
           </div>
           <div style="margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -789,8 +1328,12 @@ function displayProjects(projects) {
       `;
   };
 
-  const activeProjects = projects.filter((project) => getProjectWorkflowStatus(project) !== "completed");
+  const activeProjects = projects.filter((project) => {
+    const status = getProjectWorkflowStatus(project);
+    return status !== "completed" && status !== "terminated";
+  });
   const completedProjects = projects.filter((project) => getProjectWorkflowStatus(project) === "completed");
+  const terminatedProjects = projects.filter((project) => getProjectWorkflowStatus(project) === "terminated");
 
   activeContainer.innerHTML = activeProjects.length
     ? activeProjects.map(renderProjectCard).join("")
@@ -799,6 +1342,10 @@ function displayProjects(projects) {
   completedContainer.innerHTML = completedProjects.length
     ? completedProjects.map(renderProjectCard).join("")
     : '<p class="empty-state" style="padding: 40px;">No completed projects found</p>';
+
+  terminatedContainer.innerHTML = terminatedProjects.length
+    ? terminatedProjects.map(renderProjectCard).join("")
+    : '<p class="empty-state" style="padding: 40px;">No terminated projects found</p>';
 }
 
 function viewProjectDetails(projectId) {
@@ -865,12 +1412,13 @@ function viewProjectDetails(projectId) {
             <option value="pending" ${getProjectWorkflowStatus(project) === "pending" ? "selected" : ""}>Pending</option>
             <option value="ongoing" ${getProjectWorkflowStatus(project) === "ongoing" ? "selected" : ""}>Ongoing</option>
             <option value="completed" ${getProjectWorkflowStatus(project) === "completed" ? "selected" : ""}>Completed</option>
+            <option value="terminated" ${getProjectWorkflowStatus(project) === "terminated" ? "selected" : ""}>Terminated</option>
           </select>
         </div>
       </section>
       ${
         showBasicRequirements
-          ? buildProjectDetailSection("Basic Plan Requirements", [
+          ? buildProjectDetailSection("The Starter Requirements", [
               { label: "Describe your website idea", value: requirements.basic?.websiteIdea },
               { label: "Business details to show (About / Services / Contact)", value: requirements.basic?.businessDetails },
               { label: "Number of pages required (Up to 5)", value: requirements.basic?.pageCount },
@@ -879,7 +1427,7 @@ function viewProjectDetails(projectId) {
       }
       ${
         showBusinessRequirements
-          ? buildProjectDetailSection("Business Plan Requirements", [
+          ? buildProjectDetailSection("The Professional Requirements", [
               { label: "Additional pages or sections required (Gallery / Testimonials / FAQ / Team / Offers etc.)", value: requirements.business?.additionalSections },
               { label: "Do you need Blog setup?", value: requirements.business?.needsBlog },
               { label: "Do you need Google Map integration?", value: requirements.business?.needsGoogleMap },
@@ -889,7 +1437,7 @@ function viewProjectDetails(projectId) {
       }
       ${
         showProfessionalRequirements
-          ? buildProjectDetailSection("Professional Plan Requirements", [
+          ? buildProjectDetailSection("Professional Plus Requirements", [
               { label: "Do you need custom UI/UX design or reference websites?", value: professional.designReference },
               { label: "Advanced features required", value: professional.features },
               { label: "Other", value: professional.otherFeature },
@@ -899,7 +1447,7 @@ function viewProjectDetails(projectId) {
       }
       ${
         showEcommerceRequirements
-          ? buildProjectDetailSection("Ecommerce Plan Requirements", [
+          ? buildProjectDetailSection("Enterprise Requirements", [
               { label: "Describe your online store idea", value: ecommerce.storeIdea },
               { label: "Number of products to upload initially", value: ecommerce.initialProducts },
               { label: "Product categories required", value: ecommerce.categories },
@@ -910,7 +1458,7 @@ function viewProjectDetails(projectId) {
       }
       ${
         showAdvancedEcommerceRequirements
-          ? buildProjectDetailSection("Advanced Ecommerce Plan Requirements", [
+          ? buildProjectDetailSection("Enterprise Plus Requirements", [
               { label: "Describe your online store idea", value: ecommerce.storeIdea },
               { label: "Number of products to upload initially", value: ecommerce.initialProducts },
               { label: "Product categories required", value: ecommerce.categories },
@@ -945,7 +1493,7 @@ function filterProjects() {
 }
 
 async function updateProjectWorkflowStatus(projectId, status) {
-  if (!["pending", "ongoing", "completed"].includes(status)) {
+  if (!["pending", "ongoing", "completed", "terminated"].includes(status)) {
     return;
   }
 
@@ -965,7 +1513,12 @@ async function updateProjectWorkflowStatus(projectId, status) {
     const updates = [projectUpdate];
 
     if (latestOrder?.id) {
-      updates.push(supabaseClient.from("orders").update({ status }).eq("id", latestOrder.id));
+      updates.push(
+        supabaseClient
+          .from("orders")
+          .update({ status: getProjectOrderStatusForWorkflow(status) })
+          .eq("id", latestOrder.id)
+      );
     }
 
     const results = await Promise.all(updates);
@@ -1079,7 +1632,7 @@ async function submitCreateCoupon() {
     alert("Coupon created successfully");
     document.getElementById("createCouponForm").reset();
     closeModal("createCouponModal");
-    await loadCoupons();
+    await Promise.all([loadCoupons(), loadDashboardData()]);
   } catch (error) {
     console.error("Error creating coupon:", error);
     alert(`Error creating coupon: ${error.message || "Unknown error"}`);
@@ -1098,7 +1651,7 @@ async function deleteCoupon(couponId) {
     }
 
     alert("Coupon deleted successfully");
-    await loadCoupons();
+    await Promise.all([loadCoupons(), loadDashboardData()]);
   } catch (error) {
     console.error("Error deleting coupon:", error);
     alert(`Error deleting coupon: ${error.message || "Unknown error"}`);
@@ -1109,7 +1662,7 @@ async function loadOrders() {
   try {
     const { data, error } = await supabaseClient
       .from("orders")
-      .select("*, profiles(email)")
+      .select("*, profiles(full_name, email, phone), projects(project_name, template_id, site_config)")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -1117,7 +1670,9 @@ async function loadOrders() {
     }
 
     allOrders = data || [];
+    rebuildOrderSequenceMap(allOrders);
     displayOrders(allOrders);
+    syncOrderNotifications(allOrders);
   } catch (error) {
     console.error("Error loading orders:", error);
     displayOrders([]);
@@ -1148,13 +1703,13 @@ function displayOrders(orders) {
   tbody.innerHTML = orders
     .map((order) => {
       const statusColors = getStatusColor(order.status);
-      const orderId = escapeHtml(String(order.id || "").slice(0, 8));
+      const orderId = getOrderSequenceNumber(order.id);
       const userEmail = escapeHtml(order.profiles?.email || "Unknown");
       const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : "Unknown date";
 
       return `
         <tr>
-          <td><code style="background: var(--gray-light); padding: 2px 6px; border-radius: 4px;">${orderId}</code></td>
+          <td><code style="background: var(--gray-light); padding: 2px 6px; border-radius: 4px;">${escapeHtml(String(orderId || ""))}</code></td>
           <td>${userEmail}</td>
           <td>${escapeHtml(formatCurrency(order.amount || 0))}</td>
           <td>${escapeHtml(formatCurrency(order.discount_amount || 0))}</td>
@@ -1206,8 +1761,12 @@ function filterOrders() {
   const statusFilter = document.getElementById("orderStatusFilter").value;
 
   const filtered = allOrders.filter((order) => {
+    const customer = getOrderCustomerDetails(order);
+    const orderNumber = getOrderSequenceNumber(order.id);
     const matchesSearch =
-      String(order.profiles?.email || "").toLowerCase().includes(searchTerm) ||
+      String(customer.name || "").toLowerCase().includes(searchTerm) ||
+      String(customer.email || "").toLowerCase().includes(searchTerm) ||
+      String(orderNumber || "").toLowerCase().includes(searchTerm) ||
       String(order.id || "").toLowerCase().includes(searchTerm);
     const matchesStatus = !statusFilter || order.status === statusFilter;
 
@@ -1217,8 +1776,46 @@ function filterOrders() {
   displayOrders(filtered);
 }
 
-function viewOrderDetails() {
-  alert("Order details view is not implemented yet.");
+async function fetchOrderDetails(orderId) {
+  const cachedOrder = allOrders.find((order) => order.id === orderId);
+  if (cachedOrder) {
+    return cachedOrder;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("orders")
+    .select("*, profiles(full_name, email, phone), projects(project_name, template_id, site_config)")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data || null;
+}
+
+async function viewOrderDetails(orderId) {
+  const content = document.getElementById("orderDetailsContent");
+  if (!content || !orderId) {
+    return;
+  }
+
+  content.innerHTML = '<p class="empty-state">Loading order details...</p>';
+  openModal("orderDetailsModal");
+
+  try {
+    const order = await fetchOrderDetails(orderId);
+    if (!order) {
+      content.innerHTML = '<p class="empty-state">Order details not found.</p>';
+      return;
+    }
+
+    content.innerHTML = buildOrderDetailsMarkup(order);
+  } catch (error) {
+    console.error("Error loading order details:", error);
+    content.innerHTML = '<p class="empty-state">Could not load order details.</p>';
+  }
 }
 
 function exportOrdersCSV() {

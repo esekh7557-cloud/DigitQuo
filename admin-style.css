@@ -17,6 +17,24 @@
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
+body[data-theme="dark"] {
+  --primary: #b788ff;
+  --primary-dark: #9c68f0;
+  --secondary: #f472b6;
+  --success: #34d399;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --dark: #f3f4f6;
+  --dark-light: #d1d5db;
+  --gray: #9ca3af;
+  --gray-light: #111827;
+  --border: #374151;
+  --white: #0f172a;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.35);
+}
+
 /* ========== GENERAL STYLES ========== */
 * {
   margin: 0;
@@ -29,6 +47,7 @@ body {
   background: var(--gray-light);
   color: var(--dark);
   overflow-x: hidden;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 body.sidebar-open {
@@ -342,6 +361,12 @@ body {
   white-space: nowrap;
 }
 
+.top-exit-btn {
+  padding: 9px 14px;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
 .icon-btn {
   position: relative;
   width: 40px;
@@ -378,11 +403,16 @@ body {
   font-weight: 700;
 }
 
+.badge.is-hidden {
+  display: none;
+}
+
 .theme-toggle {
   cursor: pointer;
   width: 40px;
   height: 40px;
   background: var(--gray-light);
+  border: none;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -395,6 +425,58 @@ body {
 .theme-toggle:hover {
   color: var(--primary);
   background: var(--border);
+}
+
+.theme-toggle.is-active {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.14);
+}
+
+.notifications-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.notifications-modal-header p {
+  color: var(--gray);
+  font-size: 14px;
+}
+
+.notifications-list {
+  display: grid;
+  gap: 12px;
+}
+
+.notification-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--gray-light);
+  display: grid;
+  gap: 6px;
+}
+
+.notification-item strong {
+  color: var(--dark);
+  font-size: 14px;
+}
+
+.notification-item p {
+  margin: 0;
+  color: var(--gray);
+  font-size: 13px;
+}
+
+.notification-item-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 /* ========== CONTENT SECTIONS ========== */
@@ -562,9 +644,110 @@ body {
   font-size: 14px;
 }
 
+.chart-placeholder.chart-ready {
+  display: block;
+  height: auto;
+  background: transparent;
+  padding: 0;
+}
+
+.revenue-chart {
+  display: grid;
+  gap: 16px;
+}
+
+.revenue-chart-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.revenue-chart-stat {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--gray-light);
+  padding: 12px 14px;
+}
+
+.revenue-chart-stat span {
+  display: block;
+  color: var(--gray);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.revenue-chart-stat strong {
+  color: var(--dark);
+  font-size: 15px;
+}
+
+.revenue-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.revenue-chart-empty {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--gray);
+  background: var(--gray-light);
+}
+
 .recent-list {
   max-height: 500px;
   overflow-y: auto;
+}
+
+.recent-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.recent-item:last-child {
+  border-bottom: none;
+}
+
+.recent-item-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.recent-item-copy p {
+  margin: 0;
+}
+
+.recent-item-copy strong {
+  display: block;
+  color: var(--dark);
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.recent-item-meta {
+  color: var(--gray);
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.recent-item-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.recent-item-amount {
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .recent-list .empty-state {
@@ -808,6 +991,11 @@ body {
   color: #047857;
 }
 
+.project-status-terminated {
+  background: rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
+}
+
 .project-card-controls {
   margin-top: 14px;
 }
@@ -1043,6 +1231,23 @@ textarea.form-control {
 
 /* ========== RESPONSIVE ========== */
 @media (max-width: 768px) {
+  .revenue-chart-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .recent-item {
+    align-items: flex-start;
+  }
+
+  .recent-item-actions {
+    justify-items: stretch;
+  }
+
+  .recent-item-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .stats-grid {
     grid-template-columns: 1fr;
   }

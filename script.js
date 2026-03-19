@@ -27,7 +27,7 @@ let activeReviewUser = null;
 let activeReviewIsAdmin = false;
 const PLAN_DETAILS = {
   basic: {
-    name: "Basic Plan",
+    name: "The Starter",
     oldPrice: 13999,
     subtotal: 11999,
     domainPrice: 999,
@@ -41,7 +41,7 @@ const PLAN_DETAILS = {
     ],
   },
   business: {
-    name: "Business Plan",
+    name: "The Professional",
     oldPrice: 15999,
     subtotal: 12999,
     domainPrice: 999,
@@ -55,7 +55,7 @@ const PLAN_DETAILS = {
     ],
   },
   professional: {
-    name: "Professional Plan",
+    name: "Professional Plus",
     oldPrice: 17999,
     subtotal: 13999,
     domainPrice: 999,
@@ -69,7 +69,7 @@ const PLAN_DETAILS = {
     ],
   },
   ecommerce: {
-    name: "E-Commerce Plan",
+    name: "Enterprise",
     oldPrice: 41000,
     subtotal: 32999,
     domainPrice: 999,
@@ -84,7 +84,7 @@ const PLAN_DETAILS = {
     ],
   },
   "advanced-ecommerce": {
-    name: "Advanced E-Commerce Plan",
+    name: "Enterprise Plus",
     oldPrice: 50000,
     subtotal: 39999,
     domainPrice: 999,
@@ -563,11 +563,11 @@ function getPlanByKey(planKey) {
 
 function getPlanRequirementsPagePath(planKey) {
   const pages = {
-    basic: "basic-plan-form.html",
-    business: "business-plan-form.html",
-    professional: "professional-plan-form.html",
-    ecommerce: "ecommerce-plan-form.html",
-    "advanced-ecommerce": "advanced-ecommerce-plan-form.html",
+    basic: "the-starter-form.html",
+    business: "the-professional-form.html",
+    professional: "professional-plus-form.html",
+    ecommerce: "enterprise-form.html",
+    "advanced-ecommerce": "enterprise-plus-form.html",
   };
 
   return pages[String(planKey || "").trim()] || "";
@@ -1280,6 +1280,164 @@ function readCheckboxValues(formData, fieldName) {
     .filter(Boolean);
 }
 
+const RAZORPAY_CHECKOUT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+
+function getPlanSuccessModalMessageNodes() {
+  const modal = ensurePlanSuccessModal();
+  return {
+    modal,
+    title: modal.querySelector("[data-plan-success-title]"),
+    message: modal.querySelector("[data-plan-success-message]"),
+  };
+}
+
+function loadRazorpayCheckout() {
+  if (window.Razorpay) {
+    return Promise.resolve(window.Razorpay);
+  }
+
+  if (loadRazorpayCheckout.promise) {
+    return loadRazorpayCheckout.promise;
+  }
+
+  loadRazorpayCheckout.promise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector(`script[src="${RAZORPAY_CHECKOUT_SRC}"]`);
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(window.Razorpay), { once: true });
+      existingScript.addEventListener("error", () => reject(new Error("Could not load Razorpay checkout.")), {
+        once: true,
+      });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = RAZORPAY_CHECKOUT_SRC;
+    script.async = true;
+    script.onload = () => resolve(window.Razorpay);
+    script.onerror = () => reject(new Error("Could not load Razorpay checkout."));
+    document.head.appendChild(script);
+  });
+
+  return loadRazorpayCheckout.promise;
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, options);
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error((data && data.error) || "Request failed.");
+  }
+
+  return data;
+}
+
+async function getAuthAccessToken() {
+  if (!dqAuth || !dqAuth.isConfigured()) {
+    return "";
+  }
+
+  const session = typeof dqAuth.getSession === "function" ? await dqAuth.getSession() : null;
+  return session?.access_token || "";
+}
+
+async function createPlanPaymentOrder(payload) {
+  const accessToken = await getAuthAccessToken();
+  if (!accessToken) {
+    throw new Error("Please sign in again before continuing.");
+  }
+
+  return fetchJson("/api/payments/razorpay/create-order", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function verifyPlanPayment(payload) {
+  const accessToken = await getAuthAccessToken();
+  if (!accessToken) {
+    throw new Error("Please sign in again before verifying payment.");
+  }
+
+  return fetchJson("/api/payments/razorpay/verify", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function openRazorpayCheckout(checkoutData) {
+  await loadRazorpayCheckout();
+
+  return new Promise((resolve, reject) => {
+    if (typeof window.Razorpay !== "function") {
+      reject(new Error("Razorpay checkout is unavailable."));
+      return;
+    }
+
+    let settled = false;
+
+    const finish = (callback) => (payload) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      callback(payload);
+    };
+
+    const razorpay = new window.Razorpay({
+      key: checkoutData.razorpayKeyId,
+      amount: checkoutData.razorpayOrder?.amount,
+      currency: checkoutData.razorpayOrder?.currency || "INR",
+      name: "DigitQuo",
+      description: `${checkoutData.planName || "Website"} Payment`,
+      order_id: checkoutData.razorpayOrder?.id,
+      prefill: {
+        name: checkoutData.customer?.name || "",
+        email: checkoutData.customer?.email || "",
+        contact: checkoutData.customer?.phone || "",
+      },
+      notes: {
+        site_order_id: checkoutData.siteOrderId || "",
+        project_id: checkoutData.projectId || "",
+        plan_key: checkoutData.planKey || "",
+      },
+      theme: {
+        color: "#0d2f6f",
+      },
+      modal: {
+        ondismiss: finish(() => reject(new Error("Payment was cancelled."))),
+      },
+      handler: finish((response) => resolve(response)),
+    });
+
+    razorpay.on(
+      "payment.failed",
+      finish((event) => {
+        reject(new Error(event?.error?.description || "Payment failed."));
+      })
+    );
+
+    razorpay.open();
+  });
+}
+
 function ensurePlanSuccessModal() {
   let modal = document.getElementById("planSuccessModal");
   if (modal) {
@@ -1292,8 +1450,8 @@ function ensurePlanSuccessModal() {
   modal.setAttribute("hidden", "");
   modal.innerHTML = `
     <div class="plan-success-dialog">
-      <h3>Submission Received</h3>
-      <p>Our team will contact you soon.</p>
+      <h3 data-plan-success-title>Submission Received</h3>
+      <p data-plan-success-message>Our team will contact you soon.</p>
       <a class="btn btn-primary" href="index.html" id="planSuccessHomeBtn">Home</a>
     </div>
   `;
@@ -1301,9 +1459,17 @@ function ensurePlanSuccessModal() {
   return modal;
 }
 
-function showPlanSuccessModal() {
-  const modal = ensurePlanSuccessModal();
+function showPlanSuccessModal(options = {}) {
+  const { modal, title, message } = getPlanSuccessModalMessageNodes();
   const homeButton = document.getElementById("planSuccessHomeBtn");
+
+  if (title) {
+    title.textContent = options.title || "Submission Received";
+  }
+
+  if (message) {
+    message.textContent = options.message || "Our team will contact you soon.";
+  }
 
   window.clearTimeout(showPlanSuccessModal.timeoutId);
   modal.removeAttribute("hidden");
@@ -1359,7 +1525,7 @@ function renderPlanRequirementsPage(user) {
       <article class="card plan-form-card">
         <span class="eyebrow">Website Requirements Form</span>
         <h1 class="section-title">${escapeHtml(plan.name)}</h1>
-        <p class="section-subtitle">Fill in your project requirements. After submission, our team will review the brief and contact you soon.</p>
+        <p class="section-subtitle">Fill in your project requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.</p>
 
         <form id="planRequirementsForm" class="contact-form">
           <div class="field-row">
@@ -1387,7 +1553,7 @@ function renderPlanRequirementsPage(user) {
             showBasicSection
               ? `
                 <div class="plan-form-section">
-                  <h3>Basic Plan Requirements</h3>
+                  <h3>The Starter Requirements</h3>
                   <div class="field-block">
                     <label for="websiteIdea">Describe your website idea</label>
                     <textarea id="websiteIdea" name="websiteIdea" required></textarea>
@@ -1409,7 +1575,7 @@ function renderPlanRequirementsPage(user) {
             showBusinessSection
               ? `
                 <div class="plan-form-section">
-                  <h3>Business Plan Requirements</h3>
+                  <h3>The Professional Requirements</h3>
                   <div class="field-block">
                     <label for="additionalSections">Additional pages or sections required (Gallery / Testimonials / FAQ / Team / Offers etc.)</label>
                     <textarea id="additionalSections" name="additionalSections" placeholder="Gallery, Testimonials, FAQ, Team, Offers..."></textarea>
@@ -1449,7 +1615,7 @@ function renderPlanRequirementsPage(user) {
             showProfessionalSection
               ? `
                 <div class="plan-form-section">
-                  <h3>Professional Plan Requirements</h3>
+                  <h3>Professional Plus Requirements</h3>
                   <div class="field-block">
                     <label for="designReference">Do you need custom UI/UX design or reference websites?</label>
                     <textarea id="designReference" name="designReference"></textarea>
@@ -1481,7 +1647,7 @@ function renderPlanRequirementsPage(user) {
             showEcommerceSection
               ? `
                 <div class="plan-form-section">
-                  <h3>${planKey === "advanced-ecommerce" ? "Advanced Ecommerce Plan Requirements" : "Ecommerce Plan Requirements"}</h3>
+                  <h3>${planKey === "advanced-ecommerce" ? "Enterprise Plus Requirements" : "Enterprise Requirements"}</h3>
                   <div class="field-block">
                     <label for="storeIdea">Describe your online store idea</label>
                     <textarea id="storeIdea" name="storeIdea" required></textarea>
@@ -1642,66 +1808,40 @@ function renderPlanRequirementsPage(user) {
     try {
       if (submitButton instanceof HTMLButtonElement) {
         submitButton.disabled = true;
-        submitButton.textContent = "Submitting...";
+        submitButton.textContent = "Opening Payment...";
       }
 
-      await client
-        .from("profiles")
-        .update({
-          full_name: customerName,
-          phone: customerPhone,
-        })
-        .eq("id", profile.id);
-
-      const { data: createdProjects, error } = await client.from("projects").insert({
-        user_id: profile.id,
-        project_name: (projectName || ideaSummary).slice(0, 120),
-        template_id: planKey,
-        site_config: {
-          source: "plan_requirements_form",
-          submitted_at: new Date().toISOString(),
-          contact: {
-            full_name: customerName,
-            email: customerEmail,
-            phone: customerPhone,
-          },
-          plan: {
-            key: planKey,
-            name: plan.name,
-            price: plan.subtotal,
-          },
-          summary: {
-            project_name: projectName,
-            idea: ideaSummary,
-          },
-          requirements,
-        },
-        is_active: true,
-      }).select("id");
-
-      if (error) {
-        throw error;
-      }
-
-      const createdProject = Array.isArray(createdProjects) ? createdProjects[0] : null;
-      const { error: orderError } = await client.from("orders").insert({
-        user_id: profile.id,
-        project_id: createdProject?.id || null,
-        amount: plan.subtotal,
-        discount_amount: 0,
-        final_amount: plan.subtotal,
-        payment_status: "unpaid",
-        status: "pending",
+      const checkoutData = await createPlanPaymentOrder({
+        planKey,
+        customerName,
+        customerEmail,
+        customerPhone,
+        projectName,
+        ideaSummary,
+        requirements,
       });
 
-      if (orderError) {
-        throw orderError;
+      const paymentResponse = await openRazorpayCheckout(checkoutData);
+
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.textContent = "Verifying Payment...";
       }
 
+      await verifyPlanPayment({
+        siteOrderId: checkoutData.siteOrderId,
+        projectId: checkoutData.projectId,
+        razorpayOrderId: paymentResponse.razorpay_order_id,
+        razorpayPaymentId: paymentResponse.razorpay_payment_id,
+        razorpaySignature: paymentResponse.razorpay_signature,
+      });
+
       removeCartItem(planKey);
-      showPlanSuccessModal();
+      showPlanSuccessModal({
+        title: "Payment Received",
+        message: "Our team will contact you soon.",
+      });
     } catch (error) {
-      showCartToast(error.message || "Could not submit your requirements.");
+      showCartToast(error.message || "Could not start the payment.");
     } finally {
       if (submitButton instanceof HTMLButtonElement) {
         submitButton.disabled = false;

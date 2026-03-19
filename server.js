@@ -10,6 +10,8 @@ const ROOT_DIR = __dirname;
 const DATA_DIR = path.join(ROOT_DIR, "data");
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://umflohaswnlwzrqbzmxs.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "";
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "";
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const SESSION_COOKIE = "dq_session";
@@ -20,6 +22,28 @@ const loginAttempts = new Map();
 const LOGIN_WINDOW_MS = 1000 * 60 * 15;
 const LOGIN_LOCK_MS = 1000 * 60 * 15;
 const LOGIN_MAX_ATTEMPTS = 5;
+const PLAN_CATALOG = {
+  basic: {
+    name: "The Starter",
+    amount: 11999,
+  },
+  business: {
+    name: "The Professional",
+    amount: 12999,
+  },
+  professional: {
+    name: "Professional Plus",
+    amount: 13999,
+  },
+  ecommerce: {
+    name: "Enterprise",
+    amount: 32999,
+  },
+  "advanced-ecommerce": {
+    name: "Enterprise Plus",
+    amount: 39999,
+  },
+};
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -366,6 +390,10 @@ function hasSupabaseAdminConfig() {
   return Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 }
 
+function hasRazorpayConfig() {
+  return Boolean(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
+}
+
 async function supabaseFetch(pathname, options = {}) {
   if (!hasSupabaseAdminConfig()) {
     throw new Error("Supabase admin backend is not configured.");
@@ -426,7 +454,7 @@ async function getSupabaseUser(accessToken) {
   return response.json();
 }
 
-async function requireAdminAccess(req, res) {
+async function requireAuthenticatedProfile(req, res) {
   if (!hasSupabaseAdminConfig()) {
     json(res, 500, {
       error: "Server is missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.",
@@ -436,27 +464,100 @@ async function requireAdminAccess(req, res) {
 
   const accessToken = getAccessToken(req);
   if (!accessToken) {
-    json(res, 401, { error: "Missing admin session token." });
+    json(res, 401, { error: "Missing session token." });
     return null;
   }
 
   const user = await getSupabaseUser(accessToken);
   if (!user || !user.id) {
-    json(res, 401, { error: "Invalid or expired admin session." });
+    json(res, 401, { error: "Invalid or expired session." });
     return null;
   }
 
   const profiles = await supabaseFetch(
-    `/rest/v1/profiles?select=id,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`
+    `/rest/v1/profiles?select=id,email,full_name,phone,role,is_active&id=eq.${encodeURIComponent(user.id)}&limit=1`
   );
   const profile = Array.isArray(profiles) ? profiles[0] : null;
 
-  if (!profile || profile.role !== "admin" || profile.is_active === false) {
+  if (!profile || profile.is_active === false) {
+    json(res, 403, { error: "Your account is not active." });
+    return null;
+  }
+
+  return { user, profile, accessToken };
+}
+
+async function requireAdminAccess(req, res) {
+  const authContext = await requireAuthenticatedProfile(req, res);
+  if (!authContext) {
+    return null;
+  }
+
+  if (authContext.profile.role !== "admin") {
     json(res, 403, { error: "Admin access required." });
     return null;
   }
 
-  return { user, profile };
+  return authContext;
+}
+
+function getPlanConfig(planKey) {
+  return PLAN_CATALOG[String(planKey || "").trim()] || null;
+}
+
+async function razorpayFetch(pathname, options = {}) {
+  if (!hasRazorpayConfig()) {
+    throw new Error("Razorpay is not configured on the server.");
+  }
+
+  const authToken = Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString("base64");
+  const response = await fetch(`https://api.razorpay.com${pathname}`, {
+    method: options.method || "GET",
+    headers: {
+      Authorization: `Basic ${authToken}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      (data && typeof data === "object" && (data.description || data.error?.description || data.message)) ||
+      "Razorpay request failed.";
+    const error = new Error(message);
+    error.status = response.status;
+    error.details = data;
+    throw error;
+  }
+
+  return data;
+}
+
+function buildRazorpayReceipt(orderId) {
+  return String(orderId || "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(0, 40);
+}
+
+function verifyRazorpaySignature(orderId, paymentId, signature) {
+  const expectedSignature = crypto
+    .createHmac("sha256", RAZORPAY_KEY_SECRET)
+    .update(`${orderId}|${paymentId}`)
+    .digest("hex");
+
+  return expectedSignature === signature;
 }
 
 async function handleAdminCreateUser(req, res) {
@@ -549,6 +650,318 @@ async function handleAdminCreateUser(req, res) {
     const status = error.status || 500;
     json(res, status, {
       error: error.message || "Could not create user.",
+    });
+  }
+}
+
+async function handleAdminUpdateUserStatus(req, res, userId) {
+  const adminContext = await requireAdminAccess(req, res);
+  if (!adminContext) {
+    return;
+  }
+
+  const normalizedUserId = String(userId || "").trim();
+  if (!normalizedUserId) {
+    json(res, 400, { error: "User ID is required." });
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  if (typeof body.isActive !== "boolean") {
+    json(res, 400, { error: "isActive must be a boolean value." });
+    return;
+  }
+
+  if (normalizedUserId === adminContext.user.id && body.isActive === false) {
+    json(res, 400, { error: "You cannot suspend your own admin account." });
+    return;
+  }
+
+  try {
+    const updatedProfiles = await supabaseFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(normalizedUserId)}`, {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: {
+        is_active: body.isActive,
+      },
+    });
+
+    const updatedProfile = Array.isArray(updatedProfiles) ? updatedProfiles[0] : null;
+    if (!updatedProfile) {
+      json(res, 404, { error: "User not found." });
+      return;
+    }
+
+    json(res, 200, {
+      message: `User ${body.isActive ? "unsuspended" : "suspended"} successfully.`,
+      user: updatedProfile,
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    json(res, status, {
+      error: error.message || "Could not update user status.",
+    });
+  }
+}
+
+async function handleCreateRazorpayOrder(req, res) {
+  const authContext = await requireAuthenticatedProfile(req, res);
+  if (!authContext) {
+    return;
+  }
+
+  if (!hasRazorpayConfig()) {
+    json(res, 500, {
+      error: "Razorpay is not configured on the server. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
+    });
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  const planKey = String(body.planKey || "").trim();
+  const plan = getPlanConfig(planKey);
+  const customerName = normalizeName(body.customerName);
+  const customerEmail = normalizeEmail(body.customerEmail || authContext.profile.email || authContext.user.email);
+  const customerPhone = normalizePhone(body.customerPhone);
+  const projectName = normalizeName(body.projectName);
+  const ideaSummary = normalizeName(body.ideaSummary);
+  const requirements = body.requirements && typeof body.requirements === "object" ? body.requirements : {};
+
+  if (!plan) {
+    json(res, 400, { error: "Invalid plan selected." });
+    return;
+  }
+
+  if (customerName.length < 2) {
+    json(res, 400, { error: "Please enter a valid full name." });
+    return;
+  }
+
+  if (!isValidEmail(customerEmail)) {
+    json(res, 400, { error: "Please enter a valid email address." });
+    return;
+  }
+
+  if (!isValidPhone(customerPhone)) {
+    json(res, 400, { error: "Please enter a valid phone number." });
+    return;
+  }
+
+  try {
+    await supabaseFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(authContext.user.id)}`, {
+      method: "PATCH",
+      body: {
+        full_name: customerName,
+        phone: customerPhone,
+      },
+    });
+
+    const createdProjects = await supabaseFetch("/rest/v1/projects", {
+      method: "POST",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: {
+        user_id: authContext.user.id,
+        project_name: (projectName || ideaSummary || `${plan.name} Project`).slice(0, 120),
+        template_id: planKey,
+        site_config: {
+          source: "plan_requirements_form",
+          submitted_at: new Date().toISOString(),
+          contact: {
+            full_name: customerName,
+            email: customerEmail,
+            phone: customerPhone,
+          },
+          plan: {
+            key: planKey,
+            name: plan.name,
+            price: plan.amount,
+          },
+          summary: {
+            project_name: projectName,
+            idea: ideaSummary || `${plan.name} Requirement`,
+          },
+          requirements,
+        },
+        is_active: false,
+      },
+    });
+
+    const createdProject = Array.isArray(createdProjects) ? createdProjects[0] : null;
+    if (!createdProject?.id) {
+      throw new Error("Could not create project.");
+    }
+
+    const createdOrders = await supabaseFetch("/rest/v1/orders", {
+      method: "POST",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: {
+        user_id: authContext.user.id,
+        project_id: createdProject.id,
+        amount: plan.amount,
+        discount_amount: 0,
+        final_amount: plan.amount,
+        payment_status: "unpaid",
+        status: "pending",
+      },
+    });
+
+    const createdOrder = Array.isArray(createdOrders) ? createdOrders[0] : null;
+    if (!createdOrder?.id) {
+      throw new Error("Could not create order.");
+    }
+
+    try {
+      const razorpayOrder = await razorpayFetch("/v1/orders", {
+        method: "POST",
+        body: {
+          amount: Math.round(Number(plan.amount) * 100),
+          currency: "INR",
+          receipt: buildRazorpayReceipt(createdOrder.id),
+          notes: {
+            site_order_id: createdOrder.id,
+            project_id: createdProject.id,
+            plan_key: planKey,
+            customer_name: customerName,
+            customer_email: customerEmail,
+          },
+        },
+      });
+
+      json(res, 201, {
+        siteOrderId: createdOrder.id,
+        projectId: createdProject.id,
+        planKey,
+        planName: plan.name,
+        razorpayKeyId: RAZORPAY_KEY_ID,
+        razorpayOrder: {
+          id: razorpayOrder.id,
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency || "INR",
+        },
+        customer: {
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone,
+        },
+      });
+    } catch (razorpayError) {
+      try {
+        await supabaseFetch(`/rest/v1/orders?id=eq.${encodeURIComponent(createdOrder.id)}`, {
+          method: "PATCH",
+          body: {
+            status: "failed",
+          },
+        });
+      } catch {}
+
+      throw razorpayError;
+    }
+  } catch (error) {
+    const status = error.status || 500;
+    json(res, status, {
+      error: error.message || "Could not create payment order.",
+    });
+  }
+}
+
+async function handleVerifyRazorpayPayment(req, res) {
+  const authContext = await requireAuthenticatedProfile(req, res);
+  if (!authContext) {
+    return;
+  }
+
+  if (!hasRazorpayConfig()) {
+    json(res, 500, {
+      error: "Razorpay is not configured on the server. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
+    });
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  const siteOrderId = String(body.siteOrderId || "").trim();
+  const razorpayOrderId = String(body.razorpayOrderId || "").trim();
+  const razorpayPaymentId = String(body.razorpayPaymentId || "").trim();
+  const razorpaySignature = String(body.razorpaySignature || "").trim();
+
+  if (!siteOrderId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+    json(res, 400, { error: "Missing payment verification details." });
+    return;
+  }
+
+  if (!verifyRazorpaySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature)) {
+    json(res, 400, { error: "Payment signature verification failed." });
+    return;
+  }
+
+  try {
+    const orders = await supabaseFetch(
+      `/rest/v1/orders?select=id,user_id,project_id,payment_status,status,final_amount&id=eq.${encodeURIComponent(siteOrderId)}&user_id=eq.${encodeURIComponent(authContext.user.id)}&limit=1`
+    );
+    const order = Array.isArray(orders) ? orders[0] : null;
+
+    if (!order) {
+      json(res, 404, { error: "Order not found." });
+      return;
+    }
+
+    if (order.payment_status === "paid") {
+      json(res, 200, {
+        message: "Payment already verified.",
+        orderId: order.id,
+      });
+      return;
+    }
+
+    const payment = await razorpayFetch(`/v1/payments/${encodeURIComponent(razorpayPaymentId)}`);
+    if (
+      !payment ||
+      payment.order_id !== razorpayOrderId ||
+      !["authorized", "captured"].includes(String(payment.status || "").toLowerCase())
+    ) {
+      json(res, 400, { error: "Razorpay payment could not be confirmed." });
+      return;
+    }
+
+    const updatedOrders = await supabaseFetch(`/rest/v1/orders?id=eq.${encodeURIComponent(order.id)}`, {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: {
+        payment_status: "paid",
+        status: order.status === "failed" ? "pending" : order.status || "pending",
+        stripe_payment_id: razorpayPaymentId,
+      },
+    });
+
+    const updatedOrder = Array.isArray(updatedOrders) ? updatedOrders[0] : null;
+
+    if (order.project_id) {
+      await supabaseFetch(`/rest/v1/projects?id=eq.${encodeURIComponent(order.project_id)}`, {
+        method: "PATCH",
+        body: {
+          is_active: true,
+        },
+      });
+    }
+
+    json(res, 200, {
+      message: "Payment verified successfully.",
+      order: updatedOrder || {
+        id: order.id,
+        payment_status: "paid",
+      },
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    json(res, status, {
+      error: error.message || "Could not verify payment.",
     });
   }
 }
@@ -728,6 +1141,7 @@ function sendFile(res, filepath) {
 async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = url.pathname;
+  const adminUserStatusMatch = /^\/api\/admin\/users\/([^/]+)\/status$/.exec(pathname);
 
   if (req.method === "POST" && pathname === "/api/auth/register") {
     await handleRegister(req, res);
@@ -751,6 +1165,21 @@ async function route(req, res) {
 
   if (req.method === "POST" && pathname === "/api/admin/users") {
     await handleAdminCreateUser(req, res);
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/payments/razorpay/create-order") {
+    await handleCreateRazorpayOrder(req, res);
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/payments/razorpay/verify") {
+    await handleVerifyRazorpayPayment(req, res);
+    return;
+  }
+
+  if (req.method === "PATCH" && adminUserStatusMatch) {
+    await handleAdminUpdateUserStatus(req, res, adminUserStatusMatch[1]);
     return;
   }
 

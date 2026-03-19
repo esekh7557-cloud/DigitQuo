@@ -112,27 +112,23 @@
             >
               <i class="fas fa-bars"></i>
             </button>
-            <div class="search-container">
-              <i class="fas fa-search"></i>
-              <input
-                type="text"
-                id="contextSearchBox"
-                placeholder="Search users, projects, or orders..."
-              />
-            </div>
           </div>
           <div class="top-bar-actions">
+            <a href="index.html" class="btn btn-secondary top-exit-btn">
+              <i class="fas fa-arrow-right-from-bracket"></i>
+              <span>Exit Admin</span>
+            </a>
             <button id="refreshDashboardBtn" class="btn btn-secondary top-refresh-btn">
               <i class="fas fa-rotate-right"></i>
               <span>Refresh</span>
             </button>
-            <button id="notificationsBell" class="icon-btn">
+            <button id="notificationsBell" class="icon-btn" type="button" aria-label="View order notifications">
               <i class="fas fa-bell"></i>
               <span class="badge">0</span>
             </button>
-            <div class="theme-toggle">
+            <button id="themeToggle" class="theme-toggle" type="button" aria-label="Enable dark mode">
               <i class="fas fa-moon"></i>
-            </div>
+            </button>
           </div>
         </div>
 
@@ -153,7 +149,6 @@
               <div class="stat-content">
                 <p class="stat-label">Total Revenue</p>
                 <p class="stat-value" id="totalRevenue">&#8377;0</p>
-                <p class="stat-change positive">+12.5% this month</p>
               </div>
             </div>
 
@@ -164,7 +159,6 @@
               <div class="stat-content">
                 <p class="stat-label">Active Users</p>
                 <p class="stat-value" id="activeUsers">0</p>
-                <p class="stat-change positive">+8.2% growth</p>
               </div>
             </div>
 
@@ -175,18 +169,16 @@
               <div class="stat-content">
                 <p class="stat-label">Active Sites</p>
                 <p class="stat-value" id="activeSites">0</p>
-                <p class="stat-change neutral">0% change</p>
               </div>
             </div>
 
             <div class="stat-card">
               <div class="stat-icon health">
-                <i class="fas fa-heartbeat"></i>
+                <i class="fas fa-ticket-alt"></i>
               </div>
               <div class="stat-content">
-                <p class="stat-label">System Health</p>
-                <p class="stat-value">98%</p>
-                <p class="stat-change positive">All systems normal</p>
+                <p class="stat-label">Coupons</p>
+                <p class="stat-value" id="couponCount">0</p>
               </div>
             </div>
           </div>
@@ -276,15 +268,16 @@
             />
             <select id="templateFilter" class="filter-input">
               <option value="">All Templates</option>
-              <option value="basic">Basic</option>
-              <option value="business">Business</option>
-              <option value="professional">Professional</option>
+              <option value="basic">The Starter</option>
+              <option value="business">The Professional</option>
+              <option value="professional">Professional Plus</option>
             </select>
             <select id="projectStatusFilter" class="filter-input">
               <option value="">All Project Status</option>
               <option value="pending">Pending</option>
               <option value="ongoing">Ongoing</option>
               <option value="completed">Completed</option>
+              <option value="terminated">Terminated</option>
             </select>
           </div>
 
@@ -299,6 +292,13 @@
             <h3>Completed Projects</h3>
             <div id="completedProjectsList" class="projects-grid">
               <p class="empty-state">No completed projects yet.</p>
+            </div>
+          </div>
+
+          <div class="projects-section-group">
+            <h3>Terminated Projects</h3>
+            <div id="terminatedProjectsList" class="projects-grid">
+              <p class="empty-state">No terminated projects yet.</p>
             </div>
           </div>
         </section>
@@ -525,15 +525,71 @@
             <label>Plan</label>
             <select id="newUserPlan" class="form-control" required>
               <option value="free">Free</option>
-              <option value="basic">Basic</option>
-              <option value="business">Business</option>
-              <option value="professional">Professional</option>
+              <option value="basic">The Starter</option>
+              <option value="business">The Professional</option>
+              <option value="professional">Professional Plus</option>
             </select>
           </div>
         </form>
         <div class="modal-footer">
           <button class="btn btn-secondary close-modal-btn">Cancel</button>
           <button class="btn btn-primary" id="submitAddUserBtn">Create User</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="addProjectModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Create Project</h3>
+          <button class="close-btn">&times;</button>
+        </div>
+        <form id="addProjectForm" class="modal-body">
+          <div class="form-group">
+            <label>Customer</label>
+            <select id="projectOwner" class="form-control" required>
+              <option value="">Select a customer</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Project Name</label>
+            <input type="text" id="newProjectName" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label>Domain</label>
+            <input type="text" id="newProjectDomain" class="form-control" placeholder="example.com" />
+          </div>
+          <div class="form-group">
+            <label>Plan</label>
+            <select id="newProjectPlan" class="form-control" required>
+              <option value="basic">The Starter</option>
+              <option value="business">The Professional</option>
+              <option value="professional">Professional Plus</option>
+              <option value="ecommerce">Enterprise</option>
+              <option value="advanced-ecommerce">Enterprise Plus</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Quoted Price</label>
+            <input type="number" id="newProjectPrice" class="form-control" min="0" step="1" placeholder="12999" />
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="newProjectStatus" class="form-control" required>
+              <option value="pending">Pending</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="completed">Completed</option>
+              <option value="terminated">Terminated</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Project Summary</label>
+            <textarea id="newProjectSummary" class="form-control" rows="4" placeholder="Short brief about the project"></textarea>
+          </div>
+        </form>
+        <div class="modal-footer">
+          <button class="btn btn-secondary close-modal-btn">Cancel</button>
+          <button class="btn btn-primary" id="submitAddProjectBtn">Create Project</button>
         </div>
       </div>
     </div>
@@ -585,6 +641,42 @@
         </div>
         <div class="modal-body" id="projectDetailsContent">
           <p class="empty-state">No project selected.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary close-modal-btn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="orderDetailsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Order Details</h3>
+          <button class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body" id="orderDetailsContent">
+          <p class="empty-state">No order selected.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary close-modal-btn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="notificationsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Order Notifications</h3>
+          <button class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="notifications-modal-header">
+            <p>New orders will appear here.</p>
+            <button class="btn btn-secondary" id="markNotificationsReadBtn" type="button">Mark all as read</button>
+          </div>
+          <div id="notificationsList" class="notifications-list">
+            <p class="empty-state">No new order notifications.</p>
+          </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary close-modal-btn">Close</button>
