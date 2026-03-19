@@ -23,29 +23,25 @@ const LOGIN_WINDOW_MS = 1000 * 60 * 15;
 const LOGIN_LOCK_MS = 1000 * 60 * 15;
 const LOGIN_MAX_ATTEMPTS = 5;
 const PLAN_CATALOG = {
-  test: {
-    name: "Test Form",
-    amount: 2,
-  },
   basic: {
     name: "The Starter",
-    amount: 11999,
+    amount: 12999,
   },
   business: {
     name: "The Professional",
-    amount: 12999,
+    amount: 14599,
   },
   professional: {
     name: "Professional Plus",
-    amount: 13999,
+    amount: 16999,
   },
   ecommerce: {
     name: "Enterprise",
-    amount: 32999,
+    amount: 39999,
   },
   "advanced-ecommerce": {
     name: "Enterprise Plus",
-    amount: 39999,
+    amount: 49999,
   },
 };
 

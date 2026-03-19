@@ -25,21 +25,10 @@ const dqAuth = window.dqAuth;
 let activeReviewUser = null;
 let activeReviewIsAdmin = false;
 const PLAN_DETAILS = {
-  test: {
-    name: "Test Form",
-    oldPrice: 2,
-    subtotal: 2,
-    domainPrice: 0,
-    features: [
-      "Razorpay checkout test",
-      "Simple payment flow validation",
-      "Success popup verification",
-    ],
-  },
   basic: {
     name: "The Starter",
     oldPrice: 13999,
-    subtotal: 11999,
+    subtotal: 12999,
     domainPrice: 999,
     features: [
       "1-3 Pages Website",
@@ -53,7 +42,7 @@ const PLAN_DETAILS = {
   business: {
     name: "The Professional",
     oldPrice: 15999,
-    subtotal: 12999,
+    subtotal: 14599,
     domainPrice: 999,
     features: [
       "5-7 Pages Website",
@@ -67,7 +56,7 @@ const PLAN_DETAILS = {
   professional: {
     name: "Professional Plus",
     oldPrice: 17999,
-    subtotal: 13999,
+    subtotal: 16999,
     domainPrice: 999,
     features: [
       "8-12 Pages Website",
@@ -81,7 +70,7 @@ const PLAN_DETAILS = {
   ecommerce: {
     name: "Enterprise",
     oldPrice: 41000,
-    subtotal: 32999,
+    subtotal: 39999,
     domainPrice: 999,
     features: [
       "Online Store",
@@ -96,7 +85,7 @@ const PLAN_DETAILS = {
   "advanced-ecommerce": {
     name: "Enterprise Plus",
     oldPrice: 50000,
-    subtotal: 39999,
+    subtotal: 49999,
     domainPrice: 999,
     features: [
       "Unlimited Products",
@@ -682,7 +671,6 @@ function getPlanByKey(planKey) {
 
 function getPlanRequirementsPagePath(planKey) {
   const pages = {
-    test: "test-form.html",
     basic: "the-starter-form.html",
     business: "the-professional-form.html",
     professional: "professional-plus-form.html",
@@ -1646,11 +1634,6 @@ function renderPlanRequirementsPage(user) {
         <span class="eyebrow">Website Requirements Form</span>
         <h1 class="section-title">${escapeHtml(plan.name)}</h1>
         <p class="section-subtitle">Fill in your project requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.</p>
-        ${
-          planKey === "test"
-            ? '<p class="plan-note">This is a test just get the ass off and pay.</p>'
-            : ""
-        }
 
         <form id="planRequirementsForm" class="contact-form">
           <div class="field-row">
