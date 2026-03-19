@@ -1219,14 +1219,14 @@ textarea { min-height: 130px; resize: vertical; }
   font-size: 1.5rem;
 }
 
-footer { padding: 30px 0 42px; border-top: 1px solid rgba(255, 255, 255, 0.08); margin-top: 88px; color: var(--surface); background: linear-gradient(180deg, #050505 0%, #111111 100%); }
+footer { padding: 30px 0 42px; border-top: 1px solid rgba(124, 58, 237, 0.12); margin-top: 88px; color: #2e1065; background: linear-gradient(180deg, #f8f2ff 0%, #efe4ff 100%); }
 .footer-faq-shell { margin-bottom: 28px; }
 .footer-faq-card {
   padding: 26px;
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(124, 58, 237, 0.1);
+  box-shadow: 0 18px 44px rgba(124, 58, 237, 0.12);
   backdrop-filter: blur(10px);
 }
 .footer-faq-header {
@@ -1236,12 +1236,12 @@ footer { padding: 30px 0 42px; border-top: 1px solid rgba(255, 255, 255, 0.08); 
 }
 .footer-faq-header .eyebrow {
   width: fit-content;
-  color: #e5e7eb;
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  color: #6d28d9;
+  border-color: rgba(124, 58, 237, 0.14);
+  background: rgba(124, 58, 237, 0.08);
 }
 .footer-faq-header h2 {
-  color: #fff;
+  color: #3b0764;
   font-size: clamp(1.5rem, 2vw, 2rem);
 }
 .footer-faq-list {
@@ -1250,15 +1250,15 @@ footer { padding: 30px 0 42px; border-top: 1px solid rgba(255, 255, 255, 0.08); 
 }
 .footer-faq-item {
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(124, 58, 237, 0.08);
   overflow: hidden;
 }
 .footer-faq-toggle {
   width: 100%;
   border: 0;
   background: transparent;
-  color: #fff;
+  color: #2e1065;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1277,16 +1277,19 @@ footer { padding: 30px 0 42px; border-top: 1px solid rgba(255, 255, 255, 0.08); 
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(124, 58, 237, 0.1);
   font-size: 1.2rem;
   line-height: 1;
 }
 .footer-faq-answer {
   padding: 0 20px 18px;
-  color: rgba(255, 255, 255, 0.82);
+  color: #5b4176;
 }
 .footer-faq-answer p,
 .footer-faq-answer ul {
+  color: inherit;
+}
+.footer-links a {
   color: inherit;
 }
 .footer-faq-answer ul {
