@@ -77,7 +77,20 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BqSIT0GcmJ54v0PHVf7Hxw_COvYC9L7
         return null;
       }
 
-      return data.session || null;
+      let session = data.session || null;
+      const expiresAtMs =
+        session && typeof session.expires_at === "number"
+          ? session.expires_at * 1000
+          : 0;
+
+      if (session && expiresAtMs && expiresAtMs <= Date.now() + 60_000) {
+        const { data: refreshedData, error: refreshError } = await client.auth.refreshSession();
+        if (!refreshError && refreshedData?.session) {
+          session = refreshedData.session;
+        }
+      }
+
+      return session;
     },
     async getCurrentUser() {
       const session = await this.getSession();
