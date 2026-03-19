@@ -77,6 +77,20 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 
 -- ============================================================================
+-- REVIEWS TABLE - Public testimonials submitted by customers
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  message TEXT NOT NULL CHECK (char_length(message) <= 280),
+  rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================================================
 -- CREATE INDEXES FOR PERFORMANCE
 -- ============================================================================
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
@@ -85,6 +99,8 @@ CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
 CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(coupon_code);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_active_created_at ON reviews(is_active, created_at DESC);
 
 -- ============================================================================
 -- HELPER FUNCTIONS
@@ -148,6 +164,7 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
 -- PROFILES RLS POLICIES
@@ -250,6 +267,36 @@ CREATE POLICY "Service role access to orders" ON orders
   WITH CHECK (auth.role() = 'service_role');
 
 -- ============================================================================
+-- REVIEWS RLS POLICIES
+-- ============================================================================
+DROP POLICY IF EXISTS "Anyone can view active reviews" ON reviews;
+DROP POLICY IF EXISTS "Users can create own reviews" ON reviews;
+DROP POLICY IF EXISTS "Users can delete own reviews" ON reviews;
+DROP POLICY IF EXISTS "Admins can manage reviews" ON reviews;
+DROP POLICY IF EXISTS "Service role access to reviews" ON reviews;
+
+CREATE POLICY "Anyone can view active reviews" ON reviews
+  FOR SELECT
+  USING (is_active = true OR is_admin());
+
+CREATE POLICY "Users can create own reviews" ON reviews
+  FOR INSERT
+  WITH CHECK (auth.uid() = user_id OR is_admin());
+
+CREATE POLICY "Users can delete own reviews" ON reviews
+  FOR DELETE
+  USING (auth.uid() = user_id OR is_admin());
+
+CREATE POLICY "Admins can manage reviews" ON reviews
+  FOR UPDATE
+  USING (is_admin())
+  WITH CHECK (is_admin());
+
+CREATE POLICY "Service role access to reviews" ON reviews
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
+
+-- ============================================================================
 -- TRIGGERS
 -- ============================================================================
 DROP TRIGGER IF EXISTS profiles_update_updated_at ON profiles;
@@ -276,6 +323,12 @@ BEFORE UPDATE ON orders
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS reviews_update_updated_at ON reviews;
+CREATE TRIGGER reviews_update_updated_at
+BEFORE UPDATE ON reviews
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
 DROP TRIGGER IF EXISTS auth_users_after_insert ON auth.users;
 CREATE TRIGGER auth_users_after_insert
 AFTER INSERT ON auth.users
@@ -288,4 +341,5 @@ EXECUTE FUNCTION create_profile_for_new_user();
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS profile_photo TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'unpaid';
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 UPDATE orders SET payment_status = 'unpaid' WHERE payment_status IS NULL;

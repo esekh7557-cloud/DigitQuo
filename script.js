@@ -231,6 +231,104 @@ function writeReviews(reviews) {
   window.localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
 }
 
+function createReviewId() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+
+  return `review-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizeReview(review, index = 0) {
+  return {
+    id: review?.id || `legacy-review-${index + 1}`,
+    userId: review?.userId || review?.user_id || "",
+    name: String(review?.name || "").trim(),
+    message: String(review?.message || "").trim(),
+    rating: Number(review?.rating || 0),
+    createdAt: review?.createdAt || review?.created_at || "",
+  };
+}
+
+async function getReviewClient() {
+  if (!dqAuth || !dqAuth.isConfigured()) {
+    return null;
+  }
+
+  try {
+    return await dqAuth.getClient();
+  } catch (error) {
+    console.error("Could not create Supabase review client:", error);
+    return null;
+  }
+}
+
+async function fetchPersistedReviews() {
+  const client = await getReviewClient();
+  if (!client) {
+    return readReviews().map((review, index) => normalizeReview(review, index));
+  }
+
+  const { data, error } = await client
+    .from("reviews")
+    .select("id, user_id, name, message, rating, created_at")
+    .eq("is_active", true)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Could not load reviews from backend:", error);
+    return [];
+  }
+
+  return (data || []).map((review, index) => normalizeReview(review, index));
+}
+
+async function createPersistedReview(review) {
+  const client = await getReviewClient();
+  if (!client) {
+    const normalizedReview = normalizeReview({
+      ...review,
+      id: createReviewId(),
+      createdAt: new Date().toISOString(),
+    });
+    const reviews = readReviews();
+    reviews.push(normalizedReview);
+    writeReviews(reviews);
+    return normalizedReview;
+  }
+
+  const { data, error } = await client
+    .from("reviews")
+    .insert({
+      user_id: review.userId,
+      name: review.name,
+      message: review.message,
+      rating: review.rating,
+    })
+    .select("id, user_id, name, message, rating, created_at")
+    .single();
+
+  if (error) {
+    throw new Error(error.message || "Could not save review to backend.");
+  }
+
+  return normalizeReview(data);
+}
+
+async function deletePersistedReview(reviewId) {
+  const client = await getReviewClient();
+  if (!client) {
+    const remainingReviews = readReviews().filter((review) => review.id !== reviewId);
+    writeReviews(remainingReviews);
+    return;
+  }
+
+  const { error } = await client.from("reviews").delete().eq("id", reviewId);
+  if (error) {
+    throw new Error(error.message || "Could not delete review from backend.");
+  }
+}
+
 function renderStarMarkup(rating) {
   const safeRating = Math.max(0, Math.min(5, Number(rating || 0)));
   return Array.from({ length: 5 }, (_, index) => {
@@ -296,7 +394,7 @@ function syncReviewCardControls(card) {
 
   reportButton.hidden = isOwner;
   deleteButton.hidden = !canDelete;
-  card.classList.toggle("user-review", isOwner || Boolean(card.dataset.reviewUserId));
+  card.classList.toggle("user-review", isOwner);
 }
 
 function syncAllReviewCardControls() {
@@ -391,16 +489,26 @@ function updateTestimonialSummary() {
   testimonialSummaryStars.innerHTML = stars.join("");
 }
 
-function renderStoredReviews() {
+async function renderStoredReviews() {
   if (!testimonialGrid) {
     return;
   }
 
-  readReviews().forEach((review) => {
-    testimonialGrid.appendChild(createReviewCard({ ...review, isUserReview: true }));
-  });
-  updateTestimonialSummary();
-  syncAllReviewCardControls();
+  try {
+    testimonialGrid.querySelectorAll(".testimonial-card[data-review-id]").forEach((card) => {
+      card.remove();
+    });
+
+    const reviews = await fetchPersistedReviews();
+    reviews.forEach((review) => {
+      testimonialGrid.appendChild(createReviewCard(review));
+    });
+
+    updateTestimonialSummary();
+    syncAllReviewCardControls();
+  } catch (error) {
+    console.error("Could not render reviews:", error);
+  }
 }
 
 function syncReviewStars(rating) {
@@ -429,7 +537,7 @@ function initReviewForm() {
     });
   });
 
-  reviewForm.addEventListener("submit", (event) => {
+  reviewForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     if (!activeReviewUser) {
@@ -450,33 +558,37 @@ function initReviewForm() {
     }
 
     const review = {
-      id: crypto.randomUUID(),
       userId: activeReviewUser.id,
       name,
       message,
       rating,
     };
-    const reviews = readReviews();
-    reviews.push(review);
-    writeReviews(reviews);
 
-    if (testimonialGrid) {
-      const reviewCard = createReviewCard({ ...review, isUserReview: true });
-      testimonialGrid.appendChild(reviewCard);
-      focusUserReviewCard(reviewCard);
-    }
-    updateTestimonialSummary();
-    syncAllReviewCardControls();
+    try {
+      const savedReview = await createPersistedReview(review);
 
-    reviewForm.reset();
-    reviewRatingInput.value = "";
-    syncReviewStars(0);
-    const reviewNameInput = reviewForm.elements?.namedItem("reviewName");
-    if (reviewNameInput && "value" in reviewNameInput) {
-      reviewNameInput.value = activeReviewUser.fullName || activeReviewUser.email || "";
-    }
-    if (reviewFeedback) {
-      reviewFeedback.textContent = "Review added successfully.";
+      if (testimonialGrid) {
+        const reviewCard = createReviewCard({ ...savedReview, isUserReview: true });
+        testimonialGrid.appendChild(reviewCard);
+        focusUserReviewCard(reviewCard);
+      }
+      updateTestimonialSummary();
+      syncAllReviewCardControls();
+
+      reviewForm.reset();
+      reviewRatingInput.value = "";
+      syncReviewStars(0);
+      const reviewNameInput = reviewForm.elements?.namedItem("reviewName");
+      if (reviewNameInput && "value" in reviewNameInput) {
+        reviewNameInput.value = activeReviewUser.fullName || activeReviewUser.email || "";
+      }
+      if (reviewFeedback) {
+        reviewFeedback.textContent = "Review added successfully.";
+      }
+    } catch (error) {
+      if (reviewFeedback) {
+        reviewFeedback.textContent = error.message || "Could not save review.";
+      }
     }
   });
 }
@@ -486,7 +598,7 @@ function initReviewMenus() {
     return;
   }
 
-  testimonialGrid.addEventListener("click", (event) => {
+  testimonialGrid.addEventListener("click", async (event) => {
     if (!(event.target instanceof Element)) {
       return;
     }
@@ -530,8 +642,12 @@ function initReviewMenus() {
       }
 
       if (reviewCard.dataset.reviewId) {
-        const remainingReviews = readReviews().filter((review) => review.id !== reviewCard.dataset.reviewId);
-        writeReviews(remainingReviews);
+        try {
+          await deletePersistedReview(reviewCard.dataset.reviewId);
+        } catch (error) {
+          showCartToast(error.message || "Could not delete review.");
+          return;
+        }
       }
       reviewCard.remove();
       updateTestimonialSummary();
