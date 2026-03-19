@@ -310,6 +310,10 @@ function syncAllReviewCardControls() {
   });
 }
 
+function getReviewToggleLabel(isLoggedIn) {
+  return isLoggedIn ? "Leave a Review" : "Login to Leave a Review";
+}
+
 function syncReviewAccess(user) {
   activeReviewUser = user || null;
 
@@ -318,7 +322,7 @@ function syncReviewAccess(user) {
   }
 
   if (!activeReviewUser) {
-    reviewToggle.textContent = "Login to Add Review";
+    reviewToggle.textContent = getReviewToggleLabel(false);
     if (reviewForm) {
       reviewForm.hidden = true;
     }
@@ -327,7 +331,7 @@ function syncReviewAccess(user) {
     return;
   }
 
-  reviewToggle.textContent = reviewForm && !reviewForm.hidden ? "Close Review" : "Add Review";
+  reviewToggle.textContent = getReviewToggleLabel(true);
   const reviewNameInput = reviewForm?.elements?.namedItem("reviewName");
   if (reviewNameInput && "value" in reviewNameInput) {
     reviewNameInput.value = activeReviewUser.fullName || activeReviewUser.email || "";
@@ -420,12 +424,11 @@ function initReviewForm() {
       return;
     }
 
-    const nextHidden = !reviewForm.hidden;
-    reviewForm.hidden = nextHidden;
-    reviewToggle.textContent = nextHidden ? "Add Review" : "Close Review";
-    if (!nextHidden) {
-      reviewForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (reviewForm.hidden) {
+      reviewForm.hidden = false;
     }
+    reviewToggle.textContent = getReviewToggleLabel(true);
+    reviewForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
 
   reviewStarsInput.querySelectorAll(".review-star").forEach((star) => {
