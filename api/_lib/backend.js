@@ -6,6 +6,10 @@ const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "";
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "";
 
 const PLAN_CATALOG = {
+  test: {
+    name: "Test Form",
+    amount: 2,
+  },
   basic: {
     name: "The Starter",
     amount: 11999,

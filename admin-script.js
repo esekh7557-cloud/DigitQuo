@@ -121,6 +121,7 @@ function getProjectOrderStatusForWorkflow(status) {
 
 function getPlanLabelFromKey(planKey) {
   const labels = {
+    test: "Test Form",
     basic: "The Starter",
     business: "The Professional",
     professional: "Professional Plus",
