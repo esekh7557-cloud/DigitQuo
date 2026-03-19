@@ -11,7 +11,6 @@ const cartSummary = document.getElementById("cartSummary");
 const planDetailsRoot = document.getElementById("planDetailsRoot");
 const planRequirementsRoot = document.getElementById("planRequirementsRoot");
 const quoteRequestRoot = document.getElementById("quoteRequestRoot");
-const reviewToggle = document.getElementById("reviewToggle");
 const reviewForm = document.getElementById("reviewForm");
 const reviewFeedback = document.getElementById("reviewFeedback");
 const reviewRatingInput = document.getElementById("reviewRating");
@@ -310,31 +309,32 @@ function syncAllReviewCardControls() {
   });
 }
 
-function getReviewToggleLabel(isLoggedIn) {
-  return isLoggedIn ? "Leave a Review" : "Login to Leave a Review";
-}
-
 function syncReviewAccess(user) {
   activeReviewUser = user || null;
 
-  if (!reviewToggle) {
+  if (!reviewForm) {
     return;
   }
 
+  const reviewNameInput = reviewForm.elements?.namedItem("reviewName");
+
   if (!activeReviewUser) {
-    reviewToggle.textContent = getReviewToggleLabel(false);
-    if (reviewForm) {
-      reviewForm.hidden = true;
+    if (reviewFeedback) {
+      reviewFeedback.textContent = "Log in to submit your review.";
+    }
+    if (reviewNameInput && "value" in reviewNameInput) {
+      reviewNameInput.value = "";
     }
     closeReviewMenus();
     syncAllReviewCardControls();
     return;
   }
 
-  reviewToggle.textContent = getReviewToggleLabel(true);
-  const reviewNameInput = reviewForm?.elements?.namedItem("reviewName");
   if (reviewNameInput && "value" in reviewNameInput) {
     reviewNameInput.value = activeReviewUser.fullName || activeReviewUser.email || "";
+  }
+  if (reviewFeedback && reviewFeedback.textContent === "Log in to submit your review.") {
+    reviewFeedback.textContent = "";
   }
   syncAllReviewCardControls();
 }
@@ -414,22 +414,9 @@ function syncReviewStars(rating) {
 }
 
 function initReviewForm() {
-  if (!reviewForm || !reviewToggle || !reviewStarsInput || !reviewRatingInput) {
+  if (!reviewForm || !reviewStarsInput || !reviewRatingInput) {
     return;
   }
-
-  reviewToggle.addEventListener("click", () => {
-    if (!activeReviewUser) {
-      window.location.href = "login.html?redirect=index.html";
-      return;
-    }
-
-    if (reviewForm.hidden) {
-      reviewForm.hidden = false;
-    }
-    reviewToggle.textContent = getReviewToggleLabel(true);
-    reviewForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  });
 
   reviewStarsInput.querySelectorAll(".review-star").forEach((star) => {
     star.addEventListener("click", () => {
@@ -484,11 +471,13 @@ function initReviewForm() {
     reviewForm.reset();
     reviewRatingInput.value = "";
     syncReviewStars(0);
+    const reviewNameInput = reviewForm.elements?.namedItem("reviewName");
+    if (reviewNameInput && "value" in reviewNameInput) {
+      reviewNameInput.value = activeReviewUser.fullName || activeReviewUser.email || "";
+    }
     if (reviewFeedback) {
       reviewFeedback.textContent = "Review added successfully.";
     }
-    reviewForm.hidden = true;
-    syncReviewAccess(activeReviewUser);
   });
 }
 
