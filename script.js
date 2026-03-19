@@ -1633,7 +1633,7 @@ function renderPlanRequirementsPage(user) {
       <article class="card plan-form-card">
         <span class="eyebrow">Website Requirements Form</span>
         <h1 class="section-title">${escapeHtml(plan.name)}</h1>
-        <p class="section-subtitle">Fill in your project requirements and click Continue to book the plan. Our team will contact you soon.</p>
+        <p class="section-subtitle">Fill in your project requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.</p>
 
         <form id="planRequirementsForm" class="contact-form">
           <div class="field-row">
@@ -1916,69 +1916,40 @@ function renderPlanRequirementsPage(user) {
     try {
       if (submitButton instanceof HTMLButtonElement) {
         submitButton.disabled = true;
-        submitButton.textContent = "Booking...";
+        submitButton.textContent = "Opening Payment...";
       }
 
-      await client
-        .from("profiles")
-        .update({
-          full_name: customerName,
-          phone: customerPhone,
-        })
-        .eq("id", profile.id);
-
-      const { data: createdProjects, error } = await client.from("projects").insert({
-        user_id: profile.id,
-        project_name: (projectName || ideaSummary).slice(0, 120),
-        template_id: planKey,
-        site_config: {
-          source: "plan_requirements_form",
-          submitted_at: new Date().toISOString(),
-          contact: {
-            full_name: customerName,
-            email: customerEmail,
-            phone: customerPhone,
-          },
-          plan: {
-            key: planKey,
-            name: plan.name,
-            price: plan.subtotal,
-          },
-          summary: {
-            project_name: projectName,
-            idea: ideaSummary,
-          },
-          requirements,
-        },
-        is_active: true,
-      }).select("id");
-
-      if (error) {
-        throw error;
-      }
-
-      const createdProject = Array.isArray(createdProjects) ? createdProjects[0] : null;
-      const { error: orderError } = await client.from("orders").insert({
-        user_id: profile.id,
-        project_id: createdProject?.id || null,
-        amount: plan.subtotal,
-        discount_amount: 0,
-        final_amount: plan.subtotal,
-        payment_status: "unpaid",
-        status: "pending",
+      const checkoutData = await createPlanPaymentOrder({
+        planKey,
+        customerName,
+        customerEmail,
+        customerPhone,
+        projectName,
+        ideaSummary,
+        requirements,
       });
 
-      if (orderError) {
-        throw orderError;
+      const paymentResponse = await openRazorpayCheckout(checkoutData);
+
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.textContent = "Verifying Payment...";
       }
+
+      await verifyPlanPayment({
+        siteOrderId: checkoutData.siteOrderId,
+        projectId: checkoutData.projectId,
+        razorpayOrderId: paymentResponse.razorpay_order_id,
+        razorpayPaymentId: paymentResponse.razorpay_payment_id,
+        razorpaySignature: paymentResponse.razorpay_signature,
+      });
 
       removeCartItem(planKey);
       showPlanSuccessModal({
-        title: "Plan Booked",
+        title: "Payment Received",
         message: "Our team will contact you soon.",
       });
     } catch (error) {
-      showCartToast(error.message || "Could not book the plan.");
+      showCartToast(error.message || "Could not start the payment.");
     } finally {
       if (submitButton instanceof HTMLButtonElement) {
         submitButton.disabled = false;
