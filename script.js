@@ -83,6 +83,12 @@ const FOOTER_FAQ_ITEMS = [
 ];
 
 function ensureFooterFaqAccordion() {
+  const allowedFaqPages = new Set(["/", "/index.html", "/about.html", "/contact.html"]);
+  const currentPath = String(window.location.pathname || "").toLowerCase();
+  if (!allowedFaqPages.has(currentPath)) {
+    return;
+  }
+
   document.querySelectorAll("footer").forEach((footer) => {
     if (footer.querySelector(".footer-faq-shell")) {
       return;
