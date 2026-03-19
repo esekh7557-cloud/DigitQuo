@@ -1220,6 +1220,82 @@ textarea { min-height: 130px; resize: vertical; }
 }
 
 footer { padding: 30px 0 42px; border-top: 1px solid rgba(216, 180, 254, 0.25); margin-top: 88px; color: var(--surface); background: linear-gradient(135deg, #2e1065, #4c1d95); }
+.footer-faq-shell { margin-bottom: 28px; }
+.footer-faq-card {
+  padding: 26px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 44px rgba(17, 24, 39, 0.22);
+  backdrop-filter: blur(10px);
+}
+.footer-faq-header {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.footer-faq-header .eyebrow {
+  width: fit-content;
+  color: #f5d0fe;
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+}
+.footer-faq-header h2 {
+  color: #fff;
+  font-size: clamp(1.5rem, 2vw, 2rem);
+}
+.footer-faq-list {
+  display: grid;
+  gap: 12px;
+}
+.footer-faq-item {
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.footer-faq-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  text-align: left;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.footer-faq-icon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+.footer-faq-answer {
+  padding: 0 20px 18px;
+  color: rgba(255, 255, 255, 0.82);
+}
+.footer-faq-answer p,
+.footer-faq-answer ul {
+  color: inherit;
+}
+.footer-faq-answer ul {
+  padding-left: 18px;
+  margin-top: 10px;
+}
+.footer-faq-answer li + li {
+  margin-top: 8px;
+}
 .footer-wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .footer-links { display: flex; gap: 14px; flex-wrap: wrap; list-style: none; }
 .footer-links a:hover { color: var(--primary); }

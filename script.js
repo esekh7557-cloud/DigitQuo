@@ -24,16 +24,112 @@ const REVIEWS_STORAGE_KEY = "dq_reviews";
 const dqAuth = window.dqAuth;
 let activeReviewUser = null;
 let activeReviewIsAdmin = false;
+const FOOTER_FAQ_ITEMS = [
+  {
+    question: "1. What services do you provide?",
+    answer:
+      "<p>We provide complete website development services including website design, development, domain setup, hosting guidance, deployment, maintenance, and basic SEO setup.</p>",
+  },
+  {
+    question: "2. How much time does it take to build a website?",
+    answer:
+      "<p>The timeline depends on the project scope. Most standard websites take around 10-15 days. Complex or custom projects may take longer.</p>",
+  },
+  {
+    question: "3. What information do you need from the client to start?",
+    answer:
+      "<p>We require:</p><ul><li>Business details and logo</li><li>Website content such as text, images, and product details</li><li>Required features and pages</li><li>Domain and hosting details if already purchased</li></ul>",
+  },
+  {
+    question: "4. Do you provide domain and hosting?",
+    answer:
+      "<p>Yes. Our plans include complete website development with domain and hosting included.</p>",
+  },
+  {
+    question: "5. Will my website be mobile friendly?",
+    answer:
+      "<p>Yes. All websites are built with responsive design, meaning they will work smoothly on mobile, tablet, and desktop devices.</p>",
+  },
+  {
+    question: "6. Do you provide SEO services?",
+    answer:
+      "<p>Basic SEO setup such as meta tags, page speed optimization, sitemap, and indexing setup is included. Advanced SEO can be provided as an additional service.</p>",
+  },
+  {
+    question: "8. Do you provide e-commerce functionality?",
+    answer:
+      "<p>Yes. We can build fully functional online stores with payment gateway integration, product management, order tracking, and email notifications.</p>",
+  },
+  {
+    question: "9. What happens after the project is completed?",
+    answer:
+      "<p>We perform final deployment and testing. After handover:</p><ul><li>Domain ownership is transferred if purchased via us</li><li>Client must follow deployment and hosting guidelines</li><li>Optional maintenance support can be continued</li></ul>",
+  },
+  {
+    question: "10. Do you offer revisions?",
+    answer:
+      "<p>Yes. Limited revisions are included depending on the selected plan. Additional revisions or major changes may involve extra cost.</p>",
+  },
+  {
+    question: "11. What are your payment terms?",
+    answer:
+      "<p>Typically, an advance payment is required to start the project and the remaining payment is due before final deployment or handover.</p>",
+  },
+  {
+    question: "12. Do you provide website maintenance?",
+    answer:
+      "<p>Yes. We offer monthly or yearly maintenance plans including updates, backups, security monitoring, and minor content changes.</p>",
+  },
+];
 
-function ensureFooterFaqLink() {
-  document.querySelectorAll(".footer-links").forEach((list) => {
-    if (list.querySelector('a[href="faq.html"]')) {
+function ensureFooterFaqAccordion() {
+  document.querySelectorAll("footer").forEach((footer) => {
+    if (footer.querySelector(".footer-faq-shell")) {
       return;
     }
 
-    const item = document.createElement("li");
-    item.innerHTML = '<a href="faq.html">FAQ</a>';
-    list.appendChild(item);
+    const shell = document.createElement("div");
+    shell.className = "container footer-faq-shell";
+    shell.innerHTML = `
+      <section class="footer-faq-card" aria-label="Frequently asked questions">
+        <div class="footer-faq-header">
+          <span class="eyebrow">FAQ</span>
+          <h2>Frequently Asked Questions</h2>
+        </div>
+        <div class="footer-faq-list">
+          ${FOOTER_FAQ_ITEMS.map(
+            (item, index) => `
+              <article class="footer-faq-item">
+                <button class="footer-faq-toggle" type="button" aria-expanded="false" aria-controls="footerFaqAnswer${index}">
+                  <span>${escapeHtml(item.question)}</span>
+                  <span class="footer-faq-icon" aria-hidden="true">+</span>
+                </button>
+                <div class="footer-faq-answer" id="footerFaqAnswer${index}" hidden>
+                  ${item.answer}
+                </div>
+              </article>
+            `
+          ).join("")}
+        </div>
+      </section>
+    `;
+
+    footer.insertBefore(shell, footer.firstChild);
+
+    shell.querySelectorAll(".footer-faq-toggle").forEach((button) => {
+      button.addEventListener("click", () => {
+        const answer = button.nextElementSibling;
+        const icon = button.querySelector(".footer-faq-icon");
+        const isExpanded = button.getAttribute("aria-expanded") === "true";
+        button.setAttribute("aria-expanded", isExpanded ? "false" : "true");
+        if (answer) {
+          answer.hidden = isExpanded;
+        }
+        if (icon) {
+          icon.textContent = isExpanded ? "+" : "-";
+        }
+      });
+    });
   });
 }
 
@@ -122,7 +218,7 @@ if (menuToggle && navLinks) {
   });
 }
 
-ensureFooterFaqLink();
+ensureFooterFaqAccordion();
 
 if ("IntersectionObserver" in window) {
   const observer = new IntersectionObserver(
