@@ -1826,7 +1826,7 @@ function renderPlanRequirementsPage(user) {
           }
 
           <div class="plan-form-actions">
-            <button type="submit" class="btn btn-primary">Continue</button>
+            <button type="submit" class="btn btn-primary">Pay Now</button>
             <a href="plan-details.html?plan=${escapeHtml(planKey)}" class="btn btn-secondary">Back</a>
           </div>
         </form>
@@ -1953,7 +1953,7 @@ function renderPlanRequirementsPage(user) {
     } finally {
       if (submitButton instanceof HTMLButtonElement) {
         submitButton.disabled = false;
-        submitButton.textContent = "Continue";
+        submitButton.textContent = "Pay Now";
       }
     }
   });
