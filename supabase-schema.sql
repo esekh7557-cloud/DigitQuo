@@ -43,17 +43,97 @@ CREATE TABLE IF NOT EXISTS projects (
 CREATE TABLE IF NOT EXISTS coupons (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   coupon_code TEXT UNIQUE NOT NULL,
-  discount_percentage DECIMAL(5, 2) NOT NULL CHECK (
-    discount_percentage > 0 AND discount_percentage <= 100
+  discount_percentage DECIMAL(5, 2),
+  discount_type TEXT NOT NULL DEFAULT 'percentage' CHECK (
+    discount_type IN ('percentage', 'fixed')
   ),
+  discount_value DECIMAL(10, 2),
   max_uses INT DEFAULT NULL,
   current_uses INT DEFAULT 0,
   expiry_date TIMESTAMP WITH TIME ZONE,
   is_active BOOLEAN DEFAULT true,
   created_by UUID NOT NULL REFERENCES profiles(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT coupons_discount_value_check CHECK (
+    (
+      discount_type = 'percentage'
+      AND COALESCE(discount_value, discount_percentage) > 0
+      AND COALESCE(discount_value, discount_percentage) <= 100
+    )
+    OR (
+      discount_type = 'fixed'
+      AND COALESCE(discount_value, 0) > 0
+    )
+  )
 );
+
+ALTER TABLE coupons
+  ADD COLUMN IF NOT EXISTS discount_type TEXT NOT NULL DEFAULT 'percentage';
+
+ALTER TABLE coupons
+  ADD COLUMN IF NOT EXISTS discount_value DECIMAL(10, 2);
+
+ALTER TABLE coupons
+  ALTER COLUMN discount_percentage DROP NOT NULL;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.table_constraints
+    WHERE constraint_schema = 'public'
+      AND table_name = 'coupons'
+      AND constraint_name = 'coupons_discount_percentage_check'
+  ) THEN
+    ALTER TABLE coupons DROP CONSTRAINT coupons_discount_percentage_check;
+  END IF;
+END $$;
+
+UPDATE coupons
+SET discount_type = COALESCE(NULLIF(discount_type, ''), 'percentage'),
+    discount_value = COALESCE(discount_value, discount_percentage)
+WHERE discount_value IS NULL
+   OR discount_type IS NULL
+   OR discount_type = '';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.table_constraints
+    WHERE constraint_schema = 'public'
+      AND table_name = 'coupons'
+      AND constraint_name = 'coupons_discount_type_check'
+  ) THEN
+    ALTER TABLE coupons
+      ADD CONSTRAINT coupons_discount_type_check CHECK (discount_type IN ('percentage', 'fixed'));
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.table_constraints
+    WHERE constraint_schema = 'public'
+      AND table_name = 'coupons'
+      AND constraint_name = 'coupons_discount_value_check'
+  ) THEN
+    ALTER TABLE coupons
+      ADD CONSTRAINT coupons_discount_value_check CHECK (
+        (
+          discount_type = 'percentage'
+          AND COALESCE(discount_value, discount_percentage) > 0
+          AND COALESCE(discount_value, discount_percentage) <= 100
+        )
+        OR (
+          discount_type = 'fixed'
+          AND COALESCE(discount_value, 0) > 0
+        )
+      );
+  END IF;
+END $$;
 
 -- ============================================================================
 -- ORDERS TABLE - Transaction log

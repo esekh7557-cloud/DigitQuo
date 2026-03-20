@@ -204,6 +204,52 @@ function formatCurrency(value) {
   return currencyFormatter.format(Number(value || 0));
 }
 
+function getCouponDiscountType(coupon) {
+  return String(coupon?.discount_type || "").trim().toLowerCase() === "fixed" ? "fixed" : "percentage";
+}
+
+function getCouponDiscountValue(coupon) {
+  const type = getCouponDiscountType(coupon);
+  const rawValue =
+    type === "fixed"
+      ? coupon?.discount_value
+      : coupon?.discount_value ?? coupon?.discount_percentage;
+  const value = Number(rawValue || 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function formatCouponDiscount(coupon) {
+  const value = getCouponDiscountValue(coupon);
+  return getCouponDiscountType(coupon) === "fixed"
+    ? formatCurrency(value)
+    : `${escapeHtml(String(value))}%`;
+}
+
+function toggleCouponDiscountInputState() {
+  const discountTypeField = document.getElementById("couponDiscountType");
+  const discountLabel = document.getElementById("couponDiscountLabel");
+  const discountInput = document.getElementById("couponDiscount");
+  if (!discountTypeField || !discountLabel || !discountInput) {
+    return;
+  }
+
+  const type = String(discountTypeField.value || "percentage").trim().toLowerCase();
+  if (type === "fixed") {
+    discountLabel.textContent = "Discount Amount (INR)";
+    discountInput.min = "1";
+    discountInput.removeAttribute("max");
+    discountInput.placeholder = "500";
+    discountInput.step = "0.01";
+    return;
+  }
+
+  discountLabel.textContent = "Discount Percentage (%)";
+  discountInput.min = "1";
+  discountInput.max = "100";
+  discountInput.placeholder = "20";
+  discountInput.step = "0.01";
+}
+
 function isRevenueOrder(order) {
   return (
     String(order?.status || "").trim().toLowerCase() === "completed" &&
@@ -697,6 +743,8 @@ function setupEventListeners() {
   document.getElementById("submitCouponBtn").addEventListener("click", () => {
     document.getElementById("createCouponForm").requestSubmit();
   });
+  document.getElementById("couponDiscountType").addEventListener("change", toggleCouponDiscountInputState);
+  toggleCouponDiscountInputState();
 
   document.getElementById("saveConfigBtn").addEventListener("click", saveConfig);
   document.getElementById("exportOrdersBtn").addEventListener("click", exportOrdersCSV);
@@ -1599,7 +1647,7 @@ function displayCoupons(coupons) {
       return `
         <tr>
           <td><strong>${escapeHtml(coupon.coupon_code)}</strong></td>
-          <td>${escapeHtml(String(coupon.discount_percentage || 0))}%</td>
+          <td>${formatCouponDiscount(coupon)}</td>
           <td>${escapeHtml(usage)}</td>
           <td>${escapeHtml(expiryDate)}</td>
           <td><span style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">${coupon.is_active ? "Active" : "Inactive"}</span></td>
@@ -1637,19 +1685,54 @@ function filterCoupons() {
 
 async function submitCreateCoupon() {
   const code = document.getElementById("couponCode").value.trim().toUpperCase();
+  const discountType = String(document.getElementById("couponDiscountType").value || "percentage").trim().toLowerCase();
   const discount = Number.parseFloat(document.getElementById("couponDiscount").value);
   const maxUsesRaw = document.getElementById("couponMaxUses").value;
   const expiryRaw = document.getElementById("couponExpiry").value;
+  const isFixedDiscount = discountType === "fixed";
+
+  if (!code) {
+    alert("Please enter a coupon code.");
+    return;
+  }
+
+  if (!Number.isFinite(discount) || discount <= 0) {
+    alert(`Please enter a valid ${isFixedDiscount ? "amount" : "percentage"} discount.`);
+    return;
+  }
+
+  if (!isFixedDiscount && discount > 100) {
+    alert("Percentage discount cannot be more than 100.");
+    return;
+  }
 
   try {
-    const { error } = await supabaseClient.from("coupons").insert({
+    const payload = {
       coupon_code: code,
-      discount_percentage: discount,
+      discount_percentage: isFixedDiscount ? null : discount,
+      discount_type: isFixedDiscount ? "fixed" : "percentage",
+      discount_value: discount,
       max_uses: maxUsesRaw ? Number.parseInt(maxUsesRaw, 10) : null,
       expiry_date: expiryRaw ? new Date(expiryRaw).toISOString() : null,
       is_active: true,
       created_by: currentUser.id,
-    });
+    };
+
+    let { error } = await supabaseClient.from("coupons").insert(payload);
+    if (
+      error &&
+      !isFixedDiscount &&
+      /discount_(type|value)|column .* does not exist|schema cache/i.test(String(error.message || ""))
+    ) {
+      ({ error } = await supabaseClient.from("coupons").insert({
+        coupon_code: code,
+        discount_percentage: discount,
+        max_uses: maxUsesRaw ? Number.parseInt(maxUsesRaw, 10) : null,
+        expiry_date: expiryRaw ? new Date(expiryRaw).toISOString() : null,
+        is_active: true,
+        created_by: currentUser.id,
+      }));
+    }
 
     if (error) {
       throw error;
@@ -1657,6 +1740,7 @@ async function submitCreateCoupon() {
 
     alert("Coupon created successfully");
     document.getElementById("createCouponForm").reset();
+    toggleCouponDiscountInputState();
     closeModal("createCouponModal");
     await Promise.all([loadCoupons(), loadDashboardData()]);
   } catch (error) {

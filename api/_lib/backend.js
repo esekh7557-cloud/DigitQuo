@@ -267,6 +267,89 @@ function getPlanConfig(planKey) {
   return PLAN_CATALOG[String(planKey || "").trim()] || null;
 }
 
+function normalizeCouponCode(code) {
+  return String(code || "").trim().toUpperCase();
+}
+
+function getCouponDiscountType(coupon) {
+  return String(coupon?.discount_type || "").trim().toLowerCase() === "fixed" ? "fixed" : "percentage";
+}
+
+function getCouponDiscountValue(coupon) {
+  const discountType = getCouponDiscountType(coupon);
+  const rawValue =
+    discountType === "fixed"
+      ? coupon?.discount_value
+      : coupon?.discount_value ?? coupon?.discount_percentage;
+  const value = Number(rawValue || 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function getCouponValidationError(coupon) {
+  if (!coupon) {
+    return "Coupon code is invalid.";
+  }
+
+  if (coupon.is_active === false) {
+    return "Coupon code is inactive.";
+  }
+
+  if (coupon.expiry_date) {
+    const expiryDate = new Date(coupon.expiry_date);
+    if (!Number.isNaN(expiryDate.getTime()) && expiryDate <= new Date()) {
+      return "Coupon code has expired.";
+    }
+  }
+
+  if (coupon.max_uses && Number(coupon.current_uses || 0) >= Number(coupon.max_uses)) {
+    return "Coupon code usage limit has been reached.";
+  }
+
+  const discountValue = getCouponDiscountValue(coupon);
+  if (!Number.isFinite(discountValue) || discountValue <= 0) {
+    return "Coupon code has an invalid discount value.";
+  }
+
+  if (getCouponDiscountType(coupon) === "percentage" && discountValue > 100) {
+    return "Coupon percentage cannot exceed 100.";
+  }
+
+  return "";
+}
+
+function calculateCouponDiscount(amount, coupon) {
+  const baseAmount = Number(amount || 0);
+  if (!coupon || !Number.isFinite(baseAmount) || baseAmount <= 0) {
+    return 0;
+  }
+
+  const discountValue = getCouponDiscountValue(coupon);
+  let discountAmount =
+    getCouponDiscountType(coupon) === "fixed"
+      ? discountValue
+      : (baseAmount * discountValue) / 100;
+
+  if (!Number.isFinite(discountAmount) || discountAmount <= 0) {
+    return 0;
+  }
+
+  discountAmount = Math.min(baseAmount, discountAmount);
+  return Math.round(discountAmount * 100) / 100;
+}
+
+async function findCouponByCode(couponCode) {
+  const normalizedCode = normalizeCouponCode(couponCode);
+  if (!normalizedCode) {
+    return null;
+  }
+
+  const coupons = await supabaseFetch(
+    `/rest/v1/coupons?select=*&coupon_code=eq.${encodeURIComponent(normalizedCode)}&limit=1`
+  );
+
+  return Array.isArray(coupons) ? coupons[0] || null : null;
+}
+
 async function handleAdminCreateUser(req, res) {
   if (req.method !== "POST") {
     sendJson(res, 405, { error: "Method not allowed." });
@@ -476,6 +559,7 @@ async function handleCreateRazorpayOrder(req, res) {
   const projectName = normalizeName(body.projectName);
   const ideaSummary = normalizeName(body.ideaSummary);
   const requirements = body.requirements && typeof body.requirements === "object" ? body.requirements : {};
+  const couponCode = normalizeCouponCode(body.couponCode);
 
   if (!plan) {
     sendJson(res, 400, { error: "Invalid plan selected." });
@@ -498,6 +582,26 @@ async function handleCreateRazorpayOrder(req, res) {
   }
 
   try {
+    let appliedCoupon = null;
+    let discountAmount = 0;
+    let finalAmount = Number(plan.amount);
+
+    if (couponCode) {
+      appliedCoupon = await findCouponByCode(couponCode);
+      const couponValidationError = getCouponValidationError(appliedCoupon);
+      if (couponValidationError) {
+        sendJson(res, 400, { error: couponValidationError });
+        return;
+      }
+
+      discountAmount = calculateCouponDiscount(plan.amount, appliedCoupon);
+      finalAmount = Math.max(0, Math.round((Number(plan.amount) - discountAmount) * 100) / 100);
+      if (finalAmount <= 0) {
+        sendJson(res, 400, { error: "Coupon discount cannot reduce the payable amount to zero." });
+        return;
+      }
+    }
+
     await supabaseFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(authContext.user.id)}`, {
       method: "PATCH",
       body: {
@@ -527,6 +631,9 @@ async function handleCreateRazorpayOrder(req, res) {
             key: planKey,
             name: plan.name,
             price: plan.amount,
+            coupon_code: appliedCoupon?.coupon_code || null,
+            discount_amount: discountAmount,
+            final_price: finalAmount,
           },
           summary: {
             project_name: projectName,
@@ -552,8 +659,9 @@ async function handleCreateRazorpayOrder(req, res) {
         user_id: authContext.user.id,
         project_id: createdProject.id,
         amount: plan.amount,
-        discount_amount: 0,
-        final_amount: plan.amount,
+        coupon_id: appliedCoupon?.id || null,
+        discount_amount: discountAmount,
+        final_amount: finalAmount,
         payment_status: "unpaid",
         status: "pending",
       },
@@ -568,7 +676,7 @@ async function handleCreateRazorpayOrder(req, res) {
       const razorpayOrder = await razorpayFetch("/v1/orders", {
         method: "POST",
         body: {
-          amount: Math.round(Number(plan.amount) * 100),
+          amount: Math.round(finalAmount * 100),
           currency: "INR",
           receipt: buildRazorpayReceipt(createdOrder.id),
           notes: {
@@ -577,6 +685,7 @@ async function handleCreateRazorpayOrder(req, res) {
             plan_key: planKey,
             customer_name: customerName,
             customer_email: customerEmail,
+            coupon_code: appliedCoupon?.coupon_code || "",
           },
         },
       });
@@ -597,6 +706,18 @@ async function handleCreateRazorpayOrder(req, res) {
           email: customerEmail,
           phone: customerPhone,
         },
+        pricing: {
+          amount: Number(plan.amount),
+          discountAmount,
+          finalAmount,
+        },
+        coupon: appliedCoupon
+          ? {
+              code: appliedCoupon.coupon_code,
+              discountType: getCouponDiscountType(appliedCoupon),
+              discountValue: getCouponDiscountValue(appliedCoupon),
+            }
+          : null,
       });
     } catch (razorpayError) {
       try {
@@ -660,7 +781,7 @@ async function handleVerifyRazorpayPayment(req, res) {
 
   try {
     const orders = await supabaseFetch(
-      `/rest/v1/orders?select=id,user_id,project_id,payment_status,status,final_amount&id=eq.${encodeURIComponent(siteOrderId)}&user_id=eq.${encodeURIComponent(authContext.user.id)}&limit=1`
+      `/rest/v1/orders?select=id,user_id,project_id,coupon_id,payment_status,status,final_amount&id=eq.${encodeURIComponent(siteOrderId)}&user_id=eq.${encodeURIComponent(authContext.user.id)}&limit=1`
     );
     const order = Array.isArray(orders) ? orders[0] : null;
 
@@ -698,6 +819,25 @@ async function handleVerifyRazorpayPayment(req, res) {
         stripe_payment_id: razorpayPaymentId,
       },
     });
+
+    if (order.coupon_id) {
+      try {
+        const coupons = await supabaseFetch(
+          `/rest/v1/coupons?select=id,current_uses&id=eq.${encodeURIComponent(order.coupon_id)}&limit=1`
+        );
+        const coupon = Array.isArray(coupons) ? coupons[0] : null;
+        if (coupon?.id) {
+          await supabaseFetch(`/rest/v1/coupons?id=eq.${encodeURIComponent(coupon.id)}`, {
+            method: "PATCH",
+            body: {
+              current_uses: Number(coupon.current_uses || 0) + 1,
+            },
+          });
+        }
+      } catch (couponUsageError) {
+        console.error("Could not update coupon usage:", couponUsageError);
+      }
+    }
 
     if (order.project_id) {
       await supabaseFetch(`/rest/v1/projects?id=eq.${encodeURIComponent(order.project_id)}`, {

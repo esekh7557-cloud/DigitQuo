@@ -20,6 +20,7 @@ const testimonialSummaryStars = document.getElementById("testimonialSummaryStars
 const testimonialSummaryText = document.getElementById("testimonialSummaryText");
 const CART_STORAGE_KEY = "dq_cart_items";
 const SELECTED_PLAN_STORAGE_KEY = "dq_selected_plan";
+const PLAN_COUPONS_STORAGE_KEY = "dq_plan_coupons";
 const REVIEWS_STORAGE_KEY = "dq_reviews";
 const dqAuth = window.dqAuth;
 let activeReviewUser = null;
@@ -142,7 +143,7 @@ function ensureFooterFaqAccordion() {
 const PLAN_DETAILS = {
   basic: {
     name: "The Starter",
-    oldPrice: 13999,
+    oldPrice: 15000,
     subtotal: 12999,
     domainPrice: 999,
     features: [
@@ -156,7 +157,7 @@ const PLAN_DETAILS = {
   },
   business: {
     name: "The Professional",
-    oldPrice: 15999,
+    oldPrice: 18000,
     subtotal: 14599,
     domainPrice: 999,
     features: [
@@ -170,7 +171,7 @@ const PLAN_DETAILS = {
   },
   professional: {
     name: "Professional Plus",
-    oldPrice: 17999,
+    oldPrice: 22000,
     subtotal: 16999,
     domainPrice: 999,
     features: [
@@ -184,7 +185,7 @@ const PLAN_DETAILS = {
   },
   ecommerce: {
     name: "Enterprise",
-    oldPrice: 41000,
+    oldPrice: 50000,
     subtotal: 39999,
     domainPrice: 999,
     features: [
@@ -199,7 +200,7 @@ const PLAN_DETAILS = {
   },
   "advanced-ecommerce": {
     name: "Enterprise Plus",
-    oldPrice: 50000,
+    oldPrice: 70000,
     subtotal: 49999,
     domainPrice: 999,
     features: [
@@ -814,6 +815,288 @@ function readSelectedPlan() {
   return window.localStorage.getItem(SELECTED_PLAN_STORAGE_KEY) || "";
 }
 
+function normalizeCouponCode(code) {
+  return String(code || "").trim().toUpperCase();
+}
+
+function readStoredPlanCoupons() {
+  try {
+    const raw = window.localStorage.getItem(PLAN_COUPONS_STORAGE_KEY);
+    const coupons = JSON.parse(raw || "{}");
+    return coupons && typeof coupons === "object" && !Array.isArray(coupons) ? coupons : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredPlanCoupons(coupons) {
+  window.localStorage.setItem(PLAN_COUPONS_STORAGE_KEY, JSON.stringify(coupons || {}));
+}
+
+function getCouponDiscountType(coupon) {
+  return String(coupon?.discount_type || "").trim().toLowerCase() === "fixed" ? "fixed" : "percentage";
+}
+
+function getCouponDiscountValue(coupon) {
+  const discountType = getCouponDiscountType(coupon);
+  const rawValue =
+    discountType === "fixed"
+      ? coupon?.discount_value
+      : coupon?.discount_value ?? coupon?.discount_percentage;
+  const value = Number(rawValue || 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function serializeCoupon(coupon) {
+  const couponCode = normalizeCouponCode(coupon?.coupon_code);
+  if (!couponCode) {
+    return null;
+  }
+
+  return {
+    id: String(coupon?.id || ""),
+    coupon_code: couponCode,
+    discount_percentage:
+      coupon?.discount_percentage === null || typeof coupon?.discount_percentage === "undefined"
+        ? null
+        : Number(coupon.discount_percentage),
+    discount_type: getCouponDiscountType(coupon),
+    discount_value: getCouponDiscountValue(coupon),
+    max_uses: coupon?.max_uses ?? null,
+    current_uses: Number(coupon?.current_uses || 0),
+    expiry_date: coupon?.expiry_date || null,
+    is_active: coupon?.is_active !== false,
+  };
+}
+
+function getStoredPlanCoupon(planKey) {
+  const coupons = readStoredPlanCoupons();
+  return coupons[String(planKey || "").trim()] || null;
+}
+
+function setStoredPlanCoupon(planKey, coupon) {
+  const key = String(planKey || "").trim();
+  if (!key) {
+    return;
+  }
+
+  const coupons = readStoredPlanCoupons();
+  const serializedCoupon = serializeCoupon(coupon);
+  if (!serializedCoupon) {
+    delete coupons[key];
+  } else {
+    coupons[key] = serializedCoupon;
+  }
+  writeStoredPlanCoupons(coupons);
+}
+
+function clearStoredPlanCoupon(planKey) {
+  const key = String(planKey || "").trim();
+  if (!key) {
+    return;
+  }
+
+  const coupons = readStoredPlanCoupons();
+  delete coupons[key];
+  writeStoredPlanCoupons(coupons);
+}
+
+function getCouponValidationError(coupon) {
+  if (!coupon) {
+    return "Coupon code was not found.";
+  }
+
+  if (coupon.is_active === false) {
+    return "This coupon is inactive.";
+  }
+
+  if (coupon.expiry_date) {
+    const expiryDate = new Date(coupon.expiry_date);
+    if (!Number.isNaN(expiryDate.getTime()) && expiryDate <= new Date()) {
+      return "This coupon has expired.";
+    }
+  }
+
+  if (coupon.max_uses && Number(coupon.current_uses || 0) >= Number(coupon.max_uses)) {
+    return "This coupon has reached its usage limit.";
+  }
+
+  const discountValue = getCouponDiscountValue(coupon);
+  if (!Number.isFinite(discountValue) || discountValue <= 0) {
+    return "This coupon has an invalid discount value.";
+  }
+
+  if (getCouponDiscountType(coupon) === "percentage" && discountValue > 100) {
+    return "This coupon has an invalid percentage discount.";
+  }
+
+  return "";
+}
+
+function calculateCouponDiscount(amount, coupon) {
+  const baseAmount = Number(amount || 0);
+  if (!coupon || !Number.isFinite(baseAmount) || baseAmount <= 0) {
+    return 0;
+  }
+
+  const discountValue = getCouponDiscountValue(coupon);
+  let discountAmount =
+    getCouponDiscountType(coupon) === "fixed"
+      ? discountValue
+      : (baseAmount * discountValue) / 100;
+
+  if (!Number.isFinite(discountAmount) || discountAmount <= 0) {
+    return 0;
+  }
+
+  discountAmount = Math.min(baseAmount, discountAmount);
+  return Math.round(discountAmount * 100) / 100;
+}
+
+function getPlanPricingWithCoupon(plan, coupon) {
+  const baseAmount = Number(plan?.subtotal || 0);
+  const discountAmount = calculateCouponDiscount(baseAmount, coupon);
+  const finalAmount = Math.max(0, Math.round((baseAmount - discountAmount) * 100) / 100);
+
+  return {
+    baseAmount,
+    discountAmount,
+    finalAmount,
+  };
+}
+
+async function fetchCouponByCode(code) {
+  const normalizedCode = normalizeCouponCode(code);
+  if (!normalizedCode || !dqAuth || !dqAuth.isConfigured()) {
+    return null;
+  }
+
+  const client = await dqAuth.getClient();
+  if (!client) {
+    return null;
+  }
+
+  const { data, error } = await client
+    .from("coupons")
+    .select("*")
+    .eq("coupon_code", normalizedCode)
+    .limit(1);
+
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(data) ? data[0] || null : null;
+}
+
+function setPlanCouponFeedback(message, state = "info") {
+  const feedback = document.getElementById("planCouponFeedback");
+  if (!feedback) {
+    return;
+  }
+
+  feedback.textContent = message || "";
+  feedback.dataset.state = state;
+}
+
+function syncPlanCouponUi(planKey) {
+  const plan = getPlanByKey(planKey);
+  if (!plan) {
+    return;
+  }
+
+  const coupon = getStoredPlanCoupon(planKey);
+  const pricing = getPlanPricingWithCoupon(plan, coupon);
+  const couponInput = document.getElementById("planCouponCode");
+  const clearButton = document.getElementById("clearPlanCouponBtn");
+  const couponLabel = document.getElementById("planCouponLabel");
+  const couponValue = document.getElementById("planCouponDiscountValue");
+  const finalTotal = document.getElementById("planFinalTotal");
+  const requirementBaseAmount = document.getElementById("planRequirementBaseAmount");
+  const requirementCouponRow = document.getElementById("planRequirementCouponRow");
+  const requirementCouponLabel = document.getElementById("planRequirementCouponLabel");
+  const requirementCouponValue = document.getElementById("planRequirementCouponValue");
+  const requirementFinalAmount = document.getElementById("planRequirementFinalAmount");
+  const requirementCouponNote = document.getElementById("planRequirementCouponNote");
+
+  if (couponInput && !couponInput.matches(":focus")) {
+    couponInput.value = coupon?.coupon_code || "";
+  }
+
+  if (clearButton) {
+    clearButton.hidden = !coupon;
+  }
+
+  if (couponLabel) {
+    couponLabel.textContent = coupon ? `Coupon (${coupon.coupon_code})` : "Coupon Discount";
+  }
+
+  if (couponValue) {
+    couponValue.textContent = pricing.discountAmount ? `- ${formatInr(pricing.discountAmount)}` : formatInr(0);
+  }
+
+  if (finalTotal) {
+    finalTotal.textContent = formatInr(pricing.finalAmount);
+  }
+
+  if (requirementBaseAmount) {
+    requirementBaseAmount.textContent = formatInr(pricing.baseAmount);
+  }
+
+  if (requirementCouponRow) {
+    requirementCouponRow.hidden = !coupon;
+  }
+
+  if (requirementCouponLabel) {
+    requirementCouponLabel.textContent = coupon ? `Coupon (${coupon.coupon_code})` : "Coupon Discount";
+  }
+
+  if (requirementCouponValue) {
+    requirementCouponValue.textContent = pricing.discountAmount ? `- ${formatInr(pricing.discountAmount)}` : formatInr(0);
+  }
+
+  if (requirementFinalAmount) {
+    requirementFinalAmount.textContent = formatInr(pricing.finalAmount);
+  }
+
+  if (requirementCouponNote) {
+    requirementCouponNote.textContent = coupon
+      ? `${coupon.coupon_code} will be revalidated before payment is created.`
+      : "Apply a coupon on the plan details page to see the discount here.";
+  }
+}
+
+async function revalidateStoredPlanCoupon(planKey, options = {}) {
+  const storedCoupon = getStoredPlanCoupon(planKey);
+  if (!storedCoupon?.coupon_code) {
+    syncPlanCouponUi(planKey);
+    return null;
+  }
+
+  try {
+    const coupon = await fetchCouponByCode(storedCoupon.coupon_code);
+    const validationError = getCouponValidationError(coupon);
+    if (validationError) {
+      throw new Error(validationError);
+    }
+
+    setStoredPlanCoupon(planKey, coupon);
+    syncPlanCouponUi(planKey);
+
+    if (!options.silent) {
+      setPlanCouponFeedback(`Coupon ${normalizeCouponCode(coupon.coupon_code)} applied successfully.`, "success");
+    }
+    return coupon;
+  } catch (error) {
+    clearStoredPlanCoupon(planKey);
+    syncPlanCouponUi(planKey);
+    if (!options.silent) {
+      setPlanCouponFeedback(error.message || "This coupon is no longer available.", "error");
+    }
+    return null;
+  }
+}
+
 function buildCartItemFromPlan(planKey) {
   const plan = getPlanByKey(planKey);
   if (!plan) {
@@ -1361,6 +1644,8 @@ function renderPlanDetailsPage() {
   saveSelectedPlan(planKey);
   const websitePrice = plan.subtotal - plan.domainPrice;
   const savings = plan.oldPrice - plan.subtotal;
+  const appliedCoupon = getStoredPlanCoupon(planKey);
+  const pricing = getPlanPricingWithCoupon(plan, appliedCoupon);
 
   planDetailsRoot.innerHTML = `
     <div class="plan-layout">
@@ -1387,20 +1672,89 @@ function renderPlanDetailsPage() {
           <span>Domain Registration</span>
           <strong>${formatInr(plan.domainPrice)}</strong>
         </div>
+        <form id="planCouponForm" class="plan-coupon-panel">
+          <label for="planCouponCode">Coupon Code</label>
+          <div class="plan-coupon-inline">
+            <input
+              id="planCouponCode"
+              name="planCouponCode"
+              type="text"
+              class="plan-coupon-input"
+              placeholder="Enter coupon code"
+              value="${escapeHtml(appliedCoupon?.coupon_code || "")}"
+            />
+            <button class="btn btn-secondary" type="submit" id="applyPlanCouponBtn">Apply</button>
+          </div>
+          <button class="btn btn-secondary plan-coupon-clear" type="button" id="clearPlanCouponBtn" ${appliedCoupon ? "" : "hidden"}>Remove Coupon</button>
+          <p class="plan-coupon-feedback" id="planCouponFeedback" data-state="info">Enter a valid coupon code to recalculate your total instantly.</p>
+        </form>
+        <div class="plan-summary-row">
+          <span id="planCouponLabel">${escapeHtml(appliedCoupon ? `Coupon (${appliedCoupon.coupon_code})` : "Coupon Discount")}</span>
+          <strong id="planCouponDiscountValue">${pricing.discountAmount ? `- ${formatInr(pricing.discountAmount)}` : formatInr(0)}</strong>
+        </div>
         <div class="plan-summary-row total">
           <span>Total Pricing</span>
-          <strong>${formatInr(plan.subtotal)}</strong>
+          <strong id="planFinalTotal">${formatInr(pricing.finalAmount)}</strong>
         </div>
         <p class="plan-note">Hosting and listed package features remain included in the selected plan.</p>
         <p class="plan-feedback" id="planFeedback">Add this package to your cart to keep it saved while you continue browsing.</p>
         <div class="plan-actions">
-          <button class="btn btn-primary" type="button" data-plan-add="${escapeHtml(planKey)}">Add to Cart</button>
-          <a href="${requirementsPage || "pricing.html"}" class="btn btn-secondary" data-plan-buy-link="${escapeHtml(planKey)}">Proceed to Buy</a>
+          <button class="btn btn-secondary" type="button" data-plan-add="${escapeHtml(planKey)}">Add to Cart</button>
+          <a href="${requirementsPage || "pricing.html"}" class="btn btn-primary" data-plan-buy-link="${escapeHtml(planKey)}">Proceed to Buy</a>
           <a href="pricing.html" class="btn btn-secondary">Back to Pricing</a>
         </div>
       </article>
     </div>
   `;
+
+  const couponForm = document.getElementById("planCouponForm");
+  const clearCouponButton = document.getElementById("clearPlanCouponBtn");
+  couponForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const couponInput = document.getElementById("planCouponCode");
+    const applyButton = document.getElementById("applyPlanCouponBtn");
+    const couponCode = normalizeCouponCode(couponInput?.value);
+    if (!couponCode) {
+      setPlanCouponFeedback("Enter a coupon code first.", "error");
+      return;
+    }
+
+    try {
+      if (applyButton instanceof HTMLButtonElement) {
+        applyButton.disabled = true;
+        applyButton.textContent = "Checking...";
+      }
+
+      const coupon = await fetchCouponByCode(couponCode);
+      const validationError = getCouponValidationError(coupon);
+      if (validationError) {
+        throw new Error(validationError);
+      }
+
+      setStoredPlanCoupon(planKey, coupon);
+      syncPlanCouponUi(planKey);
+      setPlanCouponFeedback(`Coupon ${couponCode} applied successfully.`, "success");
+    } catch (error) {
+      setPlanCouponFeedback(error.message || "Could not apply coupon right now.", "error");
+    } finally {
+      if (applyButton instanceof HTMLButtonElement) {
+        applyButton.disabled = false;
+        applyButton.textContent = "Apply";
+      }
+    }
+  });
+
+  clearCouponButton?.addEventListener("click", () => {
+    clearStoredPlanCoupon(planKey);
+    syncPlanCouponUi(planKey);
+    setPlanCouponFeedback("Coupon removed.", "info");
+  });
+
+  syncPlanCouponUi(planKey);
+  revalidateStoredPlanCoupon(planKey, { silent: true }).catch((error) => {
+    console.error("Could not revalidate stored coupon:", error);
+  });
 }
 
 function bindPortfolioQuoteTrigger(user) {
@@ -1738,6 +2092,8 @@ function renderPlanRequirementsPage(user) {
   }
 
   saveSelectedPlan(planKey);
+  const appliedCoupon = getStoredPlanCoupon(planKey);
+  const pricing = getPlanPricingWithCoupon(plan, appliedCoupon);
 
   const showBasicSection = planKey === "basic" || planKey === "business" || planKey === "professional";
   const showBusinessSection = planKey === "business" || planKey === "professional";
@@ -1952,7 +2308,22 @@ function renderPlanRequirementsPage(user) {
       <aside class="plan-form-sidebar">
         <article class="card">
           <h2>Selected Plan</h2>
-          <p class="plan-form-price">${formatInr(plan.subtotal)}</p>
+          <p class="plan-form-price" id="planRequirementFinalAmount">${formatInr(pricing.finalAmount)}</p>
+          <div class="plan-form-summary-row">
+            <span>Original Price</span>
+            <strong id="planRequirementBaseAmount">${formatInr(pricing.baseAmount)}</strong>
+          </div>
+          <div class="plan-form-summary-row" id="planRequirementCouponRow" ${appliedCoupon ? "" : "hidden"}>
+            <span id="planRequirementCouponLabel">${escapeHtml(appliedCoupon ? `Coupon (${appliedCoupon.coupon_code})` : "Coupon Discount")}</span>
+            <strong id="planRequirementCouponValue">${pricing.discountAmount ? `- ${formatInr(pricing.discountAmount)}` : formatInr(0)}</strong>
+          </div>
+          <p class="plan-form-coupon-note" id="planRequirementCouponNote">
+            ${
+              appliedCoupon
+                ? `${escapeHtml(appliedCoupon.coupon_code)} will be revalidated before payment is created.`
+                : "Apply a coupon on the plan details page to see the discount here."
+            }
+          </p>
           <ul class="plan-feature-list">
             ${plan.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}
           </ul>
@@ -2043,6 +2414,7 @@ function renderPlanRequirementsPage(user) {
         customerPhone,
         projectName,
         ideaSummary,
+        couponCode: getStoredPlanCoupon(planKey)?.coupon_code || "",
         requirements,
       });
 
@@ -2061,6 +2433,7 @@ function renderPlanRequirementsPage(user) {
       });
 
       removeCartItem(planKey);
+      clearStoredPlanCoupon(planKey);
       showPlanSuccessModal({
         title: "Payment Received",
         message: "Our team will contact you soon.",
@@ -2073,6 +2446,11 @@ function renderPlanRequirementsPage(user) {
         submitButton.textContent = "Pay Now";
       }
     }
+  });
+
+  syncPlanCouponUi(planKey);
+  revalidateStoredPlanCoupon(planKey, { silent: true }).catch((error) => {
+    console.error("Could not revalidate stored coupon:", error);
   });
 }
 
