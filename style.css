@@ -2374,9 +2374,21 @@ footer {
 
 @media (min-width: 1200px) {
   :root {
-    --container: 1440px;
+    --container: 100vw;
     --page-pad: 0px;
     --page-pad-wide: 0px;
+  }
+
+  .container,
+  .cart-shell,
+  .orders-shell,
+  .profile-shell,
+  .plan-shell,
+  .about-hero-inner,
+  .about-content,
+  .services-hero-flex,
+  .services-content {
+    max-width: none;
   }
 }
 
