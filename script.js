@@ -91,7 +91,7 @@ function ensureFooterFaqAccordion() {
   }
 
   document.querySelectorAll("footer").forEach((footer) => {
-    if (footer.querySelector(".footer-faq-shell")) {
+    if (footer.previousElementSibling?.classList?.contains("footer-faq-shell")) {
       return;
     }
 
@@ -121,7 +121,7 @@ function ensureFooterFaqAccordion() {
       </section>
     `;
 
-    footer.insertBefore(shell, footer.firstChild);
+    footer.parentNode?.insertBefore(shell, footer);
 
     shell.querySelectorAll(".footer-faq-toggle").forEach((button) => {
       button.addEventListener("click", () => {
