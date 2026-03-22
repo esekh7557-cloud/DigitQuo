@@ -2372,11 +2372,11 @@ footer {
   margin-top: 8px;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1001px) {
   :root {
     --container: 100vw;
-    --page-pad: 0px;
-    --page-pad-wide: 0px;
+    --page-pad: 40px;
+    --page-pad-wide: 40px;
   }
 
   .container,
