@@ -757,6 +757,23 @@ function setupEventListeners() {
   document.getElementById("projectStatusFilter").addEventListener("change", filterProjects);
   document.getElementById("couponFilter").addEventListener("input", filterCoupons);
   document.getElementById("couponStatusFilter").addEventListener("change", filterCoupons);
+  document.getElementById("couponsTableBody").addEventListener("click", async (event) => {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
+    const deleteButton = event.target.closest("[data-action='delete-coupon']");
+    if (!(deleteButton instanceof HTMLElement)) {
+      return;
+    }
+
+    const { couponId = "" } = deleteButton.dataset;
+    if (!couponId) {
+      return;
+    }
+
+    await deleteCoupon(couponId, deleteButton);
+  });
   document.getElementById("orderFilter").addEventListener("input", filterOrders);
   document.getElementById("orderStatusFilter").addEventListener("change", filterOrders);
 
@@ -1652,7 +1669,7 @@ function displayCoupons(coupons) {
           <td>${escapeHtml(expiryDate)}</td>
           <td><span style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">${coupon.is_active ? "Active" : "Inactive"}</span></td>
           <td>${escapeHtml(coupon.created_at ? new Date(coupon.created_at).toLocaleDateString() : "Unknown date")}</td>
-          <td><button class="btn btn-danger" onclick="deleteCoupon('${escapeHtml(coupon.id)}')">Delete</button></td>
+          <td><button class="btn btn-danger" type="button" data-action="delete-coupon" data-coupon-id="${escapeHtml(coupon.id)}">Delete</button></td>
         </tr>
       `;
     })
@@ -1749,12 +1766,19 @@ async function submitCreateCoupon() {
   }
 }
 
-async function deleteCoupon(couponId) {
+async function deleteCoupon(couponId, button = null) {
   if (!window.confirm("Are you sure you want to delete this coupon?")) {
     return;
   }
 
+  const originalLabel = button?.textContent;
+
   try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Deleting...";
+    }
+
     const { error } = await supabaseClient.from("coupons").delete().eq("id", couponId);
     if (error) {
       throw error;
@@ -1765,6 +1789,11 @@ async function deleteCoupon(couponId) {
   } catch (error) {
     console.error("Error deleting coupon:", error);
     alert(`Error deleting coupon: ${error.message || "Unknown error"}`);
+  } finally {
+    if (button && button.isConnected) {
+      button.disabled = false;
+      button.textContent = originalLabel || "Delete";
+    }
   }
 }
 

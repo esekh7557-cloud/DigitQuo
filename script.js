@@ -1701,7 +1701,6 @@ function renderPlanDetailsPage() {
         <div class="plan-actions">
           <button class="btn btn-secondary" type="button" data-plan-add="${escapeHtml(planKey)}">Add to Cart</button>
           <a href="${requirementsPage || "pricing.html"}" class="btn btn-primary" data-plan-buy-link="${escapeHtml(planKey)}">Proceed to Buy</a>
-          <a href="pricing.html" class="btn btn-secondary">Back to Pricing</a>
         </div>
       </article>
     </div>

@@ -847,7 +847,9 @@ img { width: 100%; display: block; border-radius: 12px; }
   margin-right: 8px;
 }
 .plan-shell {
-  max-width: 1080px;
+  /* Smoothly scale outer gutters and cap them at 40px per side. */
+  width: min(1440px, calc(100vw - clamp(32px, 5vw, 80px)));
+  max-width: none;
   margin: 0 auto;
 }
 
@@ -2304,7 +2306,6 @@ footer { padding: 30px 0 42px; border-top: 1px solid rgba(124, 58, 237, 0.12); m
   .about-content,
   .services-hero-flex,
   .services-content,
-  .plan-shell,
   .cart-shell,
   .orders-shell,
   .profile-shell {
