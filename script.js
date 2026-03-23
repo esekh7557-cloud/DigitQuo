@@ -243,6 +243,62 @@ if ("IntersectionObserver" in window) {
 } else {
   document.querySelectorAll(".reveal").forEach((el) => el.classList.add("visible"));
 }
+
+function initAutoTechRows() {
+  document.querySelectorAll(".home-tech-grid-scroll").forEach((scroller) => {
+    if (!(scroller instanceof HTMLElement)) {
+      return;
+    }
+
+    const track = scroller.querySelector(".home-tech-grid");
+    if (!(track instanceof HTMLElement) || scroller.dataset.autoScrollReady === "true") {
+      return;
+    }
+
+    const originalWidth = track.scrollWidth;
+    if (originalWidth <= scroller.clientWidth) {
+      return;
+    }
+
+    const clones = Array.from(track.children).map((child) => child.cloneNode(true));
+    clones.forEach((clone) => {
+      if (clone instanceof HTMLElement) {
+        clone.setAttribute("aria-hidden", "true");
+      }
+      track.appendChild(clone);
+    });
+
+    scroller.dataset.autoScrollReady = "true";
+
+    const rowIndex = Array.from(scroller.parentElement?.children || []).indexOf(scroller);
+    const speed = [0.7, 0.95, 0.8][rowIndex] || 0.8;
+    let paused = false;
+    let position = 0;
+
+    scroller.addEventListener("mouseenter", () => {
+      paused = true;
+    });
+
+    scroller.addEventListener("mouseleave", () => {
+      paused = false;
+    });
+
+    const animate = () => {
+      if (!paused) {
+        position += speed;
+        if (position >= originalWidth) {
+          position -= originalWidth;
+        }
+        scroller.scrollLeft = position;
+      }
+
+      window.requestAnimationFrame(animate);
+    };
+
+    window.requestAnimationFrame(animate);
+  });
+}
+
 applyImageFallbacks();
 
 if (contactForm) {
@@ -2581,3 +2637,6 @@ renderStoredReviews();
 initReviewForm();
 initReviewMenus();
 initAuthUi();
+initAutoTechRows();
+window.addEventListener("load", initAutoTechRows, { once: true });
+window.addEventListener("resize", initAutoTechRows);
