@@ -455,6 +455,16 @@ function renderStarMarkup(rating) {
   }).join("");
 }
 
+function getReviewInitials(name) {
+  return String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "DQ";
+}
+
 function createReviewCard(review) {
   const card = document.createElement("article");
   card.className = "card testimonial-card";
@@ -467,6 +477,8 @@ function createReviewCard(review) {
   if (review.isUserReview) {
     card.classList.add("user-review");
   }
+  const initials = getReviewInitials(review.name);
+  const reviewLabel = review.isUserReview ? "Your review" : "Verified client";
   card.innerHTML = `
     <div class="review-card-menu-wrap">
       <button class="review-card-menu-button" type="button" aria-label="Review options">&#8942;</button>
@@ -475,9 +487,15 @@ function createReviewCard(review) {
         <button class="review-card-menu-item danger" type="button" data-review-action="delete" hidden>Delete review</button>
       </div>
     </div>
+    <div class="testimonial-card-top">
+      <div class="testimonial-avatar" aria-hidden="true">${escapeHtml(initials)}</div>
+      <div class="testimonial-author">
+        <h3>${escapeHtml(review.name)}</h3>
+        <span>${escapeHtml(reviewLabel)}</span>
+      </div>
+    </div>
+    <p class="testimonial-copy">${escapeHtml(review.message)}</p>
     <div class="stars rating-stars" aria-label="${escapeHtml(review.rating)} out of 5 stars">${renderStarMarkup(review.rating)}</div>
-    <p>"${escapeHtml(review.message)}"</p>
-    <h3>- ${escapeHtml(review.name)}</h3>
   `;
   syncReviewCardControls(card);
   return card;
