@@ -1779,12 +1779,34 @@ async function deleteCoupon(couponId, button = null) {
       button.textContent = "Deleting...";
     }
 
-    const { error } = await supabaseClient.from("coupons").delete().eq("id", couponId);
-    if (error) {
-      throw error;
+    const { count, error: usageError } = await supabaseClient
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("coupon_id", couponId);
+    if (usageError) {
+      throw usageError;
     }
 
-    alert("Coupon deleted successfully");
+    const usageCount = Number(count) || 0;
+
+    if (usageCount > 0) {
+      const { error: archiveError } = await supabaseClient
+        .from("coupons")
+        .update({ is_active: false })
+        .eq("id", couponId);
+      if (archiveError) {
+        throw archiveError;
+      }
+
+      alert(`Coupon is used in ${usageCount} order${usageCount === 1 ? "" : "s"}, so it was deactivated instead of permanently deleted.`);
+    } else {
+      const { error: deleteError } = await supabaseClient.from("coupons").delete().eq("id", couponId);
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      alert("Coupon deleted successfully");
+    }
     await Promise.all([loadCoupons(), loadDashboardData()]);
   } catch (error) {
     console.error("Error deleting coupon:", error);

@@ -1382,9 +1382,65 @@ footer {
 .footer-faq-answer li + li {
   margin-top: 8px;
 }
-.footer-wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.footer-links { display: flex; gap: 14px; flex-wrap: wrap; list-style: none; }
-.footer-links a:hover { color: #ffffff; }
+.footer-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 22px;
+}
+.footer-groups {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 28px 40px;
+}
+.footer-group {
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.footer-group h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+}
+.footer-links a {
+  display: inline-flex;
+  opacity: 0.92;
+  transition: var(--transition);
+}
+.footer-links a:hover {
+  color: #ffffff;
+  opacity: 1;
+  transform: translateX(4px);
+}
+.footer-social a:hover {
+  transform: translateX(4px);
+}
+.footer-social a[href*="instagram"]:hover {
+  color: #f472b6;
+}
+.footer-social a[href*="wa.me"]:hover {
+  color: #4ade80;
+}
+.footer-social a[href*="linkedin"]:hover {
+  color: #7dd3fc;
+}
+.footer-social a[href*="facebook"]:hover {
+  color: #93c5fd;
+}
+.footer-copy {
+  color: rgba(245, 243, 255, 0.88);
+}
 
 .reveal { opacity: 0; transform: translateY(18px); transition: 0.6s ease; }
 .reveal.visible { opacity: 1; transform: translateY(0); }
@@ -2462,6 +2518,11 @@ footer {
 }
 
 @media (max-width: 720px) {
+  :root {
+    --page-pad: 17px;
+    --page-pad-wide: 17px;
+  }
+
   .section { padding: 72px 0; }
   .card-grid, .stat-grid, .process-wrap, .field-row { grid-template-columns: 1fr; }
   .home-speed-overlay {
