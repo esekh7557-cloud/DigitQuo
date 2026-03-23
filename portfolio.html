@@ -300,11 +300,13 @@
       line-height: 1.5;
     }
 
-    .portfolio-page-content iframe {
+    .portfolio-page-content iframe,
+    .portfolio-page-content .project-shot {
       width: 100%;
       height: 100%;
-      border: none;
+      border: 0;
       background: #fff;
+      object-fit: cover;
     }
 
     @media (max-width: 968px) {
@@ -377,7 +379,7 @@
           <div class="project-item">
             <div class="project-info">
               <span class="section-tag">E-Commerce Overhaul</span>
-              <h2>E-Commerce Overhaul for Client X</h2>
+              <h2>Electronic Web for Nexora Electronics</h2>
               <p><strong>The Challenge:</strong> The client was struggling with high cart abandonment due to a clunky, slow-loading mobile checkout experience.</p>
               <p><strong>Our Solution:</strong> DigitQuo redesigned the user journey with a mobile-first checkout flow, simplified browsing paths, and a leaner front-end architecture that removed unnecessary friction.</p>
               <p><strong>The Impact:</strong> 45% faster page loads, 120% growth in mobile conversions, and stronger search visibility for high-intent product keywords.</p>
@@ -395,13 +397,15 @@
                   <span>Better visibility for high-intent product searches</span>
                 </div>
               </div>
-              <a href="https://digitquo.in/" class="btn-visit" target="_blank" rel="noopener noreferrer">Visit Project</a>
+              <a href="https://nexoraelectronics.vercel.app/" class="btn-visit" target="_blank" rel="noopener noreferrer">Visit Project</a>
             </div>
             <div class="project-visual">
-              <div class="laptop">
-                <div class="laptop-screen"><iframe src="https://digitquo.in/" title="The Local Hero Bakery"></iframe></div>
-                <div class="laptop-base"></div>
-              </div>
+              <a href="https://nexoraelectronics.vercel.app/" target="_blank" rel="noopener noreferrer" aria-label="Open Electronic Web website">
+                <div class="laptop">
+                  <div class="laptop-screen"><img src="images/electronicweb.png" alt="Electronic Web preview" class="project-shot" /></div>
+                  <div class="laptop-base"></div>
+                </div>
+              </a>
             </div>
           </div>
 

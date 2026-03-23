@@ -10,8 +10,8 @@
   --shadow: 0 14px 36px rgba(76, 29, 149, 0.10);
   --transition: all 0.28s ease;
   --container: 1120px;
-  --page-pad: 0px;
-  --page-pad-wide: 0px;
+  --page-pad: 5px;
+  --page-pad-wide: 5px;
   --accent: #A855F7;
   --bg-soft: #F5F3FF;
 }
