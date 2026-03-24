@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DigitQuo | Custom Plan</title>
+  <link rel="canonical" href="https://digitquo.in/custom-plan-form.html" />
+  <link rel="icon" href="images/favicon.ico" type="image/x-icon" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container navbar">
+      <a href="index.html" class="logo"><span class="logo-icon"><img src="images/LOGO.png" alt="DigitQuo logo" class="logo-mark" /></span><span class="logo-word">Digit<span>Quo</span></span></a>
+      <a href="login.html" class="mobile-login" aria-label="Login">&#128100;</a>
+      <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">&#9776;</button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="portfolio.html">Portfolio</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a class="active" href="pricing.html">Pricing</a></li>
+        <li><a href="contact.html">Support</a></li>
+        <li id="adminNavItem" style="display: none;"><a href="admin.html" style="color: #ef4444; font-weight: 600;">&#9889; Admin Panel</a></li>
+      </ul>
+      <a href="cart.html" class="btn btn-secondary nav-cart-link" aria-label="Cart">
+        <img src="images/cart-icon.svg" alt="" class="nav-cart-icon" aria-hidden="true" />
+        <span class="sr-only">Cart</span>
+      </a>
+      <a href="login.html" class="btn btn-primary nav-cta" id="loginBtn">Login</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="section reveal">
+      <div class="container" id="customPlanRoot">
+        <div class="quote-request-layout">
+          <article class="card">
+            <span class="eyebrow">Custom Plan</span>
+            <h1 class="section-title">Tell us what you want built</h1>
+            <p class="section-subtitle">Share your website requirements and continue. Your request will be saved for our team, and we will contact you soon.</p>
+
+            <form id="customPlanForm" class="contact-form">
+              <div class="field-row">
+                <div class="field-block">
+                  <label for="customCustomerName">Full Name</label>
+                  <input id="customCustomerName" name="customerName" type="text" placeholder="Your full name" required />
+                </div>
+                <div class="field-block">
+                  <label for="customCustomerEmail">Email</label>
+                  <input id="customCustomerEmail" name="customerEmail" type="email" placeholder="you@example.com" readonly required />
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-block">
+                  <label for="customCustomerPhone">Phone</label>
+                  <input id="customCustomerPhone" name="customerPhone" type="tel" placeholder="+91 98765 43210" required />
+                </div>
+                <div class="field-block">
+                  <label for="customBusinessName">Business / Brand Name</label>
+                  <input id="customBusinessName" name="businessName" type="text" placeholder="Your company or brand" required />
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-block">
+                  <label for="customProjectName">Project Name</label>
+                  <input id="customProjectName" name="projectName" type="text" placeholder="Example: Apex Build Website" required />
+                </div>
+                <div class="field-block">
+                  <label for="customWebsiteType">Website Type</label>
+                  <select id="customWebsiteType" name="websiteType" required>
+                    <option value="">Select website type</option>
+                    <option>Business Website</option>
+                    <option>E-commerce Store</option>
+                    <option>Portfolio Website</option>
+                    <option>Landing Page</option>
+                    <option>Blog or Content Site</option>
+                    <option>Booking or Service Website</option>
+                    <option>Membership Website</option>
+                    <option>Custom Web App</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-block">
+                  <label for="customPageScope">Pages / Modules Needed</label>
+                  <input id="customPageScope" name="pageScope" type="text" placeholder="Example: Home, About, Services, Dashboard, Booking" required />
+                </div>
+                <div class="field-block">
+                  <label for="customBudget">Estimated Budget</label>
+                  <select id="customBudget" name="budget" required>
+                    <option value="">Select budget range</option>
+                    <option>Below INR 25,000</option>
+                    <option>INR 25,000 - 50,000</option>
+                    <option>INR 50,000 - 1,00,000</option>
+                    <option>INR 1,00,000+</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field-block">
+                  <label for="customTimeline">Preferred Timeline</label>
+                  <select id="customTimeline" name="timeline" required>
+                    <option value="">Select timeline</option>
+                    <option>Within 2 weeks</option>
+                    <option>2-4 weeks</option>
+                    <option>1-2 months</option>
+                    <option>Flexible</option>
+                  </select>
+                </div>
+                <div class="field-block">
+                  <label for="customFeatures">Key Features Needed</label>
+                  <input id="customFeatures" name="features" type="text" placeholder="SEO, dashboard, payment gateway, booking, CMS..." />
+                </div>
+              </div>
+
+              <div class="field-block">
+                <label for="customReferences">Reference Websites / Design Direction</label>
+                <input id="customReferences" name="references" type="text" placeholder="Share links or describe the style you want" />
+              </div>
+
+              <div class="field-block">
+                <label for="customProjectBrief">Project Brief</label>
+                <textarea id="customProjectBrief" name="projectBrief" placeholder="Describe your goals, required sections, user flow, integrations, and anything important for the build." required></textarea>
+              </div>
+
+              <button type="submit" class="btn btn-primary">Continue</button>
+            </form>
+          </article>
+
+          <aside class="quote-request-sidebar">
+            <article class="card">
+              <h2>What to include</h2>
+              <ul class="quote-request-list">
+                <li>Your business type and what the website should achieve.</li>
+                <li>The pages, modules, or flows you already know you need.</li>
+                <li>Important features such as payments, booking, dashboards, or admin tools.</li>
+                <li>Any design references, launch deadlines, or budget direction.</li>
+              </ul>
+            </article>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-wrap">
+      <div class="footer-groups">
+        <div class="footer-group">
+          <h3>Main Pages</h3>
+          <ul class="footer-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="services.html">Services</a></li>
+            <li><a href="portfolio.html">Portfolio</a></li>
+            <li><a href="about.html">About</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="contact.html">Support</a></li>
+          </ul>
+        </div>
+        <div class="footer-group">
+          <h3>Resources</h3>
+          <ul class="footer-links">
+            <li><a href="quote-request.html">Quote Request</a></li>
+            <li><a href="terms-and-conditions.html">Terms &amp; Conditions</a></li>
+            <li><a href="refund-policy.html">Refund Policy</a></li>
+            <li><a href="login.html">Login</a></li>
+          </ul>
+        </div>
+        <div class="footer-group footer-social">
+          <h3>Social Media</h3>
+          <ul class="footer-links">
+            <li><a href="https://instagram.com/digitquo" target="_blank" rel="noopener noreferrer">Instagram</a></li>
+            <li><a href="https://wa.me/918177957990" target="_blank" rel="noopener noreferrer">WhatsApp</a></li>
+            <li><a href="https://www.linkedin.com/company/digitquo/" target="_blank" rel="noopener noreferrer">LinkedIn</a></li>
+            <li><a href="https://www.facebook.com/digitquo/" target="_blank" rel="noopener noreferrer">Facebook</a></li>
+          </ul>
+        </div>
+      </div>
+      <p class="footer-copy">&copy; 2026 DigitQuo. All Rights Reserved.</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="script.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (!window.dqAuth) {
+        return;
+      }
+
+      window.dqAuth.bindAdminUi({
+        loginButtonId: "loginBtn",
+        adminNavItemId: "adminNavItem",
+      }).catch((error) => {
+        console.error("Error binding admin controls:", error);
+      });
+    });
+  </script>
+</body>
+</html>

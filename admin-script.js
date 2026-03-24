@@ -45,6 +45,7 @@ function getLatestProjectOrder(project) {
 function isManagedProject(project) {
   return (
     String(project?.site_config?.source || "").trim() === "plan_requirements_form" ||
+    String(project?.site_config?.source || "").trim() === "custom_plan_form" ||
     String(project?.site_config?.source || "").trim() === "admin_panel" ||
     Boolean(getLatestProjectOrder(project))
   );
@@ -126,6 +127,7 @@ function getPlanLabelFromKey(planKey) {
     professional: "Professional Plus",
     ecommerce: "Enterprise",
     "advanced-ecommerce": "Enterprise Plus",
+    custom: "Custom Plan",
   };
 
   return labels[String(planKey || "").trim().toLowerCase()] || "Custom";
@@ -1381,6 +1383,7 @@ function displayProjects(projects) {
       const paymentStatus = getPaymentStatusLabel(latestOrder?.payment_status);
       const summaryIdea = escapeHtml(
         project.site_config?.summary?.idea ||
+          project.site_config?.requirements?.custom?.projectBrief ||
           project.site_config?.requirements?.basic?.websiteIdea ||
           project.site_config?.requirements?.ecommerce?.storeIdea ||
           "Project details submitted by customer."
@@ -1449,11 +1452,14 @@ function viewProjectDetails(projectId) {
 
   const contact = project.site_config?.contact || {};
   const requirements = project.site_config?.requirements || {};
+  const custom = requirements.custom || {};
   const professional = requirements.professional || {};
   const ecommerce = requirements.ecommerce || {};
   const advancedEcommerce = requirements.advancedEcommerce || {};
   const latestOrder = getLatestProjectOrder(project);
   const planKey = String(project.site_config?.plan?.key || project.template_id || "").trim().toLowerCase();
+  const showCustomRequirements =
+    planKey === "custom" && !isProjectDetailValueEmpty(requirements.custom);
   const showBasicRequirements =
     ["basic", "business", "professional"].includes(planKey) && !isProjectDetailValueEmpty(requirements.basic);
   const showBusinessRequirements =
@@ -1507,6 +1513,20 @@ function viewProjectDetails(projectId) {
           </select>
         </div>
       </section>
+      ${
+        showCustomRequirements
+          ? buildProjectDetailSection("Custom Plan Requirements", [
+              { label: "Business / Brand Name", value: custom.businessName },
+              { label: "Website Type", value: custom.websiteType },
+              { label: "Pages / Modules Needed", value: custom.pageScope },
+              { label: "Estimated Budget", value: custom.budget },
+              { label: "Preferred Timeline", value: custom.timeline },
+              { label: "Key Features Needed", value: custom.features },
+              { label: "Reference Websites / Design Direction", value: custom.references },
+              { label: "Project Brief", value: custom.projectBrief },
+            ])
+          : ""
+      }
       ${
         showBasicRequirements
           ? buildProjectDetailSection("The Starter Requirements", [

@@ -578,6 +578,22 @@ function calculateCouponDiscount(amount, coupon) {
   return Math.round(discountAmount * 100) / 100;
 }
 
+function getPlanPricing(plan, coupon, options = {}) {
+  const planAmount = Number((plan?.amount ?? plan?.subtotal) || 0);
+  const fastDeliveryFee = options.fastDelivery ? Math.round(planAmount * 0.1 * 100) / 100 : 0;
+  const baseAmount = Math.round((planAmount + fastDeliveryFee) * 100) / 100;
+  const discountAmount = calculateCouponDiscount(baseAmount, coupon);
+  const finalAmount = Math.max(0, Math.round((baseAmount - discountAmount) * 100) / 100);
+
+  return {
+    planAmount,
+    fastDeliveryFee,
+    baseAmount,
+    discountAmount,
+    finalAmount,
+  };
+}
+
 async function findCouponByCode(couponCode) {
   const normalizedCode = normalizeCouponCode(couponCode);
   if (!normalizedCode) {
@@ -830,6 +846,7 @@ async function handleCreateRazorpayOrder(req, res) {
   const projectName = normalizeName(body.projectName);
   const ideaSummary = normalizeName(body.ideaSummary);
   const requirements = body.requirements && typeof body.requirements === "object" ? body.requirements : {};
+  const fastDelivery = body.fastDelivery === true;
   const couponCode = normalizeCouponCode(body.couponCode);
 
   if (!plan) {
@@ -854,8 +871,6 @@ async function handleCreateRazorpayOrder(req, res) {
 
   try {
     let appliedCoupon = null;
-    let discountAmount = 0;
-    let finalAmount = Number(plan.amount);
 
     if (couponCode) {
       appliedCoupon = await findCouponByCode(couponCode);
@@ -865,12 +880,12 @@ async function handleCreateRazorpayOrder(req, res) {
         return;
       }
 
-      discountAmount = calculateCouponDiscount(plan.amount, appliedCoupon);
-      finalAmount = Math.max(0, Math.round((Number(plan.amount) - discountAmount) * 100) / 100);
-      if (finalAmount <= 0) {
-        json(res, 400, { error: "Coupon discount cannot reduce the payable amount to zero." });
-        return;
-      }
+    }
+
+    const pricing = getPlanPricing(plan, appliedCoupon, { fastDelivery });
+    if (pricing.finalAmount <= 0) {
+      json(res, 400, { error: "Coupon discount cannot reduce the payable amount to zero." });
+      return;
     }
 
     await supabaseFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(authContext.user.id)}`, {
@@ -901,10 +916,13 @@ async function handleCreateRazorpayOrder(req, res) {
           plan: {
             key: planKey,
             name: plan.name,
-            price: plan.amount,
+            price: pricing.baseAmount,
+            base_price: pricing.planAmount,
+            fast_delivery: fastDelivery,
+            fast_delivery_fee: pricing.fastDeliveryFee,
             coupon_code: appliedCoupon?.coupon_code || null,
-            discount_amount: discountAmount,
-            final_price: finalAmount,
+            discount_amount: pricing.discountAmount,
+            final_price: pricing.finalAmount,
           },
           summary: {
             project_name: projectName,
@@ -929,10 +947,10 @@ async function handleCreateRazorpayOrder(req, res) {
       body: {
         user_id: authContext.user.id,
         project_id: createdProject.id,
-        amount: plan.amount,
+        amount: pricing.baseAmount,
         coupon_id: appliedCoupon?.id || null,
-        discount_amount: discountAmount,
-        final_amount: finalAmount,
+        discount_amount: pricing.discountAmount,
+        final_amount: pricing.finalAmount,
         payment_status: "unpaid",
         status: "pending",
       },
@@ -947,7 +965,7 @@ async function handleCreateRazorpayOrder(req, res) {
       const razorpayOrder = await razorpayFetch("/v1/orders", {
         method: "POST",
         body: {
-          amount: Math.round(finalAmount * 100),
+          amount: Math.round(pricing.finalAmount * 100),
           currency: "INR",
           receipt: buildRazorpayReceipt(createdOrder.id),
           notes: {
@@ -956,6 +974,7 @@ async function handleCreateRazorpayOrder(req, res) {
             plan_key: planKey,
             customer_name: customerName,
             customer_email: customerEmail,
+            fast_delivery: fastDelivery ? "yes" : "no",
             coupon_code: appliedCoupon?.coupon_code || "",
           },
         },
@@ -978,9 +997,11 @@ async function handleCreateRazorpayOrder(req, res) {
           phone: customerPhone,
         },
         pricing: {
-          amount: Number(plan.amount),
-          discountAmount,
-          finalAmount,
+          amount: pricing.baseAmount,
+          baseAmount: pricing.planAmount,
+          fastDeliveryFee: pricing.fastDeliveryFee,
+          discountAmount: pricing.discountAmount,
+          finalAmount: pricing.finalAmount,
         },
         coupon: appliedCoupon
           ? {

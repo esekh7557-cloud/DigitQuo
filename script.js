@@ -6,11 +6,12 @@ const navbar = document.querySelector(".navbar");
 const contactForm = document.getElementById("contactForm");
 const portfolioQuoteLink = document.getElementById("portfolioQuoteLink");
 const quoteRequestForm = document.getElementById("quoteRequestForm");
-const cartItems = document.getElementById("cartItems");
-const cartSummary = document.getElementById("cartSummary");
+const cartRoot = document.getElementById("cartContent");
 const planDetailsRoot = document.getElementById("planDetailsRoot");
 const planRequirementsRoot = document.getElementById("planRequirementsRoot");
 const quoteRequestRoot = document.getElementById("quoteRequestRoot");
+const customPlanRoot = document.getElementById("customPlanRoot");
+const customPlanForm = document.getElementById("customPlanForm");
 const reviewForm = document.getElementById("reviewForm");
 const reviewFeedback = document.getElementById("reviewFeedback");
 const reviewRatingInput = document.getElementById("reviewRating");
@@ -148,6 +149,7 @@ const PLAN_DETAILS = {
     domainPrice: 999,
     features: [
       "1-3 Pages Website",
+      "Delivery in 5-7 days",
       "Mobile Responsive",
       "Contact Form",
       "Free SSL",
@@ -162,6 +164,7 @@ const PLAN_DETAILS = {
     domainPrice: 999,
     features: [
       "5-7 Pages Website",
+      "Delivery in 6-8 days",
       "Professional Design",
       "Contact Forms",
       "Google Map",
@@ -176,6 +179,7 @@ const PLAN_DETAILS = {
     domainPrice: 999,
     features: [
       "8-12 Pages Website",
+      "Delivery in 6-8 days",
       "Premium UI Design",
       "Blog System",
       "SEO Setup",
@@ -191,6 +195,7 @@ const PLAN_DETAILS = {
     features: [
       "Online Store",
       "Up to 50 Products",
+      "Delivery in 10-13 days",
       "Payment Gateway",
       "Cart & Checkout",
       "Admin Panel",
@@ -205,6 +210,7 @@ const PLAN_DETAILS = {
     domainPrice: 999,
     features: [
       "Unlimited Products",
+      "Delivery in 10-13 days",
       "Advanced Admin Panel",
       "Payment Gateway",
       "Coupons",
@@ -868,6 +874,7 @@ function getPlanRequirementsPagePath(planKey) {
     professional: "professional-plus-form.html",
     ecommerce: "enterprise-form.html",
     "advanced-ecommerce": "enterprise-plus-form.html",
+    custom: "custom-plan-form.html",
   };
 
   return pages[String(planKey || "").trim()] || "";
@@ -1027,12 +1034,59 @@ function calculateCouponDiscount(amount, coupon) {
   return Math.round(discountAmount * 100) / 100;
 }
 
-function getPlanPricingWithCoupon(plan, coupon) {
-  const baseAmount = Number(plan?.subtotal || 0);
+function getPlanDeliveryRange(planKey, options = {}) {
+  const normalizedPlanKey = String(planKey || "").trim().toLowerCase();
+  if (options.fastDelivery) {
+    const fastRanges = {
+      basic: "3-5 days",
+      business: "4-6 days",
+      professional: "4-6 days",
+      ecommerce: "7-9 days",
+      "advanced-ecommerce": "7-9 days",
+    };
+
+    return fastRanges[normalizedPlanKey] || "";
+  }
+
+  const standardRanges = {
+    basic: "5-7 days",
+    business: "6-8 days",
+    professional: "6-8 days",
+    ecommerce: "10-13 days",
+    "advanced-ecommerce": "10-13 days",
+  };
+
+  return standardRanges[normalizedPlanKey] || "";
+}
+
+function getPlanFeaturesForDisplay(planKey, options = {}) {
+  const plan = getPlanByKey(planKey);
+  if (!plan) {
+    return [];
+  }
+
+  const deliveryRange = getPlanDeliveryRange(planKey, options);
+  return plan.features.map((feature) =>
+    /^Delivery in /i.test(String(feature || "")) && deliveryRange ? `Delivery in ${deliveryRange}` : feature
+  );
+}
+
+function renderPlanFeatureListMarkup(planKey, options = {}) {
+  return getPlanFeaturesForDisplay(planKey, options)
+    .map((feature) => `<li>${escapeHtml(feature)}</li>`)
+    .join("");
+}
+
+function getPlanPricingWithCoupon(plan, coupon, options = {}) {
+  const planAmount = Number((plan?.subtotal ?? plan?.amount) || 0);
+  const fastDeliveryFee = options.fastDelivery ? Math.round(planAmount * 0.1 * 100) / 100 : 0;
+  const baseAmount = Math.round((planAmount + fastDeliveryFee) * 100) / 100;
   const discountAmount = calculateCouponDiscount(baseAmount, coupon);
   const finalAmount = Math.max(0, Math.round((baseAmount - discountAmount) * 100) / 100);
 
   return {
+    planAmount,
+    fastDeliveryFee,
     baseAmount,
     discountAmount,
     finalAmount,
@@ -1080,21 +1134,38 @@ function syncPlanCouponUi(planKey) {
   }
 
   const coupon = getStoredPlanCoupon(planKey);
-  const pricing = getPlanPricingWithCoupon(plan, coupon);
+  const fastDeliveryInput = document.getElementById("planFastDelivery");
+  const pricing = getPlanPricingWithCoupon(plan, coupon, { fastDelivery: Boolean(fastDeliveryInput?.checked) });
+  const couponToggle = document.getElementById("planCouponToggle");
+  const couponForm = document.getElementById("planCouponForm");
   const couponInput = document.getElementById("planCouponCode");
   const clearButton = document.getElementById("clearPlanCouponBtn");
   const couponLabel = document.getElementById("planCouponLabel");
   const couponValue = document.getElementById("planCouponDiscountValue");
   const finalTotal = document.getElementById("planFinalTotal");
+  const requirementFastDeliveryRow = document.getElementById("planRequirementFastDeliveryRow");
+  const requirementFastDeliveryValue = document.getElementById("planRequirementFastDeliveryValue");
   const requirementBaseAmount = document.getElementById("planRequirementBaseAmount");
   const requirementCouponRow = document.getElementById("planRequirementCouponRow");
   const requirementCouponLabel = document.getElementById("planRequirementCouponLabel");
   const requirementCouponValue = document.getElementById("planRequirementCouponValue");
   const requirementFinalAmount = document.getElementById("planRequirementFinalAmount");
   const requirementCouponNote = document.getElementById("planRequirementCouponNote");
+  const requirementFeatureList = document.getElementById("planRequirementFeatureList");
+  const fastDeliveryTimingNote = document.getElementById("planFastDeliveryTimingNote");
 
   if (couponInput && !couponInput.matches(":focus")) {
     couponInput.value = coupon?.coupon_code || "";
+  }
+
+  if (couponForm && coupon) {
+    couponForm.hidden = false;
+  }
+
+  if (couponToggle) {
+    const isExpanded = couponForm ? !couponForm.hidden : false;
+    couponToggle.textContent = coupon && !isExpanded ? `Coupon applied: ${coupon.coupon_code}` : "Have a coupon code?";
+    couponToggle.setAttribute("aria-expanded", isExpanded ? "true" : "false");
   }
 
   if (clearButton) {
@@ -1111,6 +1182,14 @@ function syncPlanCouponUi(planKey) {
 
   if (finalTotal) {
     finalTotal.textContent = formatInr(pricing.finalAmount);
+  }
+
+  if (requirementFastDeliveryRow) {
+    requirementFastDeliveryRow.hidden = pricing.fastDeliveryFee <= 0;
+  }
+
+  if (requirementFastDeliveryValue) {
+    requirementFastDeliveryValue.textContent = `+ ${formatInr(pricing.fastDeliveryFee)}`;
   }
 
   if (requirementBaseAmount) {
@@ -1137,6 +1216,20 @@ function syncPlanCouponUi(planKey) {
     requirementCouponNote.textContent = coupon
       ? `${coupon.coupon_code} will be revalidated before payment is created.`
       : "Apply a coupon on the plan details page to see the discount here.";
+  }
+
+  if (fastDeliveryTimingNote) {
+    const fastDeliveryRange = getPlanDeliveryRange(planKey, { fastDelivery: true });
+    fastDeliveryTimingNote.hidden = !fastDeliveryInput?.checked || !fastDeliveryRange;
+    fastDeliveryTimingNote.textContent = fastDeliveryRange
+      ? `Fast delivery timeline: ${fastDeliveryRange}`
+      : "";
+  }
+
+  if (requirementFeatureList) {
+    requirementFeatureList.innerHTML = renderPlanFeatureListMarkup(planKey, {
+      fastDelivery: Boolean(fastDeliveryInput?.checked),
+    });
   }
 }
 
@@ -1172,6 +1265,16 @@ async function revalidateStoredPlanCoupon(planKey, options = {}) {
 }
 
 function buildCartItemFromPlan(planKey) {
+  if (String(planKey || "").trim() === "custom") {
+    return {
+      planKey: "custom",
+      title: "Custom Plan",
+      description: "Custom website scope with flexible pages, features, and a requirement-based quote.",
+      price: "Custom Quote",
+      amount: 0,
+    };
+  }
+
   const plan = getPlanByKey(planKey);
   if (!plan) {
     return null;
@@ -1370,6 +1473,13 @@ function renderUserMenuIcon(iconName) {
         <path d="M20 12.5h-2" />
       </svg>
     `,
+    cart: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4.75 6.25h2.1l1.25 7h8.4l2.1-5.25H7.4" />
+        <circle cx="10.25" cy="17.75" r="1.5" />
+        <circle cx="16.75" cy="17.75" r="1.5" />
+      </svg>
+    `,
     notifications: `
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M12 4.75a4.5 4.5 0 0 0-4.5 4.5v2.11c0 .72-.23 1.43-.66 2.01l-1.22 1.68a1 1 0 0 0 .81 1.59h11.14a1 1 0 0 0 .81-1.59l-1.22-1.68a3.5 3.5 0 0 1-.66-2.01V9.25a4.5 4.5 0 0 0-4.5-4.5Z" />
@@ -1487,18 +1597,14 @@ function buildProfileMenu(user) {
           <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
           <span class="user-menu-link__label">Account Information</span>
         </a>
-        <a class="user-menu-link user-menu-link--accent" href="profile.html#accountMain">
-          <span class="user-menu-link__icon">${renderUserMenuIcon("security")}</span>
-          <span class="user-menu-link__label">Security</span>
-        </a>
         <a class="user-menu-link" href="orders.html#ordersMain">
           <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
           <span class="user-menu-link__label">Account Activity</span>
         </a>
-        <div class="user-menu-link user-menu-link--static">
-          <span class="user-menu-link__icon">${renderUserMenuIcon("notifications")}</span>
-          <span class="user-menu-link__label">Notification settings</span>
-        </div>
+        <a class="user-menu-link" href="cart.html#cartMain">
+          <span class="user-menu-link__icon">${renderUserMenuIcon("cart")}</span>
+          <span class="user-menu-link__label">Cart</span>
+        </a>
         <div class="user-menu-link user-menu-link--static">
           <span class="user-menu-link__icon">${renderUserMenuIcon("language")}</span>
           <span class="user-menu-link__label">Language</span>
@@ -1572,77 +1678,123 @@ function updatePlanBuyLinks(user) {
 }
 
 function renderCartPage(user) {
-  if (!cartItems || !cartSummary) {
+  if (!cartRoot) {
     return;
   }
 
   const items = readCartItems();
   const totalAmount = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const hasCustomOnlyPricing = items.length > 0 && items.every((item) => Number(item.amount || 0) === 0);
   const primaryPlanKey = items[items.length - 1]?.planKey || readSelectedPlan();
 
   if (!user) {
-    cartItems.innerHTML = `
+    cartRoot.innerHTML = `
       <article class="card cart-empty">
         <h2>Please log in</h2>
         <p>You need to sign in before viewing your cart and saved profile details.</p>
         <a href="login.html" class="btn btn-primary">Go to Login</a>
       </article>
     `;
-    cartSummary.innerHTML = `
-      <article class="card">
-        <h3>Cart Summary</h3>
-        <p>Sign in to manage your cart.</p>
-      </article>
-    `;
     return;
   }
 
-  if (!items.length) {
-    cartItems.innerHTML = `
-      <article class="card cart-empty">
-        <h2>Your cart is empty</h2>
-        <p>${escapeHtml(user.fullName)}, you have no saved website packages in your cart yet.</p>
-        <div class="cart-empty-actions">
-          <a href="pricing.html" class="btn btn-primary">Browse Pricing</a>
-          <a href="portfolio.html" class="btn btn-secondary">View Portfolio</a>
-        </div>
-      </article>
-    `;
-  } else {
-    cartItems.innerHTML = items
-      .map(
-        (item) => `
-          <article class="card cart-item">
-            <div class="cart-item-copy">
-              <h3>${escapeHtml(item.title || "Website Package")}</h3>
-              <p>${escapeHtml(item.description || "Saved from your recent visit.")}</p>
-            </div>
-            <div class="cart-item-actions">
-              <div class="cart-price">${escapeHtml(item.price || "Custom")}</div>
-              <button class="btn btn-secondary" type="button" data-cart-remove="${escapeHtml(item.planKey || "")}">Remove</button>
-            </div>
-          </article>
-        `
-      )
-      .join("");
-  }
+  const cartListMarkup = !items.length
+    ? `
+        <article class="card cart-empty">
+          <h2>Your cart is empty</h2>
+          <p>${escapeHtml(user.fullName)}, you have no saved website packages in your cart yet.</p>
+          <div class="cart-empty-actions">
+            <a href="pricing.html" class="btn btn-primary">Browse Pricing</a>
+            <a href="portfolio.html" class="btn btn-secondary">View Portfolio</a>
+          </div>
+        </article>
+      `
+    : items
+        .map(
+          (item) => `
+            <article class="card cart-item">
+              <div class="cart-item-copy">
+                <h3>${escapeHtml(item.title || "Website Package")}</h3>
+                <p>${escapeHtml(item.description || "Saved from your recent visit.")}</p>
+              </div>
+              <div class="cart-item-actions">
+                <div class="cart-price">${escapeHtml(item.price || "Custom")}</div>
+                <button class="btn btn-secondary" type="button" data-cart-remove="${escapeHtml(item.planKey || "")}">Remove</button>
+              </div>
+            </article>
+          `
+        )
+        .join("");
 
-  cartSummary.innerHTML = `
-    <article class="card cart-meta">
-      <h3>Profile Snapshot</h3>
-      <p><strong>Name:</strong> ${escapeHtml(user.fullName)}</p>
-      <p><strong>Phone:</strong> ${escapeHtml(user.phone || "Not added yet")}</p>
-      <p><strong>Items:</strong> ${items.length}</p>
-      <p class="cart-total-row"><strong>Total:</strong> <span>${formatInr(totalAmount)}</span></p>
-      <a href="${primaryPlanKey ? getPlanRequirementsPagePath(primaryPlanKey) || "pricing.html" : "pricing.html"}" class="btn btn-primary">${primaryPlanKey ? "Proceed to Buy" : "Browse Pricing"}</a>
-      <a href="orders.html" class="btn btn-secondary">View Orders</a>
-      ${
-        items.length
-          ? '<button class="btn btn-secondary" type="button" data-cart-clear="true">Clear Cart</button>'
-          : ""
-      }
-    </article>
+  cartRoot.innerHTML = `
+    <div class="profile-grid account-page-grid">
+      <aside class="profile-sidebar">
+        <article class="card profile-account-nav profile-account-nav--compact">
+          <nav class="profile-account-nav__menu" aria-label="Account menu">
+            <a class="user-menu-link" href="profile.html#accountMain">
+              <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
+              <span class="user-menu-link__label">Account Information</span>
+            </a>
+            <a class="user-menu-link" href="orders.html#ordersMain">
+              <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
+              <span class="user-menu-link__label">Account Activity</span>
+            </a>
+            <a class="user-menu-link user-menu-link--active" href="cart.html#cartMain">
+              <span class="user-menu-link__icon">${renderUserMenuIcon("cart")}</span>
+              <span class="user-menu-link__label">Cart</span>
+            </a>
+          </nav>
+          <div class="profile-account-nav__footer">
+            <button class="user-menu-link user-menu-link--logout" type="button" data-profile-logout="true">
+              <span class="user-menu-link__icon">${renderUserMenuIcon("logout")}</span>
+              <span class="user-menu-link__label">Log out</span>
+            </button>
+          </div>
+        </article>
+      </aside>
+      <div class="profile-main" id="cartMain">
+        <div class="account-page-header">
+          <h2>My Cart</h2>
+        </div>
+        <div class="cart-grid">
+          <div class="cart-list">
+            ${cartListMarkup}
+          </div>
+          <div>
+            <article class="card cart-meta">
+              <h3>Profile Snapshot</h3>
+              <p><strong>Name:</strong> ${escapeHtml(user.fullName)}</p>
+              <p><strong>Phone:</strong> ${escapeHtml(user.phone || "Not added yet")}</p>
+              <p><strong>Items:</strong> ${items.length}</p>
+              <p class="cart-total-row"><strong>Total:</strong> <span>${hasCustomOnlyPricing ? "Custom Quote" : formatInr(totalAmount)}</span></p>
+              <a href="${primaryPlanKey ? getPlanRequirementsPagePath(primaryPlanKey) || "pricing.html" : "pricing.html"}" class="btn btn-primary">${primaryPlanKey ? "Proceed to Buy" : "Browse Pricing"}</a>
+              <a href="orders.html#ordersMain" class="btn btn-secondary">View Orders</a>
+              ${
+                items.length
+                  ? '<button class="btn btn-secondary" type="button" data-cart-clear="true">Clear Cart</button>'
+                  : ""
+              }
+            </article>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
+
+  const logoutButton = cartRoot.querySelector("[data-profile-logout='true']");
+  logoutButton?.addEventListener("click", async () => {
+    try {
+      if (dqAuth && dqAuth.isConfigured()) {
+        await dqAuth.signOut();
+      }
+    } finally {
+      window.location.href = "login.html";
+    }
+  });
+
+  if (window.location.hash === "#cartMain") {
+    cartRoot.querySelector("#cartMain")?.scrollIntoView({ block: "start" });
+  }
 }
 
 function renderProfilePage(user) {
@@ -1671,22 +1823,14 @@ function renderProfilePage(user) {
               <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
               <span class="user-menu-link__label">Account Information</span>
             </a>
-            <div class="user-menu-link user-menu-link--static user-menu-link--accent">
-              <span class="user-menu-link__icon">${renderUserMenuIcon("security")}</span>
-              <span class="user-menu-link__label">Security</span>
-            </div>
             <a class="user-menu-link" href="orders.html#ordersMain">
               <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
               <span class="user-menu-link__label">Account Activity</span>
             </a>
-            <div class="user-menu-link user-menu-link--static">
-              <span class="user-menu-link__icon">${renderUserMenuIcon("notifications")}</span>
-              <span class="user-menu-link__label">Notification settings</span>
-            </div>
-            <div class="user-menu-link user-menu-link--static">
-              <span class="user-menu-link__icon">${renderUserMenuIcon("api")}</span>
-              <span class="user-menu-link__label">API</span>
-            </div>
+            <a class="user-menu-link" href="cart.html#cartMain">
+              <span class="user-menu-link__icon">${renderUserMenuIcon("cart")}</span>
+              <span class="user-menu-link__label">Cart</span>
+            </a>
           </nav>
           <div class="profile-account-nav__footer">
             <button class="user-menu-link user-menu-link--logout" type="button" data-profile-logout="true">
@@ -2276,22 +2420,14 @@ async function renderOrdersPage(user) {
                 <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
                 <span class="user-menu-link__label">Account Information</span>
               </a>
-              <div class="user-menu-link user-menu-link--static user-menu-link--accent">
-                <span class="user-menu-link__icon">${renderUserMenuIcon("security")}</span>
-                <span class="user-menu-link__label">Security</span>
-              </div>
               <a class="user-menu-link user-menu-link--active" href="orders.html#ordersMain">
                 <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
                 <span class="user-menu-link__label">Account Activity</span>
               </a>
-              <div class="user-menu-link user-menu-link--static">
-                <span class="user-menu-link__icon">${renderUserMenuIcon("notifications")}</span>
-                <span class="user-menu-link__label">Notification settings</span>
-              </div>
-              <div class="user-menu-link user-menu-link--static">
-                <span class="user-menu-link__icon">${renderUserMenuIcon("api")}</span>
-                <span class="user-menu-link__label">API</span>
-              </div>
+              <a class="user-menu-link" href="cart.html#cartMain">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("cart")}</span>
+                <span class="user-menu-link__label">Cart</span>
+              </a>
             </nav>
             <div class="profile-account-nav__footer">
               <button class="user-menu-link user-menu-link--logout" type="button" data-profile-logout="true">
@@ -2339,22 +2475,14 @@ async function renderOrdersPage(user) {
                   <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
                   <span class="user-menu-link__label">Account Information</span>
                 </a>
-                <div class="user-menu-link user-menu-link--static user-menu-link--accent">
-                  <span class="user-menu-link__icon">${renderUserMenuIcon("security")}</span>
-                  <span class="user-menu-link__label">Security</span>
-                </div>
-                <a class="user-menu-link user-menu-link--active" href="orders.html#ordersMain">
-                  <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
-                  <span class="user-menu-link__label">Account Activity</span>
-                </a>
-                <div class="user-menu-link user-menu-link--static">
-                  <span class="user-menu-link__icon">${renderUserMenuIcon("notifications")}</span>
-                  <span class="user-menu-link__label">Notification settings</span>
-                </div>
-                <div class="user-menu-link user-menu-link--static">
-                  <span class="user-menu-link__icon">${renderUserMenuIcon("api")}</span>
-                  <span class="user-menu-link__label">API</span>
-                </div>
+              <a class="user-menu-link user-menu-link--active" href="orders.html#ordersMain">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
+                <span class="user-menu-link__label">Account Activity</span>
+              </a>
+              <a class="user-menu-link" href="cart.html#cartMain">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("cart")}</span>
+                <span class="user-menu-link__label">Cart</span>
+              </a>
               </nav>
               <div class="profile-account-nav__footer">
                 <button class="user-menu-link user-menu-link--logout" type="button" data-profile-logout="true">
@@ -2401,22 +2529,14 @@ async function renderOrdersPage(user) {
                 <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
                 <span class="user-menu-link__label">Account Information</span>
               </a>
-              <div class="user-menu-link user-menu-link--static user-menu-link--accent">
-                <span class="user-menu-link__icon">${renderUserMenuIcon("security")}</span>
-                <span class="user-menu-link__label">Security</span>
-              </div>
               <a class="user-menu-link user-menu-link--active" href="orders.html#ordersMain">
                 <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
                 <span class="user-menu-link__label">Account Activity</span>
               </a>
-              <div class="user-menu-link user-menu-link--static">
-                <span class="user-menu-link__icon">${renderUserMenuIcon("notifications")}</span>
-                <span class="user-menu-link__label">Notification settings</span>
-              </div>
-              <div class="user-menu-link user-menu-link--static">
-                <span class="user-menu-link__icon">${renderUserMenuIcon("api")}</span>
-                <span class="user-menu-link__label">API</span>
-              </div>
+              <a class="user-menu-link" href="cart.html#cartMain">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("cart")}</span>
+                <span class="user-menu-link__label">Cart</span>
+              </a>
             </nav>
             <div class="profile-account-nav__footer">
               <button class="user-menu-link user-menu-link--logout" type="button" data-profile-logout="true">
@@ -2500,22 +2620,14 @@ async function renderOrdersPage(user) {
                 <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
                 <span class="user-menu-link__label">Account Information</span>
               </a>
-              <div class="user-menu-link user-menu-link--static user-menu-link--accent">
-                <span class="user-menu-link__icon">${renderUserMenuIcon("security")}</span>
-                <span class="user-menu-link__label">Security</span>
-              </div>
               <a class="user-menu-link user-menu-link--active" href="orders.html#ordersMain">
                 <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
                 <span class="user-menu-link__label">Account Activity</span>
               </a>
-              <div class="user-menu-link user-menu-link--static">
-                <span class="user-menu-link__icon">${renderUserMenuIcon("notifications")}</span>
-                <span class="user-menu-link__label">Notification settings</span>
-              </div>
-              <div class="user-menu-link user-menu-link--static">
-                <span class="user-menu-link__icon">${renderUserMenuIcon("api")}</span>
-                <span class="user-menu-link__label">API</span>
-              </div>
+              <a class="user-menu-link" href="cart.html#cartMain">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("cart")}</span>
+                <span class="user-menu-link__label">Cart</span>
+              </a>
             </nav>
             <div class="profile-account-nav__footer">
               <button class="user-menu-link user-menu-link--logout" type="button" data-profile-logout="true">
@@ -2604,7 +2716,16 @@ function renderPlanDetailsPage() {
           <span>Domain Registration</span>
           <strong>${formatInr(plan.domainPrice)}</strong>
         </div>
-        <form id="planCouponForm" class="plan-coupon-panel">
+        <button
+          class="plan-coupon-toggle"
+          type="button"
+          id="planCouponToggle"
+          aria-expanded="${appliedCoupon ? "true" : "false"}"
+          aria-controls="planCouponForm"
+        >
+          Have a coupon code?
+        </button>
+        <form id="planCouponForm" class="plan-coupon-panel" ${appliedCoupon ? "" : "hidden"}>
           <label for="planCouponCode">Coupon Code</label>
           <div class="plan-coupon-inline">
             <input
@@ -2638,8 +2759,18 @@ function renderPlanDetailsPage() {
     </div>
   `;
 
+  const couponToggle = document.getElementById("planCouponToggle");
   const couponForm = document.getElementById("planCouponForm");
   const clearCouponButton = document.getElementById("clearPlanCouponBtn");
+  couponToggle?.addEventListener("click", () => {
+    if (!couponForm) {
+      return;
+    }
+
+    couponForm.hidden = !couponForm.hidden;
+    syncPlanCouponUi(planKey);
+  });
+
   couponForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -2752,6 +2883,169 @@ function renderQuoteRequestPage(user) {
   if (quotePhone) {
     quotePhone.value = user.phone || "";
   }
+}
+
+function normalizeCustomPlanFeatures(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function bindCustomPlanForm(user) {
+  if (!customPlanForm || customPlanForm.dataset.bound === "true") {
+    return;
+  }
+
+  customPlanForm.dataset.bound = "true";
+  customPlanForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    if (!user?.id || !dqAuth || !dqAuth.isConfigured()) {
+      window.location.href = "login.html?redirect=custom-plan-form.html";
+      return;
+    }
+
+    const client = await dqAuth.getClient();
+    if (!client) {
+      showCartToast("Could not start your custom plan request.");
+      return;
+    }
+
+    const formData = new FormData(customPlanForm);
+    const customerName = String(formData.get("customerName") || "").trim();
+    const customerEmail = String(formData.get("customerEmail") || "").trim();
+    const customerPhone = String(formData.get("customerPhone") || "").trim();
+    const businessName = String(formData.get("businessName") || "").trim();
+    const projectName = String(formData.get("projectName") || "").trim();
+    const websiteType = String(formData.get("websiteType") || "").trim();
+    const pageScope = String(formData.get("pageScope") || "").trim();
+    const budget = String(formData.get("budget") || "").trim();
+    const timeline = String(formData.get("timeline") || "").trim();
+    const features = normalizeCustomPlanFeatures(formData.get("features"));
+    const references = String(formData.get("references") || "").trim();
+    const projectBrief = String(formData.get("projectBrief") || "").trim();
+    const submitButton = customPlanForm.querySelector('button[type="submit"]');
+
+    try {
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = true;
+        submitButton.textContent = "Submitting...";
+      }
+
+      const { error: profileError } = await client
+        .from("profiles")
+        .update({
+          full_name: customerName || user.fullName || user.email,
+          phone: customerPhone || user.phone || "",
+        })
+        .eq("id", user.id);
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      const projectPayload = {
+        user_id: user.id,
+        project_name: projectName || `${businessName || websiteType || "Custom"} Project`,
+        template_id: "custom",
+        site_config: {
+          source: "custom_plan_form",
+          submitted_at: new Date().toISOString(),
+          project_status: "pending",
+          contact: {
+            full_name: customerName,
+            email: customerEmail,
+            phone: customerPhone,
+          },
+          plan: {
+            key: "custom",
+            name: "Custom Plan",
+            price: null,
+          },
+          summary: {
+            project_name: projectName,
+            idea: projectBrief || `${websiteType || "Custom website"} request`,
+          },
+          requirements: {
+            custom: {
+              businessName,
+              websiteType,
+              pageScope,
+              budget,
+              timeline,
+              features,
+              references,
+              projectBrief,
+            },
+          },
+        },
+        is_active: false,
+      };
+
+      const { error: projectError } = await client.from("projects").insert(projectPayload);
+      if (projectError) {
+        throw projectError;
+      }
+
+      customPlanForm.reset();
+      const customNameInput = customPlanForm.elements?.namedItem("customerName");
+      const customEmailInput = customPlanForm.elements?.namedItem("customerEmail");
+      const customPhoneInput = customPlanForm.elements?.namedItem("customerPhone");
+      if (customNameInput && "value" in customNameInput) {
+        customNameInput.value = customerName || user.fullName || "";
+      }
+      if (customEmailInput && "value" in customEmailInput) {
+        customEmailInput.value = customerEmail || user.email || "";
+      }
+      if (customPhoneInput && "value" in customPhoneInput) {
+        customPhoneInput.value = customerPhone || user.phone || "";
+      }
+
+      showPlanSuccessModal({
+        title: "Request Received",
+        message: "Our team will contact you soon.",
+      });
+    } catch (error) {
+      showCartToast(error.message || "Could not submit your custom plan request.");
+    } finally {
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Continue";
+      }
+    }
+  });
+}
+
+function renderCustomPlanPage(user) {
+  if (!customPlanRoot || !customPlanForm) {
+    return;
+  }
+
+  if (!user) {
+    window.location.href = "login.html?redirect=custom-plan-form.html";
+    return;
+  }
+
+  const customName = customPlanForm.elements?.namedItem("customerName");
+  const customEmail = customPlanForm.elements?.namedItem("customerEmail");
+  const customPhone = customPlanForm.elements?.namedItem("customerPhone");
+
+  if (customName && "value" in customName) {
+    customName.value = user.fullName || "";
+  }
+
+  if (customEmail && "value" in customEmail) {
+    customEmail.value = user.email || "";
+  }
+
+  if (customPhone && "value" in customPhone) {
+    customPhone.value = user.phone || "";
+  }
+
+  saveSelectedPlan("custom");
+  upsertCartItem(buildCartItemFromPlan("custom"));
+  bindCustomPlanForm(user);
 }
 
 function renderCheckboxGroup(name, options, otherFieldName) {
@@ -3061,6 +3355,15 @@ function renderPlanRequirementsPage(user) {
             <input id="projectName" name="projectName" type="text" placeholder="Enter your project name" required />
           </div>
 
+          <div class="field-block">
+            <span class="plan-form-option-label">Delivery Preference</span>
+            <label class="plan-check-option plan-check-option--single" for="planFastDelivery">
+              <input id="planFastDelivery" name="fastDelivery" type="checkbox" value="yes" />
+              <span>Fast delivery (+10%)</span>
+            </label>
+            <p class="plan-form-option-note" id="planFastDeliveryTimingNote" hidden aria-live="polite"></p>
+          </div>
+
           ${
             showBasicSection
               ? `
@@ -3241,7 +3544,15 @@ function renderPlanRequirementsPage(user) {
           <h2>Selected Plan</h2>
           <p class="plan-form-price" id="planRequirementFinalAmount">${formatInr(pricing.finalAmount)}</p>
           <div class="plan-form-summary-row">
-            <span>Original Price</span>
+            <span>Plan Price</span>
+            <strong>${formatInr(pricing.planAmount)}</strong>
+          </div>
+          <div class="plan-form-summary-row" id="planRequirementFastDeliveryRow" hidden>
+            <span>Fast Delivery</span>
+            <strong id="planRequirementFastDeliveryValue">+ ${formatInr(0)}</strong>
+          </div>
+          <div class="plan-form-summary-row">
+            <span>Subtotal</span>
             <strong id="planRequirementBaseAmount">${formatInr(pricing.baseAmount)}</strong>
           </div>
           <div class="plan-form-summary-row" id="planRequirementCouponRow" ${appliedCoupon ? "" : "hidden"}>
@@ -3255,8 +3566,8 @@ function renderPlanRequirementsPage(user) {
                 : "Apply a coupon on the plan details page to see the discount here."
             }
           </p>
-          <ul class="plan-feature-list">
-            ${plan.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}
+          <ul class="plan-feature-list" id="planRequirementFeatureList">
+            ${renderPlanFeatureListMarkup(planKey)}
           </ul>
         </article>
       </aside>
@@ -3264,6 +3575,11 @@ function renderPlanRequirementsPage(user) {
   `;
 
   const form = document.getElementById("planRequirementsForm");
+  const fastDeliveryInput = document.getElementById("planFastDelivery");
+  fastDeliveryInput?.addEventListener("change", () => {
+    syncPlanCouponUi(planKey);
+  });
+
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -3284,8 +3600,12 @@ function renderPlanRequirementsPage(user) {
     const customerEmail = String(formData.get("customerEmail") || "").trim();
     const customerPhone = String(formData.get("customerPhone") || "").trim();
     const projectName = String(formData.get("projectName") || "").trim();
+    const fastDelivery = String(formData.get("fastDelivery") || "").trim() === "yes";
 
     const requirements = {
+      delivery: {
+        fastDelivery,
+      },
       basic: {
         websiteIdea: String(formData.get("websiteIdea") || "").trim(),
         businessDetails: String(formData.get("businessDetails") || "").trim(),
@@ -3345,6 +3665,7 @@ function renderPlanRequirementsPage(user) {
         customerPhone,
         projectName,
         ideaSummary,
+        fastDelivery,
         couponCode: getStoredPlanCoupon(planKey)?.coupon_code || "",
         requirements,
       });
@@ -3413,6 +3734,7 @@ async function initAuthUi() {
     renderProfilePage(null);
     renderOrdersPage(null);
     renderQuoteRequestPage(null);
+    renderCustomPlanPage(null);
     renderPlanRequirementsPage(null);
     return;
   }
@@ -3431,6 +3753,7 @@ async function initAuthUi() {
       renderProfilePage(null);
       renderOrdersPage(null);
       renderQuoteRequestPage(null);
+      renderCustomPlanPage(null);
       renderPlanRequirementsPage(null);
       return;
     }
@@ -3448,6 +3771,7 @@ async function initAuthUi() {
     renderProfilePage(user);
     renderOrdersPage(user);
     renderQuoteRequestPage(user);
+    renderCustomPlanPage(user);
     renderPlanRequirementsPage(user);
   } catch {
     activeReviewIsAdmin = false;
@@ -3459,6 +3783,7 @@ async function initAuthUi() {
     renderProfilePage(null);
     renderOrdersPage(null);
     renderQuoteRequestPage(null);
+    renderCustomPlanPage(null);
     renderPlanRequirementsPage(null);
   }
 }
