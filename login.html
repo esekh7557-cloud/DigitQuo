@@ -397,6 +397,11 @@
         <input id="phone" name="phone" type="tel" placeholder="+91 98765 43210" />
       </div>
 
+      <div class="field" id="countryField" hidden>
+        <label for="country">Country</label>
+        <input id="country" name="country" type="text" placeholder="India" />
+      </div>
+
       <div class="field">
         <label for="password">Password</label>
         <div class="password-field">
@@ -463,7 +468,6 @@
       <span id="toggleLabel">Don't have an account?</span>
       <a href="#" id="toggleMode">Create one</a>
     </p>
-    <p class="footer">Back to <a href="index.html">Home</a></p>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -482,6 +486,7 @@
     const rememberRow = document.getElementById("rememberRow");
     const nameField = document.getElementById("nameField");
     const phoneField = document.getElementById("phoneField");
+    const countryField = document.getElementById("countryField");
     const termsField = document.getElementById("termsField");
     const termsCheckbox = document.getElementById("termsCheckbox");
     const refundField = document.getElementById("refundField");
@@ -489,6 +494,7 @@
     const nameInput = document.getElementById("fullName");
     const emailInput = document.getElementById("email");
     const phoneInput = document.getElementById("phone");
+    const countryInput = document.getElementById("country");
     const passwordInput = document.getElementById("password");
     const newPasswordField = document.getElementById("newPasswordField");
     const newPasswordInput = document.getElementById("newPassword");
@@ -648,6 +654,7 @@
         oauthSection.hidden = isRecoveryRequest || isRecoveryVerify;
         nameField.hidden = !isRegister;
         phoneField.hidden = !isRegister;
+        countryField.hidden = !isRegister;
         termsField.hidden = !isRegister;
         refundField.hidden = !isRegister;
         newPasswordField.hidden = !isRecoveryVerify;
@@ -656,6 +663,7 @@
 
         nameInput.required = isRegister;
         phoneInput.required = isRegister;
+        countryInput.required = isRegister;
         passwordInput.required = isLogin || isRegister;
         termsCheckbox.required = isRegister;
         refundCheckbox.required = isRegister;
@@ -735,6 +743,7 @@
           email: user.email,
           full_name: metadata.full_name || metadata.fullName || "",
           phone: metadata.phone || "",
+          country: metadata.country || metadata.address || "",
           profile_photo: metadata.profile_photo || metadata.profilePhoto || "",
           role: "customer",
           is_active: true,
@@ -887,6 +896,7 @@
       const email = emailInput.value.trim();
       const fullName = nameInput.value.trim();
       const phone = phoneInput.value.trim();
+      const country = countryInput.value.trim();
       const password = passwordInput.value;
       const newPassword = newPasswordInput.value;
       const confirmPassword = confirmPasswordInput.value;
@@ -902,7 +912,7 @@
         return;
       }
 
-      if (mode === "register" && (password.length < 8 || !fullName || !phone)) {
+      if (mode === "register" && (password.length < 8 || !fullName || !phone || !country)) {
         setStatus("Enter a valid email and a password of at least 8 characters.", "error");
         return;
       }
@@ -949,6 +959,7 @@
             data: {
               full_name: fullName,
               phone,
+              country,
             },
           },
         });

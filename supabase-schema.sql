@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   email TEXT UNIQUE NOT NULL,
   full_name TEXT,
   phone TEXT,
+  country TEXT,
   profile_photo TEXT,
   role TEXT DEFAULT 'customer' CHECK (role IN ('admin', 'customer')),
   subscription_plan TEXT DEFAULT 'free' CHECK (
@@ -215,6 +216,7 @@ BEGIN
     email,
     full_name,
     phone,
+    country,
     profile_photo,
     role,
     is_active
@@ -224,6 +226,7 @@ BEGIN
     NEW.email,
     COALESCE(NEW.raw_user_meta_data ->> 'full_name', ''),
     COALESCE(NEW.raw_user_meta_data ->> 'phone', ''),
+    COALESCE(NEW.raw_user_meta_data ->> 'country', NEW.raw_user_meta_data ->> 'address', ''),
     COALESCE(NEW.raw_user_meta_data ->> 'profile_photo', ''),
     'customer',
     true
@@ -232,6 +235,7 @@ BEGIN
     email = EXCLUDED.email,
     full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), public.profiles.full_name),
     phone = COALESCE(NULLIF(EXCLUDED.phone, ''), public.profiles.phone),
+    country = COALESCE(NULLIF(EXCLUDED.country, ''), public.profiles.country),
     profile_photo = COALESCE(NULLIF(EXCLUDED.profile_photo, ''), public.profiles.profile_photo);
 
   RETURN NEW;
@@ -416,12 +420,31 @@ AFTER INSERT ON auth.users
 FOR EACH ROW
 EXECUTE FUNCTION create_profile_for_new_user();
 
+DROP TRIGGER IF EXISTS auth_users_after_update ON auth.users;
+CREATE TRIGGER auth_users_after_update
+AFTER UPDATE ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION create_profile_for_new_user();
+
 -- ============================================================================
 -- MIGRATION HELPERS
 -- ============================================================================
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS country TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS profile_photo TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS suspension_reason TEXT;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'profiles'
+      AND column_name = 'address'
+  ) THEN
+    EXECUTE 'UPDATE public.profiles SET country = COALESCE(NULLIF(country, ''''), address) WHERE COALESCE(NULLIF(country, ''''), '''') = ''''';
+  END IF;
+END $$;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'unpaid';
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 UPDATE orders SET payment_status = 'unpaid' WHERE payment_status IS NULL;

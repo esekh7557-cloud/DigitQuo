@@ -475,7 +475,7 @@ async function requireAuthenticatedProfile(req, res) {
   }
 
   const profiles = await supabaseFetch(
-    `/rest/v1/profiles?select=id,email,full_name,phone,role,is_active,suspension_reason&id=eq.${encodeURIComponent(user.id)}&limit=1`
+    `/rest/v1/profiles?select=id,email,full_name,phone,country,role,is_active,suspension_reason&id=eq.${encodeURIComponent(user.id)}&limit=1`
   );
   const profile = Array.isArray(profiles) ? profiles[0] : null;
 
@@ -656,6 +656,7 @@ async function handleAdminCreateUser(req, res) {
   const fullName = normalizeName(body.fullName);
   const email = normalizeEmail(body.email);
   const phone = normalizePhone(body.phone);
+  const country = String(body.country || "").trim();
   const password = String(body.password || "");
   const role = String(body.role || "customer").trim().toLowerCase();
   const subscriptionPlan = String(body.subscriptionPlan || "free").trim().toLowerCase();
@@ -672,6 +673,11 @@ async function handleAdminCreateUser(req, res) {
 
   if (phone && !isValidPhone(phone)) {
     json(res, 400, { error: "Please enter a valid phone number." });
+    return;
+  }
+
+  if (country.length < 2) {
+    json(res, 400, { error: "Please enter your country." });
     return;
   }
 
@@ -700,6 +706,7 @@ async function handleAdminCreateUser(req, res) {
         user_metadata: {
           full_name: fullName,
           phone,
+          country,
         },
       },
     });
@@ -714,6 +721,7 @@ async function handleAdminCreateUser(req, res) {
         email,
         full_name: fullName,
         phone,
+        country,
         role,
         subscription_plan: subscriptionPlan,
         is_active: true,
@@ -727,6 +735,7 @@ async function handleAdminCreateUser(req, res) {
         email,
         full_name: fullName,
         phone,
+        country,
         role,
         subscription_plan: subscriptionPlan,
         is_active: true,

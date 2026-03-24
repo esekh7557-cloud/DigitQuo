@@ -26,6 +26,7 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BqSIT0GcmJ54v0PHVf7Hxw_COvYC9L7
       email: user.email || "",
       fullName: metadata.full_name || metadata.fullName || user.email || "User",
       phone: metadata.phone || "",
+      country: metadata.country || metadata.address || "",
       profilePhoto: metadata.profile_photo || metadata.profilePhoto || "",
     };
   }

@@ -1348,6 +1348,119 @@ function getPhotoSourceLabel(profilePhoto) {
     : "Linked from image URL";
 }
 
+function renderUserMenuIcon(iconName) {
+  const icons = {
+    account: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 12a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" />
+        <path d="M5 19.25a7 7 0 0 1 14 0" />
+      </svg>
+    `,
+    security: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 3.75 6.75 6v4.35c0 4.11 2.34 7.94 6 9.9 3.66-1.96 6-5.79 6-9.9V6L12 3.75Z" />
+        <path d="M9.75 11.75 11.3 13.3l3.2-3.2" />
+      </svg>
+    `,
+    activity: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 12a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Z" />
+        <path d="M4.75 18.25a7.25 7.25 0 0 1 14.5 0" />
+        <path d="M18.5 9.5h2.75v6h-2.75" />
+        <path d="M20 12.5h-2" />
+      </svg>
+    `,
+    notifications: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 4.75a4.5 4.5 0 0 0-4.5 4.5v2.11c0 .72-.23 1.43-.66 2.01l-1.22 1.68a1 1 0 0 0 .81 1.59h11.14a1 1 0 0 0 .81-1.59l-1.22-1.68a3.5 3.5 0 0 1-.66-2.01V9.25a4.5 4.5 0 0 0-4.5-4.5Z" />
+        <path d="M10.25 18.25a1.75 1.75 0 0 0 3.5 0" />
+      </svg>
+    `,
+    language: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4.75 6.75h9.5" />
+        <path d="M9.5 6.75c0 4.25-1.9 7.67-5 9.5" />
+        <path d="M7 10.75c.74 1.63 1.93 3.1 3.5 4.25" />
+        <path d="M15.25 9.75h4" />
+        <path d="m17.25 9.75 2.75 7.5" />
+        <path d="m17.25 9.75-2.75 7.5" />
+        <path d="M15.75 14.75h3" />
+      </svg>
+    `,
+    api: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="3.75" y="6.75" width="16.5" height="10.5" rx="2.25" />
+        <path d="M7.5 10.5h1.5" />
+        <path d="M7.5 13.5h3" />
+        <path d="M12.5 13.5h4" />
+        <path d="M12.5 10.5h4.5" />
+      </svg>
+    `,
+    home: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4.75 10.25 12 4.75l7.25 5.5" />
+        <path d="M7.75 9.75v8.5h8.5v-8.5" />
+      </svg>
+    `,
+    settings: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" />
+        <path d="M4.75 13.25v-2.5l2.11-.55a5.72 5.72 0 0 1 .74-1.8L6.5 6.5l1.77-1.77 1.9 1.1c.57-.3 1.18-.54 1.83-.7l.5-2.13h2.5l.5 2.13c.65.16 1.26.4 1.83.7l1.9-1.1L19.5 6.5l-1.1 1.9c.31.57.56 1.18.72 1.82l2.13.53v2.5l-2.13.53a5.9 5.9 0 0 1-.72 1.82l1.1 1.9-1.77 1.77-1.9-1.1a5.8 5.8 0 0 1-1.83.7l-.5 2.13h-2.5l-.5-2.13a5.8 5.8 0 0 1-1.83-.7l-1.9 1.1L6.5 17.5l1.1-1.9a5.72 5.72 0 0 1-.74-1.8l-2.11-.55Z" />
+      </svg>
+    `,
+    eye: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M2.75 12s3.25-5.25 9.25-5.25S21.25 12 21.25 12s-3.25 5.25-9.25 5.25S2.75 12 2.75 12Z" />
+        <circle cx="12" cy="12" r="2.75" />
+      </svg>
+    `,
+    eyeOff: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M9.9 4.95A10.74 10.74 0 0 1 12 4.75c6 0 9.25 5.25 9.25 5.25a15.7 15.7 0 0 1-3.18 3.69" />
+        <path d="M6.62 6.62A15.43 15.43 0 0 0 2.75 12s3.25 5.25 9.25 5.25a10.8 10.8 0 0 0 5.38-1.45" />
+        <path d="m3.75 3.75 16.5 16.5" />
+      </svg>
+    `,
+    logout: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M10.25 5.75H8A2.25 2.25 0 0 0 5.75 8v8A2.25 2.25 0 0 0 8 18.25h2.25" />
+        <path d="M13 8.75 17.25 12 13 15.25" />
+        <path d="M17.25 12H9.75" />
+      </svg>
+    `,
+  };
+
+  return icons[iconName] || "";
+}
+
+function isValidEmailAddress(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function isValidPhoneNumber(value) {
+  return /^[0-9+\-\s()]{7,20}$/.test(String(value || "").trim());
+}
+
+function setAccountSettingsFeedback(node, message, state = "") {
+  if (!node) {
+    return;
+  }
+
+  node.textContent = message || "";
+  node.dataset.state = state || "";
+}
+
+function syncAccountPasswordToggle(button, input) {
+  if (!(button instanceof HTMLButtonElement) || !(input instanceof HTMLInputElement)) {
+    return;
+  }
+
+  const isVisible = input.type === "text";
+  button.innerHTML = renderUserMenuIcon(isVisible ? "eyeOff" : "eye");
+  button.setAttribute("aria-label", isVisible ? "Hide password" : "Show password");
+  button.setAttribute("aria-pressed", isVisible ? "true" : "false");
+}
+
 function buildProfileMenu(user) {
   if (!navbar) {
     return;
@@ -1365,28 +1478,38 @@ function buildProfileMenu(user) {
       ${renderAvatar(user.fullName, user.profilePhoto)}
     </button>
     <div class="user-panel">
-      <div class="user-panel-header">
-        <div class="user-avatar">${renderAvatar(user.fullName, user.profilePhoto)}</div>
-        <div>
-          <h3>${escapeHtml(user.fullName)}</h3>
-          <p>${escapeHtml(user.email)}</p>
+      <div class="user-panel-header user-panel-header--stack">
+        <h3>${escapeHtml(user.fullName)}</h3>
+        <p>${escapeHtml(user.email)}</p>
+      </div>
+      <div class="user-panel-menu">
+        <a class="user-menu-link" href="profile.html#accountMain">
+          <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
+          <span class="user-menu-link__label">Account Information</span>
+        </a>
+        <a class="user-menu-link user-menu-link--accent" href="profile.html#accountMain">
+          <span class="user-menu-link__icon">${renderUserMenuIcon("security")}</span>
+          <span class="user-menu-link__label">Security</span>
+        </a>
+        <a class="user-menu-link" href="orders.html#ordersMain">
+          <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
+          <span class="user-menu-link__label">Account Activity</span>
+        </a>
+        <div class="user-menu-link user-menu-link--static">
+          <span class="user-menu-link__icon">${renderUserMenuIcon("notifications")}</span>
+          <span class="user-menu-link__label">Notification settings</span>
+        </div>
+        <div class="user-menu-link user-menu-link--static">
+          <span class="user-menu-link__icon">${renderUserMenuIcon("language")}</span>
+          <span class="user-menu-link__label">Language</span>
+          <span class="user-menu-link__meta">English</span>
         </div>
       </div>
-      <div class="user-panel-body">
-        <div class="profile-item">
-          <span>Name</span>
-          <strong>${escapeHtml(user.fullName)}</strong>
-        </div>
-        <div class="profile-item">
-          <span>Phone</span>
-          <strong>${escapeHtml(user.phone || "Not added yet")}</strong>
-        </div>
-      </div>
-      <div class="user-panel-actions">
-        <a class="btn btn-secondary" href="profile.html">Profile</a>
-        <a class="btn btn-secondary" href="orders.html">Orders</a>
-        <a class="btn btn-secondary" href="cart.html">Cart</a>
-        <button class="btn btn-primary" type="button" id="logoutBtn">Logout</button>
+      <div class="user-panel-footer">
+        <button class="user-menu-link user-menu-link--logout" type="button" id="logoutBtn">
+          <span class="user-menu-link__icon">${renderUserMenuIcon("logout")}</span>
+          <span class="user-menu-link__label">Log out</span>
+        </button>
       </div>
     </div>
   `;
@@ -1540,50 +1663,586 @@ function renderProfilePage(user) {
   }
 
   profileRoot.innerHTML = `
-    <div class="profile-grid">
+    <div class="profile-grid account-page-grid">
       <aside class="profile-sidebar">
-        <article class="card profile-card-head">
-          <div class="profile-photo-frame">${renderAvatar(user.fullName, user.profilePhoto)}</div>
-          <div>
-            <h2>${escapeHtml(user.fullName)}</h2>
-            <p>${escapeHtml(user.email)}</p>
+        <article class="card profile-account-nav profile-account-nav--compact">
+          <nav class="profile-account-nav__menu" aria-label="Account menu">
+            <a class="user-menu-link user-menu-link--active" href="profile.html#accountMain">
+              <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
+              <span class="user-menu-link__label">Account Information</span>
+            </a>
+            <div class="user-menu-link user-menu-link--static user-menu-link--accent">
+              <span class="user-menu-link__icon">${renderUserMenuIcon("security")}</span>
+              <span class="user-menu-link__label">Security</span>
+            </div>
+            <a class="user-menu-link" href="orders.html#ordersMain">
+              <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
+              <span class="user-menu-link__label">Account Activity</span>
+            </a>
+            <div class="user-menu-link user-menu-link--static">
+              <span class="user-menu-link__icon">${renderUserMenuIcon("notifications")}</span>
+              <span class="user-menu-link__label">Notification settings</span>
+            </div>
+            <div class="user-menu-link user-menu-link--static">
+              <span class="user-menu-link__icon">${renderUserMenuIcon("api")}</span>
+              <span class="user-menu-link__label">API</span>
+            </div>
+          </nav>
+          <div class="profile-account-nav__footer">
+            <button class="user-menu-link user-menu-link--logout" type="button" data-profile-logout="true">
+              <span class="user-menu-link__icon">${renderUserMenuIcon("logout")}</span>
+              <span class="user-menu-link__label">Log out</span>
+            </button>
           </div>
-          <a href="cart.html" class="btn btn-secondary">Open Cart</a>
         </article>
       </aside>
-      <div class="profile-main">
-        <article class="card profile-section">
-          <h3>Account Details</h3>
-          <div class="profile-item">
-            <span>Full Name</span>
-            <strong>${escapeHtml(user.fullName)}</strong>
+      <div class="profile-main" id="accountMain">
+        <div class="account-page-header">
+          <h2>Account Information</h2>
+        </div>
+        <article class="card account-panel">
+          <div class="account-panel__header">
+            <span class="account-panel__icon">${renderUserMenuIcon("account")}</span>
+            <h3>Personal information</h3>
           </div>
-          <div class="profile-item">
-            <span>Email</span>
-            <strong>${escapeHtml(user.email)}</strong>
-          </div>
-          <div class="profile-item">
-            <span>Phone</span>
-            <strong>${escapeHtml(user.phone || "Not added yet")}</strong>
-          </div>
-          <div class="profile-item">
-            <span>Orders</span>
-            <strong><a href="orders.html">View your orders</a></strong>
+          <div class="account-panel__intro">The information provided below will reflect on your invoices.</div>
+          <div class="account-panel__body">
+            <button class="account-row account-row--action" type="button" data-account-settings-target="name" aria-expanded="false">
+              <span class="account-row__label">Name</span>
+              <strong class="account-row__value">${escapeHtml(user.fullName)}</strong>
+              <span class="account-row__chevron" aria-hidden="true">&#8250;</span>
+            </button>
+            <button class="account-row account-row--action" type="button" data-account-settings-target="country" aria-expanded="false">
+              <span class="account-row__label">Country</span>
+              <strong class="account-row__value">${escapeHtml(user.country || "IN")}</strong>
+              <span class="account-row__chevron" aria-hidden="true">&#8250;</span>
+            </button>
+            <button class="account-row account-row--action" type="button" data-account-settings-target="phone" aria-expanded="false">
+              <span class="account-row__label">Phone number</span>
+              <strong class="account-row__value">${escapeHtml(user.phone || "-")}</strong>
+              <span class="account-row__chevron" aria-hidden="true">&#8250;</span>
+            </button>
+            <div class="account-row">
+              <span class="account-row__label">Company</span>
+              <strong class="account-row__value">-</strong>
+              <span class="account-row__chevron" aria-hidden="true">&#8250;</span>
+            </div>
+            <div class="account-row account-row--static">
+              <span class="account-row__label">Account currency <span class="account-row__hint">i</span></span>
+              <strong class="account-row__value">INR</strong>
+            </div>
           </div>
         </article>
-        <article class="card profile-section">
-          <h3>Profile Photo</h3>
-          <p>${user.profilePhoto ? "This image is shown in your site header and profile card." : "No profile photo was added during registration yet."}</p>
-          ${
-            user.profilePhoto
-              ? `<div class="profile-item"><span>Photo Source</span><strong>${escapeHtml(getPhotoSourceLabel(user.profilePhoto))}</strong></div>`
-              : ""
-          }
+        <article class="card account-panel">
+          <div class="account-panel__header">
+            <span class="account-panel__icon">${renderUserMenuIcon("settings")}</span>
+            <h3>Account settings</h3>
+          </div>
+          <div class="account-panel__body account-panel__body--stack">
+            <div class="account-settings-list" role="list">
+              <button class="account-row account-row--action" type="button" data-account-settings-target="email" aria-expanded="false">
+                <span class="account-row__label">Email</span>
+                <strong class="account-row__value">${escapeHtml(user.email)}</strong>
+                <span class="account-row__chevron" aria-hidden="true">&#8250;</span>
+              </button>
+              <button class="account-row account-row--action" type="button" data-account-settings-target="password" aria-expanded="false">
+                <span class="account-row__label">Manage password</span>
+                <strong class="account-row__value">Change password</strong>
+                <span class="account-row__chevron" aria-hidden="true">&#8250;</span>
+              </button>
+            </div>
+          </div>
         </article>
+        <div class="account-modal" id="accountNameModal" hidden>
+          <div class="account-modal__backdrop" data-account-modal-close="name"></div>
+          <div class="account-modal__dialog">
+            <form class="account-settings-form account-settings-form--modal" id="accountNameForm">
+              <div class="account-settings-form__head account-settings-form__head--modal">
+                <h4>Change name</h4>
+                <p>Update the name shown across your DigitQuo account and billing details.</p>
+              </div>
+              <label class="account-settings-field account-settings-field--modal" for="accountNameInput">
+                <span>Full name</span>
+                <input
+                  id="accountNameInput"
+                  name="fullName"
+                  type="text"
+                  value="${escapeHtml(user.fullName)}"
+                  autocomplete="name"
+                  required
+                />
+              </label>
+              <p class="account-settings-feedback" id="accountNameFeedback"></p>
+              <div class="account-settings-actions account-settings-actions--modal">
+                <button class="btn account-settings-cancel" type="button" data-account-modal-close="name">Cancel</button>
+                <button class="btn btn-primary" type="submit">Continue</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="account-modal" id="accountCountryModal" hidden>
+          <div class="account-modal__backdrop" data-account-modal-close="country"></div>
+          <div class="account-modal__dialog">
+            <form class="account-settings-form account-settings-form--modal" id="accountCountryForm">
+              <div class="account-settings-form__head account-settings-form__head--modal">
+                <h4>Change country</h4>
+                <p>Update the country value shown in your personal information and account details.</p>
+              </div>
+              <label class="account-settings-field account-settings-field--modal" for="accountCountryInput">
+                <span>Country</span>
+                <input
+                  id="accountCountryInput"
+                  name="country"
+                  type="text"
+                  value="${escapeHtml(user.country || "IN")}"
+                  autocomplete="country-name"
+                  required
+                />
+              </label>
+              <p class="account-settings-feedback" id="accountCountryFeedback"></p>
+              <div class="account-settings-actions account-settings-actions--modal">
+                <button class="btn account-settings-cancel" type="button" data-account-modal-close="country">Cancel</button>
+                <button class="btn btn-primary" type="submit">Continue</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="account-modal" id="accountPhoneModal" hidden>
+          <div class="account-modal__backdrop" data-account-modal-close="phone"></div>
+          <div class="account-modal__dialog">
+            <form class="account-settings-form account-settings-form--modal" id="accountPhoneForm">
+              <div class="account-settings-form__head account-settings-form__head--modal">
+                <h4>Change phone number</h4>
+                <p>Update the phone number used for account communication and project contact.</p>
+              </div>
+              <label class="account-settings-field account-settings-field--modal" for="accountPhoneInput">
+                <span>Phone number</span>
+                <input
+                  id="accountPhoneInput"
+                  name="phone"
+                  type="tel"
+                  value="${escapeHtml(user.phone || "")}"
+                  autocomplete="tel"
+                  required
+                />
+              </label>
+              <p class="account-settings-feedback" id="accountPhoneFeedback"></p>
+              <div class="account-settings-actions account-settings-actions--modal">
+                <button class="btn account-settings-cancel" type="button" data-account-modal-close="phone">Cancel</button>
+                <button class="btn btn-primary" type="submit">Continue</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="account-modal" id="accountEmailModal" hidden>
+          <div class="account-modal__backdrop" data-account-modal-close="email"></div>
+          <div class="account-modal__dialog">
+            <form class="account-settings-form account-settings-form--modal" id="accountEmailForm">
+              <div class="account-settings-form__head account-settings-form__head--modal">
+                <h4>Change email address</h4>
+                <p>Enter a new email address for your account. You may receive a verification email to finalize the change.</p>
+              </div>
+              <label class="account-settings-field account-settings-field--modal" for="accountEmailInput">
+                <span>New email</span>
+                <input
+                  id="accountEmailInput"
+                  name="accountEmail"
+                  type="email"
+                  value="${escapeHtml(user.email)}"
+                  autocomplete="email"
+                  required
+                />
+              </label>
+              <p class="account-settings-feedback" id="accountEmailFeedback"></p>
+              <div class="account-settings-actions account-settings-actions--modal">
+                <button class="btn account-settings-cancel" type="button" data-account-modal-close="email">Cancel</button>
+                <button class="btn btn-primary" type="submit">Continue</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="account-modal" id="accountPasswordModal" hidden>
+          <div class="account-modal__backdrop" data-account-modal-close="password"></div>
+          <div class="account-modal__dialog">
+            <form class="account-settings-form account-settings-form--modal" id="accountPasswordForm">
+              <div class="account-settings-form__head account-settings-form__head--modal">
+                <h4>Set New Password</h4>
+                <p>To ensure maximum security for your account, set a new password for your login.</p>
+              </div>
+              <label class="account-settings-field account-settings-field--modal" for="accountPasswordEmail">
+                <span>Email</span>
+                <input
+                  id="accountPasswordEmail"
+                  type="email"
+                  value="${escapeHtml(user.email)}"
+                  autocomplete="email"
+                  readonly
+                />
+              </label>
+              <label class="account-settings-field account-settings-field--modal" for="accountPasswordInput">
+                <span>New password</span>
+                <span class="account-password-field">
+                  <input
+                    id="accountPasswordInput"
+                    name="newPassword"
+                    type="password"
+                    minlength="8"
+                    autocomplete="new-password"
+                    required
+                  />
+                  <button class="account-password-toggle" type="button" data-account-password-toggle="accountPasswordInput" aria-label="Show password" aria-pressed="false"></button>
+                </span>
+              </label>
+              <label class="account-settings-field account-settings-field--modal" for="accountPasswordConfirmInput">
+                <span>Confirm password</span>
+                <span class="account-password-field">
+                  <input
+                    id="accountPasswordConfirmInput"
+                    name="confirmPassword"
+                    type="password"
+                    minlength="8"
+                    autocomplete="new-password"
+                    required
+                  />
+                  <button class="account-password-toggle" type="button" data-account-password-toggle="accountPasswordConfirmInput" aria-label="Show password" aria-pressed="false"></button>
+                </span>
+              </label>
+              <p class="account-settings-feedback account-settings-feedback--modal" id="accountPasswordFeedback"></p>
+              <div class="account-settings-actions account-settings-actions--modal">
+                <button class="btn account-settings-cancel" type="button" data-account-modal-close="password">Cancel</button>
+                <button class="btn btn-primary" type="submit">Confirm</button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   `;
   applyImageFallbacks(profileRoot);
+
+  const logoutButton = profileRoot.querySelector("[data-profile-logout='true']");
+  logoutButton?.addEventListener("click", async () => {
+    try {
+      if (dqAuth && dqAuth.isConfigured()) {
+        await dqAuth.signOut();
+      }
+    } finally {
+      window.location.href = "login.html";
+    }
+  });
+
+  const emailForm = profileRoot.querySelector("#accountEmailForm");
+  const nameForm = profileRoot.querySelector("#accountNameForm");
+  const countryForm = profileRoot.querySelector("#accountCountryForm");
+  const phoneForm = profileRoot.querySelector("#accountPhoneForm");
+  const nameFeedback = profileRoot.querySelector("#accountNameFeedback");
+  const countryFeedback = profileRoot.querySelector("#accountCountryFeedback");
+  const phoneFeedback = profileRoot.querySelector("#accountPhoneFeedback");
+  const emailFeedback = profileRoot.querySelector("#accountEmailFeedback");
+  const settingsTriggers = Array.from(profileRoot.querySelectorAll("[data-account-settings-target]"));
+  const nameModal = profileRoot.querySelector("#accountNameModal");
+  const countryModal = profileRoot.querySelector("#accountCountryModal");
+  const phoneModal = profileRoot.querySelector("#accountPhoneModal");
+  const emailModal = profileRoot.querySelector("#accountEmailModal");
+  const passwordModal = profileRoot.querySelector("#accountPasswordModal");
+  const closeButtons = Array.from(profileRoot.querySelectorAll("[data-account-modal-close]"));
+  const passwordToggles = Array.from(profileRoot.querySelectorAll("[data-account-password-toggle]"));
+
+  function getAccountModalByTarget(target) {
+    if (target === "name") {
+      return nameModal;
+    }
+    if (target === "country") {
+      return countryModal;
+    }
+    if (target === "phone") {
+      return phoneModal;
+    }
+    if (target === "password") {
+      return passwordModal;
+    }
+    return emailModal;
+  }
+
+  function closeAccountModal(target) {
+    const modal = getAccountModalByTarget(target);
+    if (modal instanceof HTMLElement) {
+      modal.hidden = true;
+    }
+    const trigger = profileRoot.querySelector(`[data-account-settings-target="${target}"]`);
+    if (trigger instanceof HTMLElement) {
+      trigger.classList.remove("is-active");
+      trigger.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  function openAccountModal(target) {
+    closeAccountModal("name");
+    closeAccountModal("country");
+    closeAccountModal("phone");
+    closeAccountModal("email");
+    closeAccountModal("password");
+    const modal = getAccountModalByTarget(target);
+    const trigger = profileRoot.querySelector(`[data-account-settings-target="${target}"]`);
+    if (modal instanceof HTMLElement) {
+      modal.hidden = false;
+    }
+    if (trigger instanceof HTMLElement) {
+      trigger.classList.add("is-active");
+      trigger.setAttribute("aria-expanded", "true");
+    }
+  }
+
+  settingsTriggers.forEach((trigger) => {
+    trigger.addEventListener("click", () => {
+      const target = trigger.getAttribute("data-account-settings-target") || "";
+      if (!target) {
+        return;
+      }
+      openAccountModal(target);
+    });
+  });
+
+  closeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = button.getAttribute("data-account-modal-close") || "email";
+      closeAccountModal(target);
+    });
+  });
+
+  passwordToggles.forEach((button) => {
+    const targetId = button.getAttribute("data-account-password-toggle");
+    const input = targetId ? profileRoot.querySelector(`#${targetId}`) : null;
+    if (!(input instanceof HTMLInputElement)) {
+      return;
+    }
+    syncAccountPasswordToggle(button, input);
+    button.addEventListener("click", () => {
+      input.type = input.type === "password" ? "text" : "password";
+      syncAccountPasswordToggle(button, input);
+    });
+  });
+
+  nameForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const nameInput = nameForm.elements.namedItem("fullName");
+    const nextName = String(nameInput?.value || "").trim();
+    setAccountSettingsFeedback(nameFeedback, "");
+
+    if (!nextName) {
+      setAccountSettingsFeedback(nameFeedback, "Enter your full name.", "error");
+      return;
+    }
+
+    const submitButton = nameForm.querySelector("button[type='submit']");
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.disabled = true;
+    }
+
+    try {
+      const client = await dqAuth.getClient();
+      const { error: authError } = await client.auth.updateUser({
+        data: {
+          full_name: nextName,
+          phone: user.phone || "",
+          country: user.country || "",
+        },
+      });
+      if (authError) {
+        throw authError;
+      }
+
+      setAccountSettingsFeedback(nameFeedback, "Name updated successfully.", "success");
+      await initAuthUi();
+    } catch (error) {
+      setAccountSettingsFeedback(nameFeedback, error.message || "Could not update name.", "error");
+    } finally {
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = false;
+      }
+    }
+  });
+
+  countryForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const countryInput = countryForm.elements.namedItem("country");
+    const nextCountry = String(countryInput?.value || "").trim();
+    setAccountSettingsFeedback(countryFeedback, "");
+
+    if (!nextCountry) {
+      setAccountSettingsFeedback(countryFeedback, "Enter a country.", "error");
+      return;
+    }
+
+    const submitButton = countryForm.querySelector("button[type='submit']");
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.disabled = true;
+    }
+
+    try {
+      const client = await dqAuth.getClient();
+      const { error } = await client.auth.updateUser({
+        data: {
+          full_name: user.fullName || "",
+          phone: user.phone || "",
+          country: nextCountry,
+        },
+      });
+      if (error) {
+        throw error;
+      }
+
+      setAccountSettingsFeedback(countryFeedback, "Country updated successfully.", "success");
+      await initAuthUi();
+    } catch (error) {
+      setAccountSettingsFeedback(countryFeedback, error.message || "Could not update country.", "error");
+    } finally {
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = false;
+      }
+    }
+  });
+
+  phoneForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const phoneInput = phoneForm.elements.namedItem("phone");
+    const nextPhone = String(phoneInput?.value || "").trim();
+    setAccountSettingsFeedback(phoneFeedback, "");
+
+    if (!isValidPhoneNumber(nextPhone)) {
+      setAccountSettingsFeedback(phoneFeedback, "Enter a valid phone number.", "error");
+      return;
+    }
+
+    const submitButton = phoneForm.querySelector("button[type='submit']");
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.disabled = true;
+    }
+
+    try {
+      const client = await dqAuth.getClient();
+      const { error: authError } = await client.auth.updateUser({
+        data: {
+          full_name: user.fullName || "",
+          phone: nextPhone,
+          country: user.country || "",
+        },
+      });
+      if (authError) {
+        throw authError;
+      }
+
+      setAccountSettingsFeedback(phoneFeedback, "Phone number updated successfully.", "success");
+      await initAuthUi();
+    } catch (error) {
+      setAccountSettingsFeedback(phoneFeedback, error.message || "Could not update phone number.", "error");
+    } finally {
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = false;
+      }
+    }
+  });
+
+  emailForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const emailInput = emailForm.elements.namedItem("accountEmail");
+    const nextEmail = String(emailInput?.value || "").trim().toLowerCase();
+    setAccountSettingsFeedback(emailFeedback, "");
+
+    if (!isValidEmailAddress(nextEmail)) {
+      setAccountSettingsFeedback(emailFeedback, "Enter a valid email address.", "error");
+      return;
+    }
+
+    if (nextEmail === String(user.email || "").trim().toLowerCase()) {
+      setAccountSettingsFeedback(emailFeedback, "Enter a different email address to update it.", "error");
+      return;
+    }
+
+    const submitButton = emailForm.querySelector("button[type='submit']");
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.disabled = true;
+    }
+
+    try {
+      const client = await dqAuth.getClient();
+      const { error } = await client.auth.updateUser({ email: nextEmail });
+      if (error) {
+        throw error;
+      }
+      setAccountSettingsFeedback(
+        emailFeedback,
+        "Verification email sent to your new address. Open the email and confirm the change.",
+        "success"
+      );
+    } catch (error) {
+      setAccountSettingsFeedback(emailFeedback, error.message || "Could not update email.", "error");
+    } finally {
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = false;
+      }
+    }
+  });
+
+  const passwordForm = profileRoot.querySelector("#accountPasswordForm");
+  const passwordFeedback = profileRoot.querySelector("#accountPasswordFeedback");
+  passwordForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const newPasswordInput = passwordForm.elements.namedItem("newPassword");
+    const confirmPasswordInput = passwordForm.elements.namedItem("confirmPassword");
+    const newPassword = String(newPasswordInput?.value || "");
+    const confirmPassword = String(confirmPasswordInput?.value || "");
+    setAccountSettingsFeedback(passwordFeedback, "");
+
+    if (newPassword.length < 8) {
+      setAccountSettingsFeedback(passwordFeedback, "Use a password with at least 8 characters.", "error");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setAccountSettingsFeedback(passwordFeedback, "Passwords do not match.", "error");
+      return;
+    }
+
+    const submitButton = passwordForm.querySelector("button[type='submit']");
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.disabled = true;
+    }
+
+    try {
+      const client = await dqAuth.getClient();
+      const { error } = await client.auth.updateUser({ password: newPassword });
+      if (error) {
+        throw error;
+      }
+
+      passwordForm.reset();
+      setAccountSettingsFeedback(passwordFeedback, "Password updated successfully.", "success");
+      passwordToggles.forEach((button) => {
+        const targetId = button.getAttribute("data-account-password-toggle");
+        const input = targetId ? profileRoot.querySelector(`#${targetId}`) : null;
+        if (input instanceof HTMLInputElement) {
+          input.type = "password";
+          syncAccountPasswordToggle(button, input);
+        }
+      });
+    } catch (error) {
+      setAccountSettingsFeedback(passwordFeedback, error.message || "Could not update password.", "error");
+    } finally {
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = false;
+      }
+    }
+  });
+
+  if (window.location.hash === "#accountMain") {
+    profileRoot.querySelector("#accountMain")?.scrollIntoView({ block: "start" });
+  }
 }
 
 async function renderOrdersPage(user) {
@@ -1594,21 +2253,64 @@ async function renderOrdersPage(user) {
 
   if (!user) {
     ordersRoot.innerHTML = `
-      <article class="card cart-empty">
-        <h2>Please log in</h2>
-        <p>You need to sign in before viewing your orders.</p>
-        <a href="login.html" class="btn btn-primary">Go to Login</a>
-      </article>
+      <div class="profile-grid account-page-grid">
+        <div class="profile-main">
+          <article class="card cart-empty">
+            <h2>Please log in</h2>
+            <p>You need to sign in before viewing your orders.</p>
+            <a href="login.html" class="btn btn-primary">Go to Login</a>
+          </article>
+        </div>
+      </div>
     `;
     return;
   }
 
   if (!dqAuth || !dqAuth.isConfigured()) {
     ordersRoot.innerHTML = `
-      <article class="card cart-empty">
-        <h2>Orders unavailable</h2>
-        <p>Supabase is not configured correctly.</p>
-      </article>
+      <div class="profile-grid account-page-grid">
+        <aside class="profile-sidebar">
+          <article class="card profile-account-nav profile-account-nav--compact">
+            <nav class="profile-account-nav__menu" aria-label="Account menu">
+              <a class="user-menu-link" href="profile.html#accountMain">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
+                <span class="user-menu-link__label">Account Information</span>
+              </a>
+              <div class="user-menu-link user-menu-link--static user-menu-link--accent">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("security")}</span>
+                <span class="user-menu-link__label">Security</span>
+              </div>
+              <a class="user-menu-link user-menu-link--active" href="orders.html#ordersMain">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
+                <span class="user-menu-link__label">Account Activity</span>
+              </a>
+              <div class="user-menu-link user-menu-link--static">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("notifications")}</span>
+                <span class="user-menu-link__label">Notification settings</span>
+              </div>
+              <div class="user-menu-link user-menu-link--static">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("api")}</span>
+                <span class="user-menu-link__label">API</span>
+              </div>
+            </nav>
+            <div class="profile-account-nav__footer">
+              <button class="user-menu-link user-menu-link--logout" type="button" data-profile-logout="true">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("logout")}</span>
+                <span class="user-menu-link__label">Log out</span>
+              </button>
+            </div>
+          </article>
+        </aside>
+        <div class="profile-main" id="ordersMain">
+          <div class="account-page-header">
+            <h2>Account Activity</h2>
+          </div>
+          <article class="card cart-empty">
+            <h2>Orders unavailable</h2>
+            <p>Supabase is not configured correctly.</p>
+          </article>
+        </div>
+      </div>
     `;
     return;
   }
@@ -1629,68 +2331,224 @@ async function renderOrdersPage(user) {
 
     if (!orders.length) {
       ordersRoot.innerHTML = `
-        <article class="card cart-empty">
-          <h2>No orders yet</h2>
-          <p>${escapeHtml(user.fullName)}, your purchased plans will appear here after checkout.</p>
-          <a href="pricing.html" class="btn btn-primary">Browse Pricing</a>
-        </article>
+        <div class="profile-grid account-page-grid">
+          <aside class="profile-sidebar">
+            <article class="card profile-account-nav profile-account-nav--compact">
+              <nav class="profile-account-nav__menu" aria-label="Account menu">
+                <a class="user-menu-link" href="profile.html#accountMain">
+                  <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
+                  <span class="user-menu-link__label">Account Information</span>
+                </a>
+                <div class="user-menu-link user-menu-link--static user-menu-link--accent">
+                  <span class="user-menu-link__icon">${renderUserMenuIcon("security")}</span>
+                  <span class="user-menu-link__label">Security</span>
+                </div>
+                <a class="user-menu-link user-menu-link--active" href="orders.html#ordersMain">
+                  <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
+                  <span class="user-menu-link__label">Account Activity</span>
+                </a>
+                <div class="user-menu-link user-menu-link--static">
+                  <span class="user-menu-link__icon">${renderUserMenuIcon("notifications")}</span>
+                  <span class="user-menu-link__label">Notification settings</span>
+                </div>
+                <div class="user-menu-link user-menu-link--static">
+                  <span class="user-menu-link__icon">${renderUserMenuIcon("api")}</span>
+                  <span class="user-menu-link__label">API</span>
+                </div>
+              </nav>
+              <div class="profile-account-nav__footer">
+                <button class="user-menu-link user-menu-link--logout" type="button" data-profile-logout="true">
+                  <span class="user-menu-link__icon">${renderUserMenuIcon("logout")}</span>
+                  <span class="user-menu-link__label">Log out</span>
+                </button>
+              </div>
+            </article>
+          </aside>
+          <div class="profile-main" id="ordersMain">
+            <div class="account-page-header">
+              <h2>Account Activity</h2>
+            </div>
+            <article class="card cart-empty">
+              <h2>No orders yet</h2>
+              <p>${escapeHtml(user.fullName)}, your purchased plans will appear here after checkout.</p>
+              <a href="pricing.html" class="btn btn-primary">Browse Pricing</a>
+            </article>
+          </div>
+        </div>
       `;
+      const logoutButton = ordersRoot.querySelector("[data-profile-logout='true']");
+      logoutButton?.addEventListener("click", async () => {
+        try {
+          if (dqAuth && dqAuth.isConfigured()) {
+            await dqAuth.signOut();
+          }
+        } finally {
+          window.location.href = "login.html";
+        }
+      });
+      if (window.location.hash === "#ordersMain") {
+        ordersRoot.querySelector("#ordersMain")?.scrollIntoView({ block: "start" });
+      }
       return;
     }
 
     ordersRoot.innerHTML = `
-      <div class="orders-list">
-        ${orders
-          .map((order) => {
-            const title = order.projects?.project_name || order.projects?.template_id || "Website Plan";
-            const createdAt = order.created_at ? new Date(order.created_at).toLocaleString() : "Unknown date";
-            return `
-              <article class="card order-card">
-                <div class="order-card-top">
-                  <div>
-                    <h3>${escapeHtml(title)}</h3>
-                    <p class="order-id">Order #${escapeHtml(String(order.id || "").slice(0, 8))}</p>
-                  </div>
-                  <div class="order-badges">
-                    <span class="${getOrderStatusClass(order.status)}">${escapeHtml(getOrderStatusLabel(order.status))}</span>
-                    <span class="${getPaymentStatusClass(order.payment_status)}">Payment: ${escapeHtml(getPaymentStatusLabel(order.payment_status))}</span>
-                  </div>
-                </div>
-                <div class="order-card-grid">
-                  <div class="order-card-item">
-                    <span>Total</span>
-                    <strong>${formatInr(order.final_amount || 0)}</strong>
-                  </div>
-                  <div class="order-card-item">
-                    <span>Original Amount</span>
-                    <strong>${formatInr(order.amount || 0)}</strong>
-                  </div>
-                  <div class="order-card-item">
-                    <span>Discount</span>
-                    <strong>${formatInr(order.discount_amount || 0)}</strong>
-                  </div>
-                  <div class="order-card-item">
-                    <span>Purchased On</span>
-                    <strong>${escapeHtml(createdAt)}</strong>
-                  </div>
-                  <div class="order-card-item">
-                    <span>Payment</span>
-                    <strong>${escapeHtml(getPaymentStatusLabel(order.payment_status))}</strong>
-                  </div>
-                </div>
-              </article>
-            `;
-          })
-          .join("")}
+      <div class="profile-grid account-page-grid">
+        <aside class="profile-sidebar">
+          <article class="card profile-account-nav profile-account-nav--compact">
+            <nav class="profile-account-nav__menu" aria-label="Account menu">
+              <a class="user-menu-link" href="profile.html#accountMain">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
+                <span class="user-menu-link__label">Account Information</span>
+              </a>
+              <div class="user-menu-link user-menu-link--static user-menu-link--accent">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("security")}</span>
+                <span class="user-menu-link__label">Security</span>
+              </div>
+              <a class="user-menu-link user-menu-link--active" href="orders.html#ordersMain">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
+                <span class="user-menu-link__label">Account Activity</span>
+              </a>
+              <div class="user-menu-link user-menu-link--static">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("notifications")}</span>
+                <span class="user-menu-link__label">Notification settings</span>
+              </div>
+              <div class="user-menu-link user-menu-link--static">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("api")}</span>
+                <span class="user-menu-link__label">API</span>
+              </div>
+            </nav>
+            <div class="profile-account-nav__footer">
+              <button class="user-menu-link user-menu-link--logout" type="button" data-profile-logout="true">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("logout")}</span>
+                <span class="user-menu-link__label">Log out</span>
+              </button>
+            </div>
+          </article>
+        </aside>
+        <div class="profile-main" id="ordersMain">
+          <div class="account-page-header">
+            <h2>Account Activity</h2>
+          </div>
+          <div class="orders-list">
+            ${orders
+              .map((order) => {
+                const title = order.projects?.project_name || order.projects?.template_id || "Website Plan";
+                const createdAt = order.created_at ? new Date(order.created_at).toLocaleString() : "Unknown date";
+                return `
+                  <article class="card order-card">
+                    <div class="order-card-top">
+                      <div>
+                        <h3>${escapeHtml(title)}</h3>
+                        <p class="order-id">Order #${escapeHtml(String(order.id || "").slice(0, 8))}</p>
+                      </div>
+                      <div class="order-badges">
+                        <span class="${getOrderStatusClass(order.status)}">${escapeHtml(getOrderStatusLabel(order.status))}</span>
+                        <span class="${getPaymentStatusClass(order.payment_status)}">Payment: ${escapeHtml(getPaymentStatusLabel(order.payment_status))}</span>
+                      </div>
+                    </div>
+                    <div class="order-card-grid">
+                      <div class="order-card-item">
+                        <span>Total</span>
+                        <strong>${formatInr(order.final_amount || 0)}</strong>
+                      </div>
+                      <div class="order-card-item">
+                        <span>Original Amount</span>
+                        <strong>${formatInr(order.amount || 0)}</strong>
+                      </div>
+                      <div class="order-card-item">
+                        <span>Discount</span>
+                        <strong>${formatInr(order.discount_amount || 0)}</strong>
+                      </div>
+                      <div class="order-card-item">
+                        <span>Purchased On</span>
+                        <strong>${escapeHtml(createdAt)}</strong>
+                      </div>
+                      <div class="order-card-item">
+                        <span>Payment</span>
+                        <strong>${escapeHtml(getPaymentStatusLabel(order.payment_status))}</strong>
+                      </div>
+                    </div>
+                  </article>
+                `;
+              })
+              .join("")}
+          </div>
+        </div>
       </div>
     `;
+    const logoutButton = ordersRoot.querySelector("[data-profile-logout='true']");
+    logoutButton?.addEventListener("click", async () => {
+      try {
+        if (dqAuth && dqAuth.isConfigured()) {
+          await dqAuth.signOut();
+        }
+      } finally {
+        window.location.href = "login.html";
+      }
+    });
+    if (window.location.hash === "#ordersMain") {
+      ordersRoot.querySelector("#ordersMain")?.scrollIntoView({ block: "start" });
+    }
   } catch (error) {
     ordersRoot.innerHTML = `
-      <article class="card cart-empty">
-        <h2>Could not load orders</h2>
-        <p>${escapeHtml(error.message || "Unknown error")}</p>
-      </article>
+      <div class="profile-grid account-page-grid">
+        <aside class="profile-sidebar">
+          <article class="card profile-account-nav profile-account-nav--compact">
+            <nav class="profile-account-nav__menu" aria-label="Account menu">
+              <a class="user-menu-link" href="profile.html#accountMain">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("account")}</span>
+                <span class="user-menu-link__label">Account Information</span>
+              </a>
+              <div class="user-menu-link user-menu-link--static user-menu-link--accent">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("security")}</span>
+                <span class="user-menu-link__label">Security</span>
+              </div>
+              <a class="user-menu-link user-menu-link--active" href="orders.html#ordersMain">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("activity")}</span>
+                <span class="user-menu-link__label">Account Activity</span>
+              </a>
+              <div class="user-menu-link user-menu-link--static">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("notifications")}</span>
+                <span class="user-menu-link__label">Notification settings</span>
+              </div>
+              <div class="user-menu-link user-menu-link--static">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("api")}</span>
+                <span class="user-menu-link__label">API</span>
+              </div>
+            </nav>
+            <div class="profile-account-nav__footer">
+              <button class="user-menu-link user-menu-link--logout" type="button" data-profile-logout="true">
+                <span class="user-menu-link__icon">${renderUserMenuIcon("logout")}</span>
+                <span class="user-menu-link__label">Log out</span>
+              </button>
+            </div>
+          </article>
+        </aside>
+        <div class="profile-main" id="ordersMain">
+          <div class="account-page-header">
+            <h2>Account Activity</h2>
+          </div>
+          <article class="card cart-empty">
+            <h2>Could not load orders</h2>
+            <p>${escapeHtml(error.message || "Unknown error")}</p>
+          </article>
+        </div>
+      </div>
     `;
+    const logoutButton = ordersRoot.querySelector("[data-profile-logout='true']");
+    logoutButton?.addEventListener("click", async () => {
+      try {
+        if (dqAuth && dqAuth.isConfigured()) {
+          await dqAuth.signOut();
+        }
+      } finally {
+        window.location.href = "login.html";
+      }
+    });
+    if (window.location.hash === "#ordersMain") {
+      ordersRoot.querySelector("#ordersMain")?.scrollIntoView({ block: "start" });
+    }
   }
 }
 
@@ -2534,9 +3392,10 @@ function mergeUserAndProfile(user, profile) {
 
   return {
     id: profile?.id || user?.id || "",
-    email: profile?.email || user?.email || "",
+    email: user?.email || profile?.email || "",
     fullName: profile?.full_name || user?.fullName || user?.email || "User",
     phone: profile?.phone || user?.phone || "",
+    country: profile?.country || user?.country || user?.address || "",
     profilePhoto: profile?.profile_photo || user?.profilePhoto || "",
     role: profile?.role || "",
     subscriptionPlan: profile?.subscription_plan || "",
