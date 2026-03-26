@@ -12,10 +12,6 @@ const planRequirementsRoot = document.getElementById("planRequirementsRoot");
 const quoteRequestRoot = document.getElementById("quoteRequestRoot");
 const customPlanRoot = document.getElementById("customPlanRoot");
 const customPlanForm = document.getElementById("customPlanForm");
-const googleReviewTrack = document.getElementById("googleReviewTrack");
-const googleReviewAverage = document.getElementById("googleReviewAverage");
-const googleReviewStars = document.getElementById("googleReviewStars");
-const googleReviewCountText = document.getElementById("googleReviewCountText");
 const CART_STORAGE_KEY = "dq_cart_items";
 const SELECTED_PLAN_STORAGE_KEY = "dq_selected_plan";
 const PLAN_COUPONS_STORAGE_KEY = "dq_plan_coupons";
@@ -376,184 +372,6 @@ function formatInr(value) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
-}
-
-function renderStarMarkup(rating) {
-  const safeRating = Math.max(0, Math.min(5, Number(rating || 0)));
-  const fullStars = Math.floor(safeRating);
-  const hasHalfStar = safeRating - fullStars >= 0.25 && safeRating - fullStars < 0.75;
-  const roundedUp = safeRating - fullStars >= 0.75 ? 1 : 0;
-  const totalFullStars = Math.min(5, fullStars + roundedUp);
-  const stars = [];
-
-  for (let index = 1; index <= 5; index += 1) {
-    if (index <= totalFullStars) {
-      stars.push('<span class="star full">&#9733;</span>');
-    } else if (hasHalfStar && index === totalFullStars + 1) {
-      stars.push('<span class="star half">&#9733;</span>');
-    } else {
-      stars.push('<span class="star empty">&#9733;</span>');
-    }
-  }
-
-  return stars.join("");
-}
-
-function sanitizeExternalUrl(value) {
-  try {
-    const url = new URL(String(value || "").trim(), window.location.origin);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
-  } catch {
-    return "";
-  }
-}
-
-function getAuthorInitials(name) {
-  return String(name || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("") || "G";
-}
-
-function updateGoogleReviewSummary(payload) {
-  const rating = Number(payload?.rating || 0);
-  const count = Number(payload?.userRatingCount || 0);
-
-  if (googleReviewAverage) {
-    googleReviewAverage.textContent = rating > 0 ? `${rating.toFixed(1)} out of 5` : "Google Reviews";
-  }
-
-  if (googleReviewStars) {
-    googleReviewStars.innerHTML = renderStarMarkup(rating);
-  }
-
-  if (googleReviewCountText) {
-    googleReviewCountText.textContent =
-      rating > 0 && count > 0 ? `${count.toLocaleString("en-IN")} ratings on Google` : "Verified platform feedback";
-  }
-}
-
-function createGoogleReviewCard(review) {
-  const card = document.createElement("article");
-  card.className = "card google-review-card";
-
-  const authorName = String(review?.authorName || "Google user").trim() || "Google user";
-  const authorPhotoUri = sanitizeExternalUrl(review?.authorPhotoUri);
-  const authorUri = sanitizeExternalUrl(review?.authorUri);
-  const googleMapsUri = sanitizeExternalUrl(review?.googleMapsUri);
-  const relativeTime = String(review?.relativeTime || "").trim() || "Google review";
-  const rating = Number(review?.rating || 0);
-  const reviewText = String(review?.text || "").trim() || "No review text available.";
-  const initials = getAuthorInitials(authorName);
-  const authorMarkup = authorUri
-    ? `<a href="${escapeHtml(authorUri)}" target="_blank" rel="noopener noreferrer">${escapeHtml(authorName)}</a>`
-    : escapeHtml(authorName);
-
-  card.innerHTML = `
-    <div class="google-review-card-top">
-      <div class="google-review-avatar" aria-hidden="true">${authorPhotoUri ? `<img src="${escapeHtml(authorPhotoUri)}" alt="" />` : escapeHtml(initials)}</div>
-      <div class="google-review-author">
-        <h3>${authorMarkup}</h3>
-        <span>Google reviewer</span>
-      </div>
-    </div>
-    <div class="google-review-card-meta">
-      <span class="google-review-source">Google</span>
-      <span class="google-review-time">${escapeHtml(relativeTime)}</span>
-    </div>
-    <div class="stars rating-stars" aria-label="${escapeHtml(String(rating))} out of 5 stars">${renderStarMarkup(rating)}</div>
-    <p class="google-review-copy">${escapeHtml(reviewText)}</p>
-    ${googleMapsUri ? `<a class="google-review-link" href="${escapeHtml(googleMapsUri)}" target="_blank" rel="noopener noreferrer">Read on Google</a>` : ""}
-  `;
-
-  return card;
-}
-
-function renderGoogleReviewStatus(message) {
-  if (!googleReviewTrack) {
-    return;
-  }
-
-  googleReviewTrack.innerHTML = `
-    <article class="card google-review-card google-review-card--status">
-      <p class="google-review-status">${escapeHtml(message)}</p>
-    </article>
-  `;
-}
-
-async function fetchGoogleReviewsFeed() {
-  const response = await fetch("/api/google-reviews", {
-    headers: {
-      Accept: "application/json",
-    },
-  });
-  const text = await response.text();
-  let data = null;
-
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = null;
-    }
-  }
-
-  if (!response.ok) {
-    const serverMessage = data && typeof data === "object" ? String(data.error || "").trim() : "";
-
-    if (response.status === 404) {
-      throw new Error("Live Google reviews need the site to run through the Node server.");
-    }
-
-    if (response.status === 503) {
-      throw new Error(serverMessage || "Google reviews are not configured on the server yet.");
-    }
-
-    throw new Error(serverMessage || "Live Google reviews are unavailable right now.");
-  }
-
-  if (!data || typeof data !== "object") {
-    throw new Error("Google review feed returned an invalid response.");
-  }
-
-  return data;
-}
-
-async function loadGoogleReviews() {
-  if (!googleReviewTrack) {
-    return;
-  }
-
-  try {
-    const payload = await fetchGoogleReviewsFeed();
-    const reviews = Array.isArray(payload?.reviews) ? payload.reviews : [];
-
-    updateGoogleReviewSummary(payload);
-
-    if (!reviews.length) {
-      renderGoogleReviewStatus("No Google reviews are available yet.");
-      return;
-    }
-
-    googleReviewTrack.innerHTML = "";
-    reviews.forEach((review) => {
-      googleReviewTrack.appendChild(createGoogleReviewCard(review));
-    });
-  } catch (error) {
-    if (googleReviewAverage) {
-      googleReviewAverage.textContent = "Google Reviews";
-    }
-    if (googleReviewStars) {
-      googleReviewStars.innerHTML = renderStarMarkup(0);
-    }
-    if (googleReviewCountText) {
-      googleReviewCountText.textContent = "Google review feed unavailable";
-    }
-    renderGoogleReviewStatus(error.message || "Could not load Google reviews.");
-  }
 }
 
 function getPlanByKey(planKey) {
@@ -3499,7 +3317,6 @@ document.addEventListener("click", (event) => {
 
 renderPlanDetailsPage();
 bindPricingActions();
-loadGoogleReviews();
 initAuthUi();
 initAutoTechRows();
 window.addEventListener("load", initAutoTechRows, { once: true });

@@ -12,10 +12,6 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "https://umflohaswnlwzrqbzmxs.s
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "";
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "";
-const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY || "";
-const GOOGLE_PLACES_PLACE_ID = process.env.GOOGLE_PLACES_PLACE_ID || "";
-const GOOGLE_PLACES_TEXT_QUERY = process.env.GOOGLE_PLACES_TEXT_QUERY || "DigitQuo";
-const GOOGLE_REVIEW_LINK = process.env.GOOGLE_REVIEW_LINK || "https://g.page/r/CWOrOQD44wreEAE/review";
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const SESSION_COOKIE = "dq_session";
@@ -649,144 +645,6 @@ async function razorpayFetch(pathname, options = {}) {
   }
 
   return data;
-}
-
-function hasGooglePlacesConfig() {
-  return Boolean(GOOGLE_PLACES_API_KEY);
-}
-
-async function googlePlacesFetch(url, options = {}) {
-  if (!hasGooglePlacesConfig()) {
-    throw new Error("Google Places is not configured on the server.");
-  }
-
-  const response = await fetch(url, {
-    method: options.method || "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
-      ...options.headers,
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
-
-  const text = await response.text();
-  let data = null;
-
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = text;
-    }
-  }
-
-  if (!response.ok) {
-    const message =
-      (data && typeof data === "object" && (data.error?.message || data.message || data.error)) ||
-      "Google Places request failed.";
-    const error = new Error(message);
-    error.status = response.status;
-    error.details = data;
-    throw error;
-  }
-
-  return data;
-}
-
-async function resolveGooglePlaceId() {
-  if (GOOGLE_PLACES_PLACE_ID) {
-    return GOOGLE_PLACES_PLACE_ID;
-  }
-
-  const data = await googlePlacesFetch("https://places.googleapis.com/v1/places:searchText", {
-    method: "POST",
-    headers: {
-      "X-Goog-FieldMask": "places.id,places.displayName,places.googleMapsUri",
-    },
-    body: {
-      textQuery: GOOGLE_PLACES_TEXT_QUERY,
-      maxResultCount: 1,
-    },
-  });
-
-  const place = Array.isArray(data?.places) ? data.places[0] : null;
-  if (!place?.id) {
-    throw new Error("Could not resolve the Google place. Set GOOGLE_PLACES_PLACE_ID on the server.");
-  }
-
-  return place.id;
-}
-
-function normalizeGoogleReview(review, index = 0) {
-  return {
-    id: String(review?.name || `google-review-${index + 1}`),
-    authorName: String(review?.authorAttribution?.displayName || "Google user").trim(),
-    authorPhotoUri: String(review?.authorAttribution?.photoUri || "").trim(),
-    authorUri: String(review?.authorAttribution?.uri || "").trim(),
-    rating: Number(review?.rating || 0),
-    relativeTime: String(review?.relativePublishTimeDescription || "").trim(),
-    text: String(review?.originalText?.text || review?.text?.text || "").trim(),
-    googleMapsUri: String(review?.googleMapsUri || "").trim(),
-    publishTime: String(review?.publishTime || "").trim(),
-  };
-}
-
-async function fetchGoogleReviewsPayload() {
-  const placeId = await resolveGooglePlaceId();
-  const place = await googlePlacesFetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`, {
-    headers: {
-      "X-Goog-FieldMask": "id,displayName,rating,userRatingCount,googleMapsUri,reviews",
-    },
-  });
-
-  const reviews = Array.isArray(place?.reviews)
-    ? place.reviews
-        .map((review, index) => normalizeGoogleReview(review, index))
-        .filter((review) => review.text || review.rating > 0)
-    : [];
-
-  return {
-    placeId,
-    placeName: String(place?.displayName?.text || GOOGLE_PLACES_TEXT_QUERY).trim(),
-    rating: Number(place?.rating || 0),
-    userRatingCount: Number(place?.userRatingCount || 0),
-    googleMapsUri: String(place?.googleMapsUri || GOOGLE_REVIEW_LINK).trim(),
-    reviewLink: GOOGLE_REVIEW_LINK,
-    reviews,
-  };
-}
-
-async function handleGoogleReviews(req, res) {
-  if (!hasGooglePlacesConfig()) {
-    json(
-      res,
-      503,
-      {
-        error: "Google Places is not configured on the server. Add GOOGLE_PLACES_API_KEY and optionally GOOGLE_PLACES_PLACE_ID.",
-        reviewLink: GOOGLE_REVIEW_LINK,
-        reviews: [],
-      },
-      { "Cache-Control": "public, max-age=300" }
-    );
-    return;
-  }
-
-  try {
-    const payload = await fetchGoogleReviewsPayload();
-    json(res, 200, payload, { "Cache-Control": "public, max-age=300" });
-  } catch (error) {
-    json(
-      res,
-      error.status || 502,
-      {
-        error: error.message || "Could not load Google reviews.",
-        reviewLink: GOOGLE_REVIEW_LINK,
-        reviews: [],
-      },
-      { "Cache-Control": "public, max-age=120" }
-    );
-  }
 }
 
 function buildRazorpayReceipt(orderId) {
@@ -1502,11 +1360,6 @@ async function route(req, res) {
 
   if (req.method === "PATCH" && adminUserStatusMatch) {
     await handleAdminUpdateUserStatus(req, res, adminUserStatusMatch[1]);
-    return;
-  }
-
-  if (req.method === "GET" && pathname === "/api/google-reviews") {
-    await handleGoogleReviews(req, res);
     return;
   }
 
