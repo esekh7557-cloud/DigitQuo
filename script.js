@@ -12,20 +12,14 @@ const planRequirementsRoot = document.getElementById("planRequirementsRoot");
 const quoteRequestRoot = document.getElementById("quoteRequestRoot");
 const customPlanRoot = document.getElementById("customPlanRoot");
 const customPlanForm = document.getElementById("customPlanForm");
-const reviewForm = document.getElementById("reviewForm");
-const reviewFeedback = document.getElementById("reviewFeedback");
-const reviewRatingInput = document.getElementById("reviewRating");
-const reviewStarsInput = document.getElementById("reviewStarsInput");
-const testimonialGrid = document.querySelector(".testimonial-grid");
-const testimonialSummaryStars = document.getElementById("testimonialSummaryStars");
-const testimonialSummaryText = document.getElementById("testimonialSummaryText");
+const googleReviewTrack = document.getElementById("googleReviewTrack");
+const googleReviewAverage = document.getElementById("googleReviewAverage");
+const googleReviewStars = document.getElementById("googleReviewStars");
+const googleReviewCountText = document.getElementById("googleReviewCountText");
 const CART_STORAGE_KEY = "dq_cart_items";
 const SELECTED_PLAN_STORAGE_KEY = "dq_selected_plan";
 const PLAN_COUPONS_STORAGE_KEY = "dq_plan_coupons";
-const REVIEWS_STORAGE_KEY = "dq_reviews";
 const dqAuth = window.dqAuth;
-let activeReviewUser = null;
-let activeReviewIsAdmin = false;
 const FOOTER_FAQ_ITEMS = [
   {
     question: "1. What services do you provide?",
@@ -384,294 +378,12 @@ function formatInr(value) {
   }).format(Number(value || 0));
 }
 
-function readReviews() {
-  try {
-    const raw = window.localStorage.getItem(REVIEWS_STORAGE_KEY);
-    const reviews = JSON.parse(raw || "[]");
-    if (!Array.isArray(reviews)) {
-      return [];
-    }
-
-    const normalizedReviews = reviews.map((review, index) => ({
-      ...review,
-      id: review?.id || `legacy-review-${index + 1}`,
-    }));
-
-    if (JSON.stringify(normalizedReviews) !== JSON.stringify(reviews)) {
-      writeReviews(normalizedReviews);
-    }
-
-    return normalizedReviews;
-  } catch {
-    return [];
-  }
-}
-
-function writeReviews(reviews) {
-  window.localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(reviews));
-}
-
-function createReviewId() {
-  if (window.crypto && typeof window.crypto.randomUUID === "function") {
-    return window.crypto.randomUUID();
-  }
-
-  return `review-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function normalizeReview(review, index = 0) {
-  return {
-    id: review?.id || `legacy-review-${index + 1}`,
-    userId: review?.userId || review?.user_id || "",
-    name: String(review?.name || "").trim(),
-    message: String(review?.message || "").trim(),
-    rating: Number(review?.rating || 0),
-    createdAt: review?.createdAt || review?.created_at || "",
-  };
-}
-
-async function getReviewClient() {
-  if (!dqAuth || !dqAuth.isConfigured()) {
-    return null;
-  }
-
-  try {
-    return await dqAuth.getClient();
-  } catch (error) {
-    console.error("Could not create Supabase review client:", error);
-    return null;
-  }
-}
-
-async function fetchPersistedReviews() {
-  const client = await getReviewClient();
-  if (!client) {
-    return readReviews().map((review, index) => normalizeReview(review, index));
-  }
-
-  const { data, error } = await client
-    .from("reviews")
-    .select("id, user_id, name, message, rating, created_at")
-    .eq("is_active", true)
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    console.error("Could not load reviews from backend:", error);
-    return [];
-  }
-
-  return (data || []).map((review, index) => normalizeReview(review, index));
-}
-
-async function createPersistedReview(review) {
-  const client = await getReviewClient();
-  if (!client) {
-    const normalizedReview = normalizeReview({
-      ...review,
-      id: createReviewId(),
-      createdAt: new Date().toISOString(),
-    });
-    const reviews = readReviews();
-    reviews.push(normalizedReview);
-    writeReviews(reviews);
-    return normalizedReview;
-  }
-
-  const { data, error } = await client
-    .from("reviews")
-    .insert({
-      user_id: review.userId,
-      name: review.name,
-      message: review.message,
-      rating: review.rating,
-    })
-    .select("id, user_id, name, message, rating, created_at")
-    .single();
-
-  if (error) {
-    throw new Error(error.message || "Could not save review to backend.");
-  }
-
-  return normalizeReview(data);
-}
-
-async function deletePersistedReview(reviewId) {
-  const client = await getReviewClient();
-  if (!client) {
-    const remainingReviews = readReviews().filter((review) => review.id !== reviewId);
-    writeReviews(remainingReviews);
-    return;
-  }
-
-  const { error } = await client.from("reviews").delete().eq("id", reviewId);
-  if (error) {
-    throw new Error(error.message || "Could not delete review from backend.");
-  }
-}
-
 function renderStarMarkup(rating) {
   const safeRating = Math.max(0, Math.min(5, Number(rating || 0)));
-  return Array.from({ length: 5 }, (_, index) => {
-    const level = index + 1;
-    return `<span class="star ${level <= safeRating ? "full" : "empty"}">&#9733;</span>`;
-  }).join("");
-}
-
-function getReviewInitials(name) {
-  return String(name || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("") || "DQ";
-}
-
-function createReviewCard(review) {
-  const card = document.createElement("article");
-  card.className = "card testimonial-card";
-  if (review.id) {
-    card.dataset.reviewId = review.id;
-  }
-  if (review.userId) {
-    card.dataset.reviewUserId = review.userId;
-  }
-  if (review.isUserReview) {
-    card.classList.add("user-review");
-  }
-  const initials = getReviewInitials(review.name);
-  const reviewLabel = review.isUserReview ? "Your review" : "Verified client";
-  card.innerHTML = `
-    <div class="review-card-menu-wrap">
-      <button class="review-card-menu-button" type="button" aria-label="Review options">&#8942;</button>
-      <div class="review-card-menu" hidden>
-        <button class="review-card-menu-item" type="button" data-review-action="report">Report review</button>
-        <button class="review-card-menu-item danger" type="button" data-review-action="delete" hidden>Delete review</button>
-      </div>
-    </div>
-    <div class="testimonial-card-top">
-      <div class="testimonial-avatar" aria-hidden="true">${escapeHtml(initials)}</div>
-      <div class="testimonial-author">
-        <h3>${escapeHtml(review.name)}</h3>
-        <span>${escapeHtml(reviewLabel)}</span>
-      </div>
-    </div>
-    <p class="testimonial-copy">${escapeHtml(review.message)}</p>
-    <div class="stars rating-stars" aria-label="${escapeHtml(review.rating)} out of 5 stars">${renderStarMarkup(review.rating)}</div>
-  `;
-  syncReviewCardControls(card);
-  return card;
-}
-
-function closeReviewMenus() {
-  if (!testimonialGrid) {
-    return;
-  }
-
-  testimonialGrid.querySelectorAll(".review-card-menu").forEach((menu) => {
-    menu.hidden = true;
-  });
-}
-
-function syncReviewCardControls(card) {
-  if (!(card instanceof HTMLElement)) {
-    return;
-  }
-
-  const reportButton = card.querySelector('[data-review-action="report"]');
-  const deleteButton = card.querySelector('[data-review-action="delete"]');
-  if (!(reportButton instanceof HTMLElement) || !(deleteButton instanceof HTMLElement)) {
-    return;
-  }
-
-  const isOwner =
-    Boolean(activeReviewUser) &&
-    Boolean(card.dataset.reviewUserId) &&
-    card.dataset.reviewUserId === activeReviewUser.id;
-  const canDelete = isOwner || activeReviewIsAdmin;
-
-  reportButton.hidden = isOwner;
-  deleteButton.hidden = !canDelete;
-  card.classList.toggle("user-review", isOwner);
-}
-
-function syncAllReviewCardControls() {
-  if (!testimonialGrid) {
-    return;
-  }
-
-  testimonialGrid.querySelectorAll(".testimonial-card").forEach((card) => {
-    syncReviewCardControls(card);
-  });
-}
-
-function syncReviewAccess(user) {
-  activeReviewUser = user || null;
-
-  if (!reviewForm) {
-    return;
-  }
-
-  const reviewNameInput = reviewForm.elements?.namedItem("reviewName");
-
-  if (!activeReviewUser) {
-    if (reviewFeedback) {
-      reviewFeedback.textContent = "Log in to submit your review.";
-    }
-    if (reviewNameInput && "value" in reviewNameInput) {
-      reviewNameInput.value = "";
-    }
-    closeReviewMenus();
-    syncAllReviewCardControls();
-    return;
-  }
-
-  if (reviewNameInput && "value" in reviewNameInput) {
-    reviewNameInput.value = activeReviewUser.fullName || activeReviewUser.email || "";
-  }
-  if (reviewFeedback && reviewFeedback.textContent === "Log in to submit your review.") {
-    reviewFeedback.textContent = "";
-  }
-  syncAllReviewCardControls();
-}
-
-function focusUserReviewCard(card) {
-  if (!(card instanceof HTMLElement)) {
-    return;
-  }
-
-  testimonialGrid?.querySelectorAll(".testimonial-card.user-review").forEach((entry) => {
-    entry.classList.remove("is-focused");
-  });
-  card.classList.add("is-focused");
-  card.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-}
-
-function updateTestimonialSummary() {
-  if (!testimonialGrid || !testimonialSummaryStars || !testimonialSummaryText) {
-    return;
-  }
-
-  const ratings = Array.from(
-    testimonialGrid.querySelectorAll(".testimonial-card .rating-stars[aria-label]")
-  )
-    .map((node) => Number.parseFloat(String(node.getAttribute("aria-label") || "").split(" ")[0]))
-    .filter((value) => Number.isFinite(value));
-
-  if (!ratings.length) {
-    testimonialSummaryText.textContent = "No reviews yet";
-    testimonialSummaryStars.innerHTML = renderStarMarkup(0);
-    return;
-  }
-
-  const average = ratings.reduce((sum, value) => sum + value, 0) / ratings.length;
-  const roundedAverage = Math.round(average * 10) / 10;
-  testimonialSummaryText.textContent = `${roundedAverage.toFixed(1)}/5 Trusted by clients`;
-
-  const fullStars = Math.floor(average);
-  const hasHalfStar = average - fullStars >= 0.25 && average - fullStars < 0.75;
-  const extraFullStar = average - fullStars >= 0.75 ? 1 : 0;
-  const totalFullStars = Math.min(5, fullStars + extraFullStar);
+  const fullStars = Math.floor(safeRating);
+  const hasHalfStar = safeRating - fullStars >= 0.25 && safeRating - fullStars < 0.75;
+  const roundedUp = safeRating - fullStars >= 0.75 ? 1 : 0;
+  const totalFullStars = Math.min(5, fullStars + roundedUp);
   const stars = [];
 
   for (let index = 1; index <= 5; index += 1) {
@@ -684,183 +396,164 @@ function updateTestimonialSummary() {
     }
   }
 
-  testimonialSummaryStars.innerHTML = stars.join("");
+  return stars.join("");
 }
 
-async function renderStoredReviews() {
-  if (!testimonialGrid) {
+function sanitizeExternalUrl(value) {
+  try {
+    const url = new URL(String(value || "").trim(), window.location.origin);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function getAuthorInitials(name) {
+  return String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "G";
+}
+
+function updateGoogleReviewSummary(payload) {
+  const rating = Number(payload?.rating || 0);
+  const count = Number(payload?.userRatingCount || 0);
+
+  if (googleReviewAverage) {
+    googleReviewAverage.textContent = rating > 0 ? `${rating.toFixed(1)} out of 5` : "Google Reviews";
+  }
+
+  if (googleReviewStars) {
+    googleReviewStars.innerHTML = renderStarMarkup(rating);
+  }
+
+  if (googleReviewCountText) {
+    googleReviewCountText.textContent =
+      rating > 0 && count > 0 ? `${count.toLocaleString("en-IN")} ratings on Google` : "Verified platform feedback";
+  }
+}
+
+function createGoogleReviewCard(review) {
+  const card = document.createElement("article");
+  card.className = "card google-review-card";
+
+  const authorName = String(review?.authorName || "Google user").trim() || "Google user";
+  const authorPhotoUri = sanitizeExternalUrl(review?.authorPhotoUri);
+  const authorUri = sanitizeExternalUrl(review?.authorUri);
+  const googleMapsUri = sanitizeExternalUrl(review?.googleMapsUri);
+  const relativeTime = String(review?.relativeTime || "").trim() || "Google review";
+  const rating = Number(review?.rating || 0);
+  const reviewText = String(review?.text || "").trim() || "No review text available.";
+  const initials = getAuthorInitials(authorName);
+  const authorMarkup = authorUri
+    ? `<a href="${escapeHtml(authorUri)}" target="_blank" rel="noopener noreferrer">${escapeHtml(authorName)}</a>`
+    : escapeHtml(authorName);
+
+  card.innerHTML = `
+    <div class="google-review-card-top">
+      <div class="google-review-avatar" aria-hidden="true">${authorPhotoUri ? `<img src="${escapeHtml(authorPhotoUri)}" alt="" />` : escapeHtml(initials)}</div>
+      <div class="google-review-author">
+        <h3>${authorMarkup}</h3>
+        <span>Google reviewer</span>
+      </div>
+    </div>
+    <div class="google-review-card-meta">
+      <span class="google-review-source">Google</span>
+      <span class="google-review-time">${escapeHtml(relativeTime)}</span>
+    </div>
+    <div class="stars rating-stars" aria-label="${escapeHtml(String(rating))} out of 5 stars">${renderStarMarkup(rating)}</div>
+    <p class="google-review-copy">${escapeHtml(reviewText)}</p>
+    ${googleMapsUri ? `<a class="google-review-link" href="${escapeHtml(googleMapsUri)}" target="_blank" rel="noopener noreferrer">Read on Google</a>` : ""}
+  `;
+
+  return card;
+}
+
+function renderGoogleReviewStatus(message) {
+  if (!googleReviewTrack) {
+    return;
+  }
+
+  googleReviewTrack.innerHTML = `
+    <article class="card google-review-card google-review-card--status">
+      <p class="google-review-status">${escapeHtml(message)}</p>
+    </article>
+  `;
+}
+
+async function fetchGoogleReviewsFeed() {
+  const response = await fetch("/api/google-reviews", {
+    headers: {
+      Accept: "application/json",
+    },
+  });
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
+
+  if (!response.ok) {
+    const serverMessage = data && typeof data === "object" ? String(data.error || "").trim() : "";
+
+    if (response.status === 404) {
+      throw new Error("Live Google reviews need the site to run through the Node server.");
+    }
+
+    if (response.status === 503) {
+      throw new Error(serverMessage || "Google reviews are not configured on the server yet.");
+    }
+
+    throw new Error(serverMessage || "Live Google reviews are unavailable right now.");
+  }
+
+  if (!data || typeof data !== "object") {
+    throw new Error("Google review feed returned an invalid response.");
+  }
+
+  return data;
+}
+
+async function loadGoogleReviews() {
+  if (!googleReviewTrack) {
     return;
   }
 
   try {
-    testimonialGrid.querySelectorAll(".testimonial-card[data-review-id]").forEach((card) => {
-      card.remove();
-    });
+    const payload = await fetchGoogleReviewsFeed();
+    const reviews = Array.isArray(payload?.reviews) ? payload.reviews : [];
 
-    const reviews = await fetchPersistedReviews();
+    updateGoogleReviewSummary(payload);
+
+    if (!reviews.length) {
+      renderGoogleReviewStatus("No Google reviews are available yet.");
+      return;
+    }
+
+    googleReviewTrack.innerHTML = "";
     reviews.forEach((review) => {
-      testimonialGrid.appendChild(createReviewCard(review));
+      googleReviewTrack.appendChild(createGoogleReviewCard(review));
     });
-
-    updateTestimonialSummary();
-    syncAllReviewCardControls();
   } catch (error) {
-    console.error("Could not render reviews:", error);
+    if (googleReviewAverage) {
+      googleReviewAverage.textContent = "Google Reviews";
+    }
+    if (googleReviewStars) {
+      googleReviewStars.innerHTML = renderStarMarkup(0);
+    }
+    if (googleReviewCountText) {
+      googleReviewCountText.textContent = "Google review feed unavailable";
+    }
+    renderGoogleReviewStatus(error.message || "Could not load Google reviews.");
   }
-}
-
-function syncReviewStars(rating) {
-  if (!reviewStarsInput) {
-    return;
-  }
-
-  reviewStarsInput.querySelectorAll(".review-star").forEach((star) => {
-    star.classList.toggle("is-active", Number(star.dataset.rating) <= rating);
-  });
-}
-
-function initReviewForm() {
-  if (!reviewForm || !reviewStarsInput || !reviewRatingInput) {
-    return;
-  }
-
-  reviewStarsInput.querySelectorAll(".review-star").forEach((star) => {
-    star.addEventListener("click", () => {
-      const rating = Number(star.dataset.rating || 0);
-      reviewRatingInput.value = String(rating);
-      syncReviewStars(rating);
-      if (reviewFeedback) {
-        reviewFeedback.textContent = "";
-      }
-    });
-  });
-
-  reviewForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    if (!activeReviewUser) {
-      window.location.href = "login.html?redirect=index.html";
-      return;
-    }
-
-    const formData = new FormData(reviewForm);
-    const name = String(formData.get("reviewName") || activeReviewUser.fullName || activeReviewUser.email || "").trim();
-    const message = String(formData.get("reviewMessage") || "").trim();
-    const rating = Number(reviewRatingInput.value || 0);
-
-    if (!name || !message || rating < 1 || rating > 5) {
-      if (reviewFeedback) {
-        reviewFeedback.textContent = "Add your name, review, and star rating.";
-      }
-      return;
-    }
-
-    const review = {
-      userId: activeReviewUser.id,
-      name,
-      message,
-      rating,
-    };
-
-    try {
-      const savedReview = await createPersistedReview(review);
-
-      if (testimonialGrid) {
-        const reviewCard = createReviewCard({ ...savedReview, isUserReview: true });
-        testimonialGrid.appendChild(reviewCard);
-        focusUserReviewCard(reviewCard);
-      }
-      updateTestimonialSummary();
-      syncAllReviewCardControls();
-
-      reviewForm.reset();
-      reviewRatingInput.value = "";
-      syncReviewStars(0);
-      const reviewNameInput = reviewForm.elements?.namedItem("reviewName");
-      if (reviewNameInput && "value" in reviewNameInput) {
-        reviewNameInput.value = activeReviewUser.fullName || activeReviewUser.email || "";
-      }
-      if (reviewFeedback) {
-        reviewFeedback.textContent = "Review added successfully.";
-      }
-    } catch (error) {
-      if (reviewFeedback) {
-        reviewFeedback.textContent = error.message || "Could not save review.";
-      }
-    }
-  });
-}
-
-function initReviewMenus() {
-  if (!testimonialGrid) {
-    return;
-  }
-
-  testimonialGrid.addEventListener("click", async (event) => {
-    if (!(event.target instanceof Element)) {
-      return;
-    }
-
-    const menuButton = event.target.closest(".review-card-menu-button");
-    if (menuButton) {
-      const menuWrap = menuButton.closest(".review-card-menu-wrap");
-      const menu = menuWrap?.querySelector(".review-card-menu");
-      if (!(menu instanceof HTMLElement)) {
-        return;
-      }
-
-      const shouldOpen = menu.hidden;
-      closeReviewMenus();
-      menu.hidden = !shouldOpen;
-      return;
-    }
-
-    const actionButton = event.target.closest(".review-card-menu-item");
-    if (!actionButton) {
-      return;
-    }
-
-    const reviewCard = actionButton.closest(".testimonial-card");
-    const action = actionButton.getAttribute("data-review-action");
-    closeReviewMenus();
-
-    if (action === "report") {
-      showCartToast("Review reported.");
-      return;
-    }
-
-    if (action === "delete" && reviewCard instanceof HTMLElement) {
-      const isOwner =
-        Boolean(activeReviewUser) &&
-        Boolean(reviewCard.dataset.reviewUserId) &&
-        reviewCard.dataset.reviewUserId === activeReviewUser.id;
-
-      if (!isOwner && !activeReviewIsAdmin) {
-        return;
-      }
-
-      if (reviewCard.dataset.reviewId) {
-        try {
-          await deletePersistedReview(reviewCard.dataset.reviewId);
-        } catch (error) {
-          showCartToast(error.message || "Could not delete review.");
-          return;
-        }
-      }
-      reviewCard.remove();
-      updateTestimonialSummary();
-      syncAllReviewCardControls();
-      showCartToast("Review deleted.");
-    }
-  });
-
-  document.addEventListener("click", (event) => {
-    if (!(event.target instanceof Element) || event.target.closest(".review-card-menu-wrap")) {
-      return;
-    }
-
-    closeReviewMenus();
-  });
 }
 
 function getPlanByKey(planKey) {
@@ -3725,8 +3418,6 @@ function mergeUserAndProfile(user, profile) {
 
 async function initAuthUi() {
   if (!dqAuth || !dqAuth.isConfigured()) {
-    activeReviewIsAdmin = false;
-    syncReviewAccess(null);
     bindPortfolioQuoteTrigger(null);
     updateQuoteActionLinks(null);
     updatePlanBuyLinks(null);
@@ -3744,8 +3435,6 @@ async function initAuthUi() {
     const profile = typeof dqAuth.getCurrentProfile === "function" ? await dqAuth.getCurrentProfile() : null;
     const user = mergeUserAndProfile(rawUser, profile);
     if (!user) {
-      activeReviewIsAdmin = false;
-      syncReviewAccess(null);
       bindPortfolioQuoteTrigger(null);
       updateQuoteActionLinks(null);
       updatePlanBuyLinks(null);
@@ -3758,11 +3447,6 @@ async function initAuthUi() {
       return;
     }
 
-    activeReviewIsAdmin = typeof dqAuth.checkAdminAccess === "function"
-      ? await dqAuth.checkAdminAccess()
-      : false;
-    syncReviewAccess(user);
-    syncAllReviewCardControls();
     bindPortfolioQuoteTrigger(user);
     updateQuoteActionLinks(user);
     updatePlanBuyLinks(user);
@@ -3774,8 +3458,6 @@ async function initAuthUi() {
     renderCustomPlanPage(user);
     renderPlanRequirementsPage(user);
   } catch {
-    activeReviewIsAdmin = false;
-    syncReviewAccess(null);
     bindPortfolioQuoteTrigger(null);
     updateQuoteActionLinks(null);
     updatePlanBuyLinks(null);
@@ -3817,9 +3499,7 @@ document.addEventListener("click", (event) => {
 
 renderPlanDetailsPage();
 bindPricingActions();
-renderStoredReviews();
-initReviewForm();
-initReviewMenus();
+loadGoogleReviews();
 initAuthUi();
 initAutoTechRows();
 window.addEventListener("load", initAutoTechRows, { once: true });
