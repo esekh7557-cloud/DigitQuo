@@ -4,6 +4,82 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BqSIT0GcmJ54v0PHVf7Hxw_COvYC9L7
 
 (function initDigitQuoAuth(global) {
   const supabaseSdk = global.supabase;
+  const SESSION_PERSISTENCE_KEY = "dq_auth_session_persistence";
+  const PERSISTENCE_LOCAL = "local";
+  const PERSISTENCE_SESSION = "session";
+
+  function getStorage(storageName) {
+    try {
+      const storage = global[storageName];
+      return storage && typeof storage.getItem === "function" ? storage : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  const localStore = getStorage("localStorage");
+  const sessionStore = getStorage("sessionStorage");
+
+  function clearPersistencePreference() {
+    localStore?.removeItem(SESSION_PERSISTENCE_KEY);
+    sessionStore?.removeItem(SESSION_PERSISTENCE_KEY);
+  }
+
+  function getStoredPersistencePreference() {
+    const localPreference = localStore?.getItem(SESSION_PERSISTENCE_KEY);
+    if (localPreference === PERSISTENCE_LOCAL) {
+      return PERSISTENCE_LOCAL;
+    }
+
+    const sessionPreference = sessionStore?.getItem(SESSION_PERSISTENCE_KEY);
+    if (sessionPreference === PERSISTENCE_SESSION) {
+      return PERSISTENCE_SESSION;
+    }
+
+    return null;
+  }
+
+  function readPersistencePreference() {
+    return getStoredPersistencePreference() || PERSISTENCE_LOCAL;
+  }
+
+  function getSessionStorageTarget() {
+    return readPersistencePreference() === PERSISTENCE_SESSION ? sessionStore : localStore;
+  }
+
+  const authStorage = {
+    getItem(key) {
+      const localValue = localStore?.getItem(key);
+      if (localValue !== null && localValue !== undefined) {
+        return localValue;
+      }
+
+      const sessionValue = sessionStore?.getItem(key);
+      return sessionValue !== undefined ? sessionValue : null;
+    },
+    setItem(key, value) {
+      const activeStore = getSessionStorageTarget();
+      const inactiveStore = activeStore === sessionStore ? localStore : sessionStore;
+
+      activeStore?.setItem(key, value);
+      inactiveStore?.removeItem(key);
+    },
+    removeItem(key) {
+      localStore?.removeItem(key);
+      sessionStore?.removeItem(key);
+    },
+  };
+
+  function setSessionPersistence(shouldPersist) {
+    clearPersistencePreference();
+
+    if (shouldPersist) {
+      localStore?.setItem(SESSION_PERSISTENCE_KEY, PERSISTENCE_LOCAL);
+      return;
+    }
+
+    sessionStore?.setItem(SESSION_PERSISTENCE_KEY, PERSISTENCE_SESSION);
+  }
 
   function hasValidConfig() {
     return (
@@ -59,6 +135,7 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BqSIT0GcmJ54v0PHVf7Hxw_COvYC9L7
             auth: {
               persistSession: true,
               autoRefreshToken: true,
+              storage: authStorage,
             },
           }
         );
@@ -108,6 +185,13 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_BqSIT0GcmJ54v0PHVf7Hxw_COvYC9L7
       }
 
       await client.auth.signOut();
+    },
+    setSessionPersistence,
+    getSessionPersistence() {
+      return getStoredPersistencePreference();
+    },
+    isSessionPersistent() {
+      return getStoredPersistencePreference() === PERSISTENCE_LOCAL;
     },
   };
 
