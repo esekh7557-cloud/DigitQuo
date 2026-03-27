@@ -2038,12 +2038,4 @@ function saveConfig() {
   const alertMessage = document.getElementById("alertMessage").value;
 
   alert("Configuration saved. This demo does not persist secure settings yet.");
-  console.log({
-    stripeKey: stripeKey ? "***" : "Not set",
-    stripePubKey,
-    smtpServer,
-    fromEmail,
-    systemStatus,
-    alertMessage,
-  });
 }

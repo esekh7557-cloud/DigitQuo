@@ -34,9 +34,9 @@
     }
 
     .portfolio-page-content .container {
-      max-width: 1200px;
+      max-width: 1440px;
       margin: 0 auto;
-      padding: 0 20px;
+      padding-inline: var(--page-pad);
     }
 
     .hero {
@@ -136,6 +136,178 @@
       background:
         radial-gradient(circle at top left, rgba(221, 214, 254, 0.4) 0%, transparent 26%),
         linear-gradient(180deg, #ffffff 0%, #f8f5ff 100%);
+    }
+
+    .portfolio .container {
+      max-width: min(1520px, calc(100vw - 28px));
+      padding-inline: var(--page-pad);
+    }
+
+    .portfolio-showcase {
+      padding: 42px 0 22px;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.04), rgba(255, 255, 255, 0));
+    }
+
+    .showcase-head {
+      margin-bottom: 18px;
+    }
+
+    .showcase-head h2 {
+      color: var(--primary-dark);
+      font-size: clamp(1.8rem, 2rem + 1vw, 2.8rem);
+      line-height: 1.1;
+      margin-bottom: 10px;
+    }
+
+    .showcase-head p {
+      max-width: 720px;
+      color: var(--text-muted);
+      line-height: 1.8;
+    }
+
+    .showcase-scroll {
+      display: flex;
+      gap: 18px;
+      overflow-x: auto;
+      padding: 10px 2px 18px;
+      scroll-behavior: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(109, 40, 217, 0.55) rgba(221, 214, 254, 0.45);
+      cursor: grab;
+    }
+
+    .showcase-scroll:active {
+      cursor: grabbing;
+    }
+
+    .showcase-scroll::-webkit-scrollbar {
+      height: 12px;
+    }
+
+    .showcase-scroll::-webkit-scrollbar-track {
+      background: rgba(221, 214, 254, 0.45);
+      border-radius: 999px;
+    }
+
+    .showcase-scroll::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 999px;
+    }
+
+    .showcase-card {
+      flex: 0 0 clamp(320px, 42vw, 520px);
+      background: #fff;
+      border: 1px solid rgba(109, 40, 217, 0.12);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 18px 42px rgba(76, 29, 149, 0.1);
+    }
+
+    .showcase-card img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      border-radius: 0;
+    }
+
+    .project-story {
+      padding: 108px 0 90px;
+      background: linear-gradient(180deg, rgba(248, 245, 255, 0.4), rgba(255, 255, 255, 0));
+      border-top: 1px solid rgba(109, 40, 217, 0.12);
+      border-bottom: 1px solid rgba(109, 40, 217, 0.12);
+    }
+
+    .story-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+      gap: 28px;
+      align-items: center;
+    }
+
+    .story-intro {
+      max-width: 520px;
+    }
+
+    .story-intro h2 {
+      color: var(--primary-dark);
+      font-size: clamp(2rem, 2rem + 1vw, 3rem);
+      line-height: 1.06;
+      margin-bottom: 12px;
+    }
+
+    .story-intro p {
+      max-width: 620px;
+      color: var(--text-muted);
+      line-height: 1.85;
+    }
+
+    .story-scroll-note {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 16px;
+      padding: 10px 15px;
+      border-radius: 999px;
+      background: rgba(109, 40, 217, 0.08);
+      color: var(--primary-dark);
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    .story-visual {
+      min-height: auto;
+      padding-right: 48px;
+    }
+
+    .story-stack {
+      position: relative;
+      height: 364px;
+      width: min(100%, 532px);
+      margin-left: auto;
+      cursor: ns-resize;
+    }
+
+    .story-card {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: 0;
+      border: 1px solid rgba(109, 40, 217, 0.12);
+      background: #fff;
+      box-shadow: 0 26px 70px rgba(76, 29, 149, 0.12);
+      transition:
+        transform 0.5s ease,
+        opacity 0.5s ease,
+        box-shadow 0.5s ease,
+        filter 0.5s ease;
+      transform-origin: center center;
+    }
+
+    .story-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 0;
+    }
+
+    .story-card.is-front {
+      z-index: 3;
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+      filter: none;
+    }
+
+    .story-card.is-middle {
+      z-index: 2;
+      opacity: 0.98;
+      transform: translate3d(34px, 28px, 0) scale(1);
+      filter: saturate(0.94);
+    }
+
+    .story-card.is-back {
+      z-index: 1;
+      opacity: 0.96;
+      transform: translate3d(68px, 56px, 0) scale(1);
+      filter: saturate(0.88);
     }
 
     .section-tag {
@@ -300,6 +472,71 @@
       line-height: 1.5;
     }
 
+    .project-item--featured .project-info p {
+      max-width: 680px;
+    }
+
+    .project-item--featured .project-summary {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      max-width: 760px;
+    }
+
+    .project-item--featured .project-visual {
+      display: flex;
+      justify-content: center;
+    }
+
+    .device-showcase {
+      position: relative;
+      display: inline-block;
+      width: min(100%, 720px);
+      padding-right: 72px;
+      padding-bottom: 28px;
+    }
+
+    .project-mobile-overlay {
+      position: absolute;
+      right: 0;
+      bottom: 18px;
+      width: 188px;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .project-mobile-frame {
+      width: 100%;
+      aspect-ratio: 10 / 19.5;
+      padding: 10px;
+      border-radius: 32px;
+      background: linear-gradient(180deg, #171717, #0f0f0f);
+      border: 4px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 24px 50px rgba(15, 23, 42, 0.24);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .project-mobile-frame::before {
+      content: "";
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      width: 34%;
+      height: 14px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      z-index: 1;
+    }
+
+    .project-mobile-screen {
+      width: 100%;
+      height: 100%;
+      border-radius: 22px;
+      object-fit: cover;
+      object-position: top center;
+      background: #fff;
+    }
+
     .portfolio-page-content iframe,
     .portfolio-page-content .project-shot {
       width: 100%;
@@ -330,6 +567,52 @@
 
       .project-summary {
         grid-template-columns: 1fr;
+      }
+
+      .showcase-head {
+        text-align: center;
+      }
+
+      .story-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .story-visual {
+        position: static;
+        min-height: auto;
+        padding-right: 0;
+      }
+
+      .story-intro {
+        position: static;
+        max-width: none;
+      }
+
+      .story-stack {
+        height: 252px;
+      }
+
+      .story-card {
+        border-radius: 0;
+      }
+
+      .story-card.is-middle {
+        transform: translate3d(22px, 18px, 0) scale(1);
+      }
+
+      .story-card.is-back {
+        transform: translate3d(44px, 34px, 0) scale(1);
+      }
+
+      .device-showcase {
+        width: min(100%, 560px);
+        padding-right: 44px;
+        padding-bottom: 18px;
+      }
+
+      .project-mobile-overlay {
+        width: 142px;
+        bottom: 10px;
       }
     }
   </style>
@@ -374,160 +657,111 @@
         </div>
       </section>
 
+      <section class="portfolio-showcase" aria-labelledby="showcaseTitle">
+        <div class="container">
+          <div class="showcase-head">
+            <h2 id="showcaseTitle">A modern storefront with polished landing page sections.</h2>
+            <p>This website focuses on clean product presentation, stronger visual hierarchy, and a professional desktop layout that makes the overall browsing experience feel clear and premium.</p>
+          </div>
+
+          <div class="showcase-scroll" id="showcaseScroll" aria-label="Horizontal scrolling sample website gallery">
+            <article class="showcase-card">
+              <img src="images/web1/Screenshot 2026-03-27 140631.png" alt="Sample website preview from the web1 gallery" />
+            </article>
+
+            <article class="showcase-card">
+              <img src="images/web1/Screenshot 2026-03-27 140731.png" alt="Sample website preview from the web1 gallery" />
+            </article>
+
+            <article class="showcase-card">
+              <img src="images/web1/Screenshot 2026-03-27 140828.png" alt="Sample website preview from the web1 gallery" />
+            </article>
+
+            <article class="showcase-card">
+              <img src="images/web1/Screenshot 2026-03-27 140843.png" alt="Sample website preview from the web1 gallery" />
+            </article>
+
+            <article class="showcase-card" aria-hidden="true">
+              <img src="images/web1/Screenshot 2026-03-27 140631.png" alt="" />
+            </article>
+
+            <article class="showcase-card" aria-hidden="true">
+              <img src="images/web1/Screenshot 2026-03-27 140731.png" alt="" />
+            </article>
+
+            <article class="showcase-card" aria-hidden="true">
+              <img src="images/web1/Screenshot 2026-03-27 140828.png" alt="" />
+            </article>
+
+            <article class="showcase-card" aria-hidden="true">
+              <img src="images/web1/Screenshot 2026-03-27 140843.png" alt="" />
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="project-story" aria-labelledby="storySectionTitle">
+        <div class="container">
+          <div class="story-layout">
+            <div class="story-copy">
+              <div class="story-intro">
+                <h2 id="storySectionTitle">A clean interface built around clear sections and product-focused design.</h2>
+                <p>This website uses balanced spacing, structured content blocks, and a straightforward shopping layout to keep the experience easy to follow and visually consistent across key screens.</p>
+              </div>
+            </div>
+
+            <div class="story-visual">
+              <div class="story-stack" id="storyStack" aria-label="Stacked project preview images">
+                <article class="story-card is-front" data-story-card="0">
+                  <img src="images/web2/Screenshot 2026-03-27 141151.png" alt="Stacked project preview from the web2 gallery" />
+                </article>
+                <article class="story-card is-middle" data-story-card="1">
+                  <img src="images/web2/Screenshot 2026-03-27 141207.png" alt="Stacked project preview from the web2 gallery" />
+                </article>
+                <article class="story-card is-back" data-story-card="2">
+                  <img src="images/web2/Screenshot 2026-03-27 141217.png" alt="Stacked project preview from the web2 gallery" />
+                </article>
+                <article class="story-card" data-story-card="3">
+                  <img src="images/web2/Screenshot 2026-03-27 141238.png" alt="Stacked project preview from the web2 gallery" />
+                </article>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="portfolio" id="portfolio">
         <div class="container">
-          <div class="project-item">
+          <div class="project-item project-item--featured">
             <div class="project-info">
-              <span class="section-tag">E-Commerce Overhaul</span>
               <h2>Electronic Web for Nexora Electronics</h2>
-              <p><strong>The Challenge:</strong> The client was struggling with high cart abandonment due to a clunky, slow-loading mobile checkout experience.</p>
-              <p><strong>Our Solution:</strong> DigitQuo redesigned the user journey with a mobile-first checkout flow, simplified browsing paths, and a leaner front-end architecture that removed unnecessary friction.</p>
-              <p><strong>The Impact:</strong> 45% faster page loads, 120% growth in mobile conversions, and stronger search visibility for high-intent product keywords.</p>
+              <p>Electronic Web for Nexora Electronics was designed as a responsive shopping experience that stays clean, readable, and easy to use across both laptop and mobile screens.</p>
               <div class="project-summary">
                 <div class="project-metric">
-                  <strong>45% Faster</strong>
-                  <span>Page load improvements across key shopping journeys</span>
+                  <strong>Desktop + Mobile</strong>
+                  <span>Layouts adapt smoothly across larger screens and handheld devices</span>
                 </div>
                 <div class="project-metric">
-                  <strong>120% Growth</strong>
-                  <span>Mobile conversion lift after the checkout rebuild</span>
-                </div>
-                <div class="project-metric">
-                  <strong>SEO Lift</strong>
-                  <span>Better visibility for high-intent product searches</span>
+                  <strong>Responsive UI</strong>
+                  <span>Product browsing, spacing, and content hierarchy stay consistent on every screen</span>
                 </div>
               </div>
               <a href="https://nexoraelectronics.vercel.app/" class="btn-visit" target="_blank" rel="noopener noreferrer">Visit Project</a>
             </div>
             <div class="project-visual">
               <a href="https://nexoraelectronics.vercel.app/" target="_blank" rel="noopener noreferrer" aria-label="Open Electronic Web website">
-                <div class="laptop">
-                  <div class="laptop-screen"><img src="images/electronicweb.png" alt="Electronic Web preview" class="project-shot" /></div>
-                  <div class="laptop-base"></div>
+                <div class="device-showcase">
+                  <div class="laptop">
+                    <div class="laptop-screen"><img src="images/nexora web/electronicweb.png" alt="Electronic Web laptop preview" class="project-shot" /></div>
+                    <div class="laptop-base"></div>
+                  </div>
+                  <div class="project-mobile-overlay" aria-hidden="true">
+                    <div class="project-mobile-frame">
+                      <img src="images/nexora web/electronic web mobile.jpeg" alt="Electronic Web mobile preview" class="project-mobile-screen" />
+                    </div>
+                  </div>
                 </div>
               </a>
-            </div>
-          </div>
-
-          <div class="project-item">
-            <div class="project-info">
-              <span class="section-tag">B2B Lead Generation</span>
-              <h2>B2B Lead Generation for a Consulting Brand</h2>
-              <p><strong>The Challenge:</strong> The previous site looked dated, communicated value poorly, and failed to turn traffic into qualified inquiries.</p>
-              <p><strong>Our Solution:</strong> We repositioned the messaging, designed a cleaner authority-driven interface, and built structured service pages with stronger calls to action and trust signals.</p>
-              <p><strong>The Impact:</strong> Better lead quality, longer session times, and a clearer path from homepage visit to contact form submission.</p>
-              <div class="project-summary">
-                <div class="project-metric">
-                  <strong>Sharper Positioning</strong>
-                  <span>Cleaner messaging that explains value in seconds</span>
-                </div>
-                <div class="project-metric">
-                  <strong>Longer Sessions</strong>
-                  <span>Visitors stayed engaged deeper into the funnel</span>
-                </div>
-                <div class="project-metric">
-                  <strong>Better Leads</strong>
-                  <span>Higher-quality inquiries from a clearer user journey</span>
-                </div>
-              </div>
-              <a href="https://digitquo.in/" class="btn-visit" target="_blank" rel="noopener noreferrer">Visit Project</a>
-            </div>
-            <div class="project-visual">
-              <div class="mobile">
-                <iframe src="https://digitquo.in/" title="Niche Retailer Store"></iframe>
-              </div>
-            </div>
-          </div>
-
-          <div class="project-item">
-            <div class="project-info">
-              <span class="section-tag">Local Business Redesign</span>
-              <h2>Local Business Redesign for a Service Brand</h2>
-              <p><strong>The Challenge:</strong> The business needed a more professional online presence to compete against larger local competitors and earn trust immediately.</p>
-              <p><strong>Our Solution:</strong> We rebuilt the site with faster load times, stronger visual hierarchy, persuasive service copy, and clear inquiry paths tailored for mobile users.</p>
-              <p><strong>The Impact:</strong> Higher engagement, improved credibility, and a stronger digital storefront that better matched the quality of the business itself.</p>
-              <div class="project-summary">
-                <div class="project-metric">
-                  <strong>Higher Trust</strong>
-                  <span>A more polished brand presence from the first screen</span>
-                </div>
-                <div class="project-metric">
-                  <strong>Better Flow</strong>
-                  <span>Service pages built around clear inquiry paths</span>
-                </div>
-                <div class="project-metric">
-                  <strong>Mobile Ready</strong>
-                  <span>Stronger hierarchy for mobile-first visitors</span>
-                </div>
-              </div>
-              <a href="https://digitquo.in/" class="btn-visit" target="_blank" rel="noopener noreferrer">Visit Project</a>
-            </div>
-            <div class="project-visual">
-              <div class="laptop">
-                <div class="laptop-screen"><iframe src="https://digitquo.in/" title="Sleek Professional Portfolio"></iframe></div>
-                <div class="laptop-base"></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="project-item">
-            <div class="project-info">
-              <span class="section-tag">Startup Launch</span>
-              <h2>Startup Launchpad for a SaaS Product</h2>
-              <p><strong>The Challenge:</strong> A new product needed a launch-ready website that could communicate value quickly and build trust with first-time visitors.</p>
-              <p><strong>Our Solution:</strong> DigitQuo created a focused landing experience with sharp positioning, modern visuals, and conversion-oriented sections built to support demos and sign-ups.</p>
-              <p><strong>The Impact:</strong> Stronger first impressions, clearer messaging, and a launch asset that felt credible from day one.</p>
-              <div class="project-summary">
-                <div class="project-metric">
-                  <strong>Launch Ready</strong>
-                  <span>A focused page structure built for early momentum</span>
-                </div>
-                <div class="project-metric">
-                  <strong>Clear Messaging</strong>
-                  <span>Product value explained without friction or noise</span>
-                </div>
-                <div class="project-metric">
-                  <strong>Demo Support</strong>
-                  <span>Conversion-focused sections tuned for sign-ups</span>
-                </div>
-              </div>
-              <a href="https://digitquo.in/" class="btn-visit" target="_blank" rel="noopener noreferrer">Visit Project</a>
-            </div>
-            <div class="project-visual">
-              <div class="mobile">
-                <iframe src="https://digitquo.in/" title="Startup Launchpad"></iframe>
-              </div>
-            </div>
-          </div>
-
-          <div class="project-item">
-            <div class="project-info">
-              <span class="section-tag">SEO Content Platform</span>
-              <h2>SEO Powerhouse Blog for Organic Growth</h2>
-              <p><strong>The Challenge:</strong> The client needed a content platform that could rank competitively without sacrificing speed or readability.</p>
-              <p><strong>Our Solution:</strong> We structured the site around clean information architecture, semantic markup, fast-loading templates, and search-friendly content patterns.</p>
-              <p><strong>The Impact:</strong> Improved discoverability, stronger content engagement, and a scalable foundation for long-term organic traffic growth.</p>
-              <div class="project-summary">
-                <div class="project-metric">
-                  <strong>Clean Structure</strong>
-                  <span>Architecture built to scale future content clusters</span>
-                </div>
-                <div class="project-metric">
-                  <strong>Faster Reads</strong>
-                  <span>Templates optimized for speed and readability</span>
-                </div>
-                <div class="project-metric">
-                  <strong>Organic Growth</strong>
-                  <span>A stronger long-term foundation for search visibility</span>
-                </div>
-              </div>
-              <a href="https://digitquo.in/" class="btn-visit" target="_blank" rel="noopener noreferrer">Visit Project</a>
-            </div>
-            <div class="project-visual">
-              <div class="laptop">
-                <div class="laptop-screen"><iframe src="https://digitquo.in/" title="SEO Powerhouse Blog"></iframe></div>
-                <div class="laptop-base"></div>
-              </div>
             </div>
           </div>
         </div>
@@ -583,6 +817,98 @@
     }, observerOptions);
 
     document.querySelectorAll(".project-item").forEach((el) => portfolioObserver.observe(el));
+
+    const showcaseScroll = document.getElementById("showcaseScroll");
+
+    if (showcaseScroll) {
+      let isPaused = false;
+      let animationFrameId = null;
+      const resetPoint = showcaseScroll.scrollWidth / 2;
+      const step = 0.45;
+
+      const autoScroll = () => {
+        if (!isPaused) {
+          showcaseScroll.scrollLeft += step;
+
+          if (showcaseScroll.scrollLeft >= resetPoint) {
+            showcaseScroll.scrollLeft = 0;
+          }
+        }
+
+        animationFrameId = window.requestAnimationFrame(autoScroll);
+      };
+
+      showcaseScroll.addEventListener("mouseenter", () => {
+        isPaused = true;
+      });
+
+      showcaseScroll.addEventListener("mouseleave", () => {
+        isPaused = false;
+      });
+
+      showcaseScroll.addEventListener("touchstart", () => {
+        isPaused = true;
+      }, { passive: true });
+
+      showcaseScroll.addEventListener("touchend", () => {
+        isPaused = false;
+      });
+
+      animationFrameId = window.requestAnimationFrame(autoScroll);
+
+      window.addEventListener("beforeunload", () => {
+        if (animationFrameId) {
+          window.cancelAnimationFrame(animationFrameId);
+        }
+      });
+    }
+
+    const storyCards = Array.from(document.querySelectorAll(".story-card"));
+    const storyStack = document.getElementById("storyStack");
+    let activeStoryIndex = 0;
+
+    function updateStoryStack(activeIndex) {
+      storyCards.forEach((card, index) => {
+        const offset = (index - activeIndex + storyCards.length) % storyCards.length;
+
+        card.classList.remove("is-front", "is-middle", "is-back");
+
+        if (offset === 0) {
+          card.classList.add("is-front");
+        } else if (offset === 1) {
+          card.classList.add("is-middle");
+        } else {
+          card.classList.add("is-back");
+        }
+      });
+    }
+
+    if (storyStack && storyCards.length) {
+      updateStoryStack(activeStoryIndex);
+
+      let wheelLocked = false;
+
+      storyStack.addEventListener("wheel", (event) => {
+        event.preventDefault();
+
+        if (wheelLocked) {
+          return;
+        }
+
+        if (event.deltaY > 0) {
+          activeStoryIndex = (activeStoryIndex + 1) % storyCards.length;
+        } else if (event.deltaY < 0) {
+          activeStoryIndex = (activeStoryIndex - 1 + storyCards.length) % storyCards.length;
+        }
+
+        updateStoryStack(activeStoryIndex);
+        wheelLocked = true;
+
+        window.setTimeout(() => {
+          wheelLocked = false;
+        }, 220);
+      }, { passive: false });
+    }
 
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

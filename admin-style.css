@@ -50,6 +50,20 @@ body {
   transition: background 0.25s ease, color 0.25s ease;
 }
 
+img,
+svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
 body.sidebar-open {
   overflow: hidden;
 }
