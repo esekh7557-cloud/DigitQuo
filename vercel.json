@@ -1,4 +1,23 @@
 {
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.digitquo.in"
+        }
+      ],
+      "destination": "https://digitquo.in/$1",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/favicon.ico",
+      "destination": "/images/favicon.ico"
+    }
+  ],
   "functions": {
     "api/**/*.js": {
       "maxDuration": 30
