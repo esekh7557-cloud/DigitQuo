@@ -1614,6 +1614,10 @@ button {
   gap: 18px;
 }
 
+.plan-overview {
+  align-content: center;
+}
+
 .plan-price-strip {
   display: flex;
   align-items: center;
