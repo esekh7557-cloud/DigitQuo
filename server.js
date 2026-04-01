@@ -25,23 +25,28 @@ const LOGIN_MAX_ATTEMPTS = 5;
 const PLAN_CATALOG = {
   basic: {
     name: "The Starter",
-    amount: 12999,
+    amount: 8999,
+    addOns: [{ id: "hosting", name: "Hosting", amount: 4000 }],
   },
   business: {
     name: "The Professional",
-    amount: 14599,
+    amount: 10599,
+    addOns: [{ id: "hosting", name: "Hosting", amount: 4000 }],
   },
   professional: {
     name: "Professional Plus",
-    amount: 16999,
+    amount: 12999,
+    addOns: [{ id: "hosting", name: "Hosting", amount: 4000 }],
   },
   ecommerce: {
     name: "Enterprise",
-    amount: 39999,
+    amount: 22999,
+    addOns: [{ id: "vps-hosting", name: "VPS Hosting", amount: 17000 }],
   },
   "advanced-ecommerce": {
     name: "Enterprise Plus",
-    amount: 49999,
+    amount: 32999,
+    addOns: [{ id: "vps-hosting", name: "VPS Hosting", amount: 17000 }],
   },
 };
 
@@ -508,6 +513,31 @@ function getPlanConfig(planKey) {
   return PLAN_CATALOG[String(planKey || "").trim()] || null;
 }
 
+function normalizePlanAddOnIds(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .map((entry) => String(entry || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function getPlanAddOns(plan, addOnIds = []) {
+  const catalog = Array.isArray(plan?.addOns) ? plan.addOns : [];
+  const selectedIds = new Set(normalizePlanAddOnIds(addOnIds));
+  return catalog.filter((addOn) => selectedIds.has(String(addOn?.id || "").trim()));
+}
+
+function arePlanAddOnIdsValid(plan, addOnIds = []) {
+  const normalizedIds = normalizePlanAddOnIds(addOnIds);
+  return getPlanAddOns(plan, normalizedIds).length === normalizedIds.length;
+}
+
 function normalizeCouponCode(code) {
   return String(code || "").trim().toUpperCase();
 }
@@ -580,13 +610,17 @@ function calculateCouponDiscount(amount, coupon) {
 
 function getPlanPricing(plan, coupon, options = {}) {
   const planAmount = Number((plan?.amount ?? plan?.subtotal) || 0);
+  const selectedAddOns = getPlanAddOns(plan, options.addOnIds);
+  const addOnAmount = selectedAddOns.reduce((sum, addOn) => sum + Number(addOn?.amount || addOn?.price || 0), 0);
   const fastDeliveryFee = options.fastDelivery ? Math.round(planAmount * 0.1 * 100) / 100 : 0;
-  const baseAmount = Math.round((planAmount + fastDeliveryFee) * 100) / 100;
+  const baseAmount = Math.round((planAmount + addOnAmount + fastDeliveryFee) * 100) / 100;
   const discountAmount = calculateCouponDiscount(baseAmount, coupon);
   const finalAmount = Math.max(0, Math.round((baseAmount - discountAmount) * 100) / 100);
 
   return {
     planAmount,
+    selectedAddOns,
+    addOnAmount,
     fastDeliveryFee,
     baseAmount,
     discountAmount,
@@ -848,9 +882,15 @@ async function handleCreateRazorpayOrder(req, res) {
   const requirements = body.requirements && typeof body.requirements === "object" ? body.requirements : {};
   const fastDelivery = body.fastDelivery === true;
   const couponCode = normalizeCouponCode(body.couponCode);
+  const addOnIds = normalizePlanAddOnIds(body.addOnIds);
 
   if (!plan) {
     json(res, 400, { error: "Invalid plan selected." });
+    return;
+  }
+
+  if (!arePlanAddOnIdsValid(plan, addOnIds)) {
+    json(res, 400, { error: "Invalid add-on selected." });
     return;
   }
 
@@ -882,7 +922,7 @@ async function handleCreateRazorpayOrder(req, res) {
 
     }
 
-    const pricing = getPlanPricing(plan, appliedCoupon, { fastDelivery });
+    const pricing = getPlanPricing(plan, appliedCoupon, { fastDelivery, addOnIds });
     if (pricing.finalAmount <= 0) {
       json(res, 400, { error: "Coupon discount cannot reduce the payable amount to zero." });
       return;
@@ -918,6 +958,12 @@ async function handleCreateRazorpayOrder(req, res) {
             name: plan.name,
             price: pricing.baseAmount,
             base_price: pricing.planAmount,
+            add_ons: pricing.selectedAddOns.map((addOn) => ({
+              id: addOn.id,
+              name: addOn.name,
+              price: Number(addOn.amount || addOn.price || 0),
+            })),
+            add_on_amount: pricing.addOnAmount,
             fast_delivery: fastDelivery,
             fast_delivery_fee: pricing.fastDeliveryFee,
             coupon_code: appliedCoupon?.coupon_code || null,
@@ -974,6 +1020,7 @@ async function handleCreateRazorpayOrder(req, res) {
             plan_key: planKey,
             customer_name: customerName,
             customer_email: customerEmail,
+            add_ons: pricing.selectedAddOns.map((addOn) => addOn.name).join(", "),
             fast_delivery: fastDelivery ? "yes" : "no",
             coupon_code: appliedCoupon?.coupon_code || "",
           },
@@ -999,6 +1046,7 @@ async function handleCreateRazorpayOrder(req, res) {
         pricing: {
           amount: pricing.baseAmount,
           baseAmount: pricing.planAmount,
+          addOnAmount: pricing.addOnAmount,
           fastDeliveryFee: pricing.fastDeliveryFee,
           discountAmount: pricing.discountAmount,
           finalAmount: pricing.finalAmount,

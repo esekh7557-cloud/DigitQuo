@@ -9,12 +9,14 @@ const quoteRequestForm = document.getElementById("quoteRequestForm");
 const cartRoot = document.getElementById("cartContent");
 const planDetailsRoot = document.getElementById("planDetailsRoot");
 const planRequirementsRoot = document.getElementById("planRequirementsRoot");
+const pricingPlansSection = document.getElementById("pricingPlans");
 const quoteRequestRoot = document.getElementById("quoteRequestRoot");
 const customPlanRoot = document.getElementById("customPlanRoot");
 const customPlanForm = document.getElementById("customPlanForm");
 const CART_STORAGE_KEY = "dq_cart_items";
 const SELECTED_PLAN_STORAGE_KEY = "dq_selected_plan";
 const PLAN_COUPONS_STORAGE_KEY = "dq_plan_coupons";
+const PLAN_ADDONS_STORAGE_KEY = "dq_plan_addons";
 const dqAuth = window.dqAuth;
 const FOOTER_FAQ_ITEMS = [
   {
@@ -131,12 +133,51 @@ function ensureFooterFaqAccordion() {
   });
 }
 
+function ensureMainPagesWhatsAppFab() {
+  const currentPath = String(window.location.pathname || "").toLowerCase();
+  const currentPage = currentPath.split("/").filter(Boolean).pop() || "index.html";
+  const allowedPages = new Set([
+    "index.html",
+    "services.html",
+    "portfolio.html",
+    "about.html",
+    "pricing.html",
+    "contact.html",
+  ]);
+
+  if (!allowedPages.has(currentPage) || document.querySelector(".site-whatsapp-fab")) {
+    return;
+  }
+
+  const fab = document.createElement("a");
+  fab.href = "https://wa.me/918177957990";
+  fab.className = "site-whatsapp-fab";
+  fab.target = "_blank";
+  fab.rel = "noopener noreferrer";
+  fab.setAttribute("aria-label", "Chat with DigitQuo on WhatsApp");
+  fab.innerHTML = `
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M13.601 2.326A7.854 7.854 0 0 0 8.016 0a7.94 7.94 0 0 0-6.728 12.111L0 16l4.044-1.328A7.96 7.96 0 0 0 8.016 16h.003a7.94 7.94 0 0 0 5.582-13.674zM8.019 14.57a6.55 6.55 0 0 1-3.343-.92l-.24-.144-2.398.787.783-2.338-.156-.24a6.57 6.57 0 0 1 1.007-8.283 6.47 6.47 0 0 1 4.35-1.68h.002a6.52 6.52 0 0 1 4.646 1.927 6.45 6.45 0 0 1 1.889 4.61 6.57 6.57 0 0 1-6.54 6.281z"></path>
+      <path d="M11.608 9.885c-.196-.098-1.17-.578-1.35-.647-.18-.066-.311-.098-.442.098-.131.197-.508.647-.623.779-.114.131-.229.147-.425.05-.197-.099-.833-.306-1.587-.977-.587-.522-.983-1.166-1.098-1.364-.114-.197-.012-.304.086-.402.088-.114.197-.295.295-.442.098-.147.131-.246.197-.41.066-.164.033-.307-.016-.43-.05-.131-.442-1.058-.606-1.446-.16-.39-.327-.335-.442-.341a4.8 4.8 0 0 0-.377-.006c-.131 0-.344.05-.524.246-.18.197-.688.672-.688 1.64s.704 1.902.802 2.033c.098.131 1.388 2.105 3.36 2.952.47.205.84.328 1.127.42.474.15.904.129 1.246.08.38-.058 1.17-.48 1.334-.943.164-.462.164-.859.115-.943-.05-.082-.18-.131-.377-.229z"></path>
+    </svg>
+  `;
+
+  document.body.appendChild(fab);
+}
+
 const PLAN_DETAILS = {
   basic: {
     name: "The Starter",
-    oldPrice: 15000,
-    subtotal: 12999,
+    oldPrice: 11000,
+    subtotal: 8999,
     domainPrice: 999,
+    addOns: [
+      {
+        id: "hosting",
+        name: "Hosting",
+        price: 4000,
+      },
+    ],
     features: [
       "1-3 Pages Website",
       "Delivery in 5-7 days",
@@ -144,14 +185,20 @@ const PLAN_DETAILS = {
       "Contact Form",
       "Free SSL",
       ".in Domain",
-      "Hosting",
     ],
   },
   business: {
     name: "The Professional",
-    oldPrice: 18000,
-    subtotal: 14599,
+    oldPrice: 14000,
+    subtotal: 10599,
     domainPrice: 999,
+    addOns: [
+      {
+        id: "hosting",
+        name: "Hosting",
+        price: 4000,
+      },
+    ],
     features: [
       "5-7 Pages Website",
       "Delivery in 6-8 days",
@@ -159,14 +206,21 @@ const PLAN_DETAILS = {
       "Contact Forms",
       "Google Map",
       "Basic SEO",
-      "Domain + Hosting",
+      "Domain",
     ],
   },
   professional: {
     name: "Professional Plus",
-    oldPrice: 22000,
-    subtotal: 16999,
+    oldPrice: 18000,
+    subtotal: 12999,
     domainPrice: 999,
+    addOns: [
+      {
+        id: "hosting",
+        name: "Hosting",
+        price: 4000,
+      },
+    ],
     features: [
       "8-12 Pages Website",
       "Delivery in 6-8 days",
@@ -174,14 +228,21 @@ const PLAN_DETAILS = {
       "Blog System",
       "SEO Setup",
       "Social Media Integration",
-      "Domain + Hosting",
+      "Domain",
     ],
   },
   ecommerce: {
     name: "Enterprise",
-    oldPrice: 50000,
-    subtotal: 39999,
+    oldPrice: 33000,
+    subtotal: 22999,
     domainPrice: 999,
+    addOns: [
+      {
+        id: "vps-hosting",
+        name: "VPS Hosting",
+        price: 17000,
+      },
+    ],
     features: [
       "Online Store",
       "Up to 50 Products",
@@ -189,15 +250,21 @@ const PLAN_DETAILS = {
       "Payment Gateway",
       "Cart & Checkout",
       "Admin Panel",
-      "VPS Hosting",
       "Domain",
     ],
   },
   "advanced-ecommerce": {
     name: "Enterprise Plus",
-    oldPrice: 70000,
-    subtotal: 49999,
+    oldPrice: 53000,
+    subtotal: 32999,
     domainPrice: 999,
+    addOns: [
+      {
+        id: "vps-hosting",
+        name: "VPS Hosting",
+        price: 17000,
+      },
+    ],
     features: [
       "Unlimited Products",
       "Delivery in 10-13 days",
@@ -205,7 +272,6 @@ const PLAN_DETAILS = {
       "Payment Gateway",
       "Coupons",
       "Shipping Integration",
-      "VPS Hosting",
       "Domain",
     ],
   },
@@ -222,6 +288,7 @@ if (menuToggle && navLinks) {
 }
 
 ensureFooterFaqAccordion();
+ensureMainPagesWhatsAppFab();
 
 if ("IntersectionObserver" in window) {
   const observer = new IntersectionObserver(
@@ -376,6 +443,197 @@ function formatInr(value) {
 
 function getPlanByKey(planKey) {
   return PLAN_DETAILS[String(planKey || "").trim()] || null;
+}
+
+function readStoredPlanAddOns() {
+  try {
+    const raw = window.localStorage.getItem(PLAN_ADDONS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredPlanAddOns(addOnsByPlan) {
+  window.localStorage.setItem(PLAN_ADDONS_STORAGE_KEY, JSON.stringify(addOnsByPlan || {}));
+}
+
+function normalizePlanAddOnIds(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .map((entry) => String(entry || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function getStoredPlanAddOnIds(planKey) {
+  const stored = readStoredPlanAddOns();
+  return normalizePlanAddOnIds(stored[String(planKey || "").trim()]);
+}
+
+function setStoredPlanAddOnIds(planKey, addOnIds) {
+  const key = String(planKey || "").trim();
+  if (!key) {
+    return;
+  }
+
+  const stored = readStoredPlanAddOns();
+  const normalized = normalizePlanAddOnIds(addOnIds);
+  if (normalized.length) {
+    stored[key] = normalized;
+  } else {
+    delete stored[key];
+  }
+  writeStoredPlanAddOns(stored);
+}
+
+function clearStoredPlanAddOnIds(planKey) {
+  const key = String(planKey || "").trim();
+  if (!key) {
+    return;
+  }
+
+  const stored = readStoredPlanAddOns();
+  delete stored[key];
+  writeStoredPlanAddOns(stored);
+}
+
+function toggleStoredPlanAddOn(planKey, addOnId) {
+  const normalizedId = String(addOnId || "").trim();
+  if (!normalizedId) {
+    return false;
+  }
+
+  const selectedIds = getStoredPlanAddOnIds(planKey);
+  const isSelected = selectedIds.includes(normalizedId);
+  const nextIds = isSelected
+    ? selectedIds.filter((entry) => entry !== normalizedId)
+    : [...selectedIds, normalizedId];
+
+  setStoredPlanAddOnIds(planKey, nextIds);
+  return !isSelected;
+}
+
+function getPlanAddOnsByIds(plan, addOnIds = []) {
+  const catalog = Array.isArray(plan?.addOns) ? plan.addOns : [];
+  const selectedIds = new Set(normalizePlanAddOnIds(addOnIds));
+  return catalog.filter((addOn) => selectedIds.has(String(addOn?.id || "").trim()));
+}
+
+function getPlanAddOnAmount(plan, addOnIds = []) {
+  return getPlanAddOnsByIds(plan, addOnIds).reduce((sum, addOn) => sum + Number(addOn?.price || 0), 0);
+}
+
+function getPlanDefaultAddOnIds(plan) {
+  return (Array.isArray(plan?.addOns) ? plan.addOns : [])
+    .map((addOn) => String(addOn?.id || "").trim())
+    .filter(Boolean);
+}
+
+function getPricingPageMode() {
+  if (!pricingPlansSection) {
+    return "without-hosting";
+  }
+
+  return pricingPlansSection.dataset.pricingMode === "with-hosting" ? "with-hosting" : "without-hosting";
+}
+
+function getPlanCatalogPricing(plan, options = {}) {
+  const includeHosting = options.includeHosting === true;
+  const addOnIds = includeHosting ? getPlanDefaultAddOnIds(plan) : [];
+  const addOnAmount = getPlanAddOnAmount(plan, addOnIds);
+
+  return {
+    oldPrice: Math.round((Number(plan?.oldPrice || 0) + addOnAmount) * 100) / 100,
+    subtotal: Math.round((Number((plan?.subtotal ?? plan?.amount) || 0) + addOnAmount) * 100) / 100,
+    addOnIds,
+  };
+}
+
+function renderPricingPageFilter(mode = "without-hosting") {
+  if (!pricingPlansSection) {
+    return;
+  }
+
+  const normalizedMode = mode === "with-hosting" ? "with-hosting" : "without-hosting";
+  pricingPlansSection.dataset.pricingMode = normalizedMode;
+
+  pricingPlansSection.querySelectorAll("[data-pricing-mode]").forEach((button) => {
+    const isActive = button.getAttribute("data-pricing-mode") === normalizedMode;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+
+  const filterNote = document.getElementById("pricingFilterNote");
+  if (filterNote) {
+    filterNote.textContent =
+      normalizedMode === "with-hosting"
+        ? "Showing package prices with hosting add-ons included."
+        : "Showing base package prices without hosting add-ons.";
+  }
+
+  pricingPlansSection.querySelectorAll("[data-pricing-plan]").forEach((card) => {
+    const planKey = card.getAttribute("data-pricing-plan") || "";
+    const plan = getPlanByKey(planKey);
+    const priceNode = card.querySelector("[data-pricing-price]");
+    if (!plan || !(priceNode instanceof HTMLElement)) {
+      return;
+    }
+
+    const pricing = getPlanCatalogPricing(plan, { includeHosting: normalizedMode === "with-hosting" });
+    priceNode.innerHTML = `<span class="old-price">${escapeHtml(formatInr(pricing.oldPrice))}</span> ${escapeHtml(
+      formatInr(pricing.subtotal)
+    )} <small>/ project</small>`;
+  });
+}
+
+function renderPlanAddOnsMarkup(plan, planKey) {
+  const addOns = Array.isArray(plan?.addOns) ? plan.addOns : [];
+  if (!addOns.length) {
+    return "";
+  }
+
+  const selectedIds = new Set(getStoredPlanAddOnIds(planKey));
+
+  return `
+    <article class="card plan-addon-card">
+      <div class="plan-addon-head">
+        <span class="eyebrow">Available Add-ons</span>
+        <h2>Add extra services if needed</h2>
+        <p class="section-subtitle">These add-ons stay separate from the main package price unless you add them below.</p>
+      </div>
+      <div class="plan-addon-list">
+        ${addOns
+          .map(
+            (addOn) => `
+              <div class="plan-addon-item ${selectedIds.has(String(addOn.id || "").trim()) ? "is-selected" : ""}">
+                <div>
+                  <h3>${escapeHtml(addOn.name || "Add-on")}</h3>
+                  <p>Optional add-on for this package.</p>
+                </div>
+                <div class="plan-addon-actions">
+                  <strong>${formatInr(addOn.price)}</strong>
+                  <button
+                    class="btn ${selectedIds.has(String(addOn.id || "").trim()) ? "btn-secondary" : "btn-primary"}"
+                    type="button"
+                    data-plan-addon-toggle="${escapeHtml(addOn.id || "")}"
+                  >
+                    ${selectedIds.has(String(addOn.id || "").trim()) ? "Remove Add-on" : "Add Add-on"}
+                  </button>
+                </div>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+    </article>
+  `;
 }
 
 function getPlanRequirementsPagePath(planKey) {
@@ -590,13 +848,15 @@ function renderPlanFeatureListMarkup(planKey, options = {}) {
 
 function getPlanPricingWithCoupon(plan, coupon, options = {}) {
   const planAmount = Number((plan?.subtotal ?? plan?.amount) || 0);
+  const addOnAmount = getPlanAddOnAmount(plan, options.addOnIds);
   const fastDeliveryFee = options.fastDelivery ? Math.round(planAmount * 0.1 * 100) / 100 : 0;
-  const baseAmount = Math.round((planAmount + fastDeliveryFee) * 100) / 100;
+  const baseAmount = Math.round((planAmount + addOnAmount + fastDeliveryFee) * 100) / 100;
   const discountAmount = calculateCouponDiscount(baseAmount, coupon);
   const finalAmount = Math.max(0, Math.round((baseAmount - discountAmount) * 100) / 100);
 
   return {
     planAmount,
+    addOnAmount,
     fastDeliveryFee,
     baseAmount,
     discountAmount,
@@ -645,15 +905,25 @@ function syncPlanCouponUi(planKey) {
   }
 
   const coupon = getStoredPlanCoupon(planKey);
+  const selectedAddOns = getPlanAddOnsByIds(plan, getStoredPlanAddOnIds(planKey));
   const fastDeliveryInput = document.getElementById("planFastDelivery");
-  const pricing = getPlanPricingWithCoupon(plan, coupon, { fastDelivery: Boolean(fastDeliveryInput?.checked) });
+  const pricing = getPlanPricingWithCoupon(plan, coupon, {
+    fastDelivery: Boolean(fastDeliveryInput?.checked),
+    addOnIds: selectedAddOns.map((addOn) => addOn.id),
+  });
   const couponToggle = document.getElementById("planCouponToggle");
   const couponForm = document.getElementById("planCouponForm");
   const couponInput = document.getElementById("planCouponCode");
   const clearButton = document.getElementById("clearPlanCouponBtn");
+  const addOnRow = document.getElementById("planAddOnRow");
+  const addOnLabel = document.getElementById("planAddOnLabel");
+  const addOnValue = document.getElementById("planAddOnValue");
   const couponLabel = document.getElementById("planCouponLabel");
   const couponValue = document.getElementById("planCouponDiscountValue");
   const finalTotal = document.getElementById("planFinalTotal");
+  const requirementAddOnRow = document.getElementById("planRequirementAddOnRow");
+  const requirementAddOnLabel = document.getElementById("planRequirementAddOnLabel");
+  const requirementAddOnValue = document.getElementById("planRequirementAddOnValue");
   const requirementFastDeliveryRow = document.getElementById("planRequirementFastDeliveryRow");
   const requirementFastDeliveryValue = document.getElementById("planRequirementFastDeliveryValue");
   const requirementBaseAmount = document.getElementById("planRequirementBaseAmount");
@@ -683,6 +953,20 @@ function syncPlanCouponUi(planKey) {
     clearButton.hidden = !coupon;
   }
 
+  if (addOnRow) {
+    addOnRow.hidden = selectedAddOns.length === 0;
+  }
+
+  if (addOnLabel) {
+    addOnLabel.textContent = selectedAddOns.length
+      ? selectedAddOns.map((addOn) => addOn.name).join(", ")
+      : "Selected Add-ons";
+  }
+
+  if (addOnValue) {
+    addOnValue.textContent = `+ ${formatInr(pricing.addOnAmount)}`;
+  }
+
   if (couponLabel) {
     couponLabel.textContent = coupon ? `Coupon (${coupon.coupon_code})` : "Coupon Discount";
   }
@@ -693,6 +977,20 @@ function syncPlanCouponUi(planKey) {
 
   if (finalTotal) {
     finalTotal.textContent = formatInr(pricing.finalAmount);
+  }
+
+  if (requirementAddOnRow) {
+    requirementAddOnRow.hidden = selectedAddOns.length === 0;
+  }
+
+  if (requirementAddOnLabel) {
+    requirementAddOnLabel.textContent = selectedAddOns.length
+      ? selectedAddOns.map((addOn) => addOn.name).join(", ")
+      : "Selected Add-ons";
+  }
+
+  if (requirementAddOnValue) {
+    requirementAddOnValue.textContent = `+ ${formatInr(pricing.addOnAmount)}`;
   }
 
   if (requirementFastDeliveryRow) {
@@ -791,12 +1089,19 @@ function buildCartItemFromPlan(planKey) {
     return null;
   }
 
+  const selectedAddOns = getPlanAddOnsByIds(plan, getStoredPlanAddOnIds(planKey));
+  const addOnAmount = selectedAddOns.reduce((sum, addOn) => sum + Number(addOn.price || 0), 0);
+  const totalAmount = Number(plan.subtotal) + addOnAmount;
+  const addOnLabel = selectedAddOns.length
+    ? ` Add-ons: ${selectedAddOns.map((addOn) => addOn.name).join(", ")}.`
+    : "";
+
   return {
     planKey,
     title: plan.name,
-    description: `${plan.features.length} included features with domain registration and hosting support.`,
-    price: formatInr(plan.subtotal),
-    amount: Number(plan.subtotal),
+    description: `${plan.features.length} included features with domain registration and hosting support.${addOnLabel}`,
+    price: formatInr(totalAmount),
+    amount: totalAmount,
   };
 }
 
@@ -2200,7 +2505,10 @@ function renderPlanDetailsPage() {
   const websitePrice = plan.subtotal - plan.domainPrice;
   const savings = plan.oldPrice - plan.subtotal;
   const appliedCoupon = getStoredPlanCoupon(planKey);
-  const pricing = getPlanPricingWithCoupon(plan, appliedCoupon);
+  const selectedAddOns = getPlanAddOnsByIds(plan, getStoredPlanAddOnIds(planKey));
+  const pricing = getPlanPricingWithCoupon(plan, appliedCoupon, {
+    addOnIds: selectedAddOns.map((addOn) => addOn.id),
+  });
 
   planDetailsRoot.innerHTML = `
     <div class="plan-layout">
@@ -2226,6 +2534,12 @@ function renderPlanDetailsPage() {
         <div class="plan-summary-row">
           <span>Domain Registration</span>
           <strong>${formatInr(plan.domainPrice)}</strong>
+        </div>
+        <div class="plan-summary-row" id="planAddOnRow" ${selectedAddOns.length ? "" : "hidden"}>
+          <span id="planAddOnLabel">${escapeHtml(
+            selectedAddOns.length ? selectedAddOns.map((addOn) => addOn.name).join(", ") : "Selected Add-ons"
+          )}</span>
+          <strong id="planAddOnValue">+ ${formatInr(pricing.addOnAmount)}</strong>
         </div>
         <button
           class="plan-coupon-toggle"
@@ -2260,7 +2574,7 @@ function renderPlanDetailsPage() {
           <span>Total Pricing</span>
           <strong id="planFinalTotal">${formatInr(pricing.finalAmount)}</strong>
         </div>
-        <p class="plan-note">Hosting and listed package features remain included in the selected plan.</p>
+        <p class="plan-note">The main package total stays unchanged unless you add an optional add-on below.</p>
         <p class="plan-feedback" id="planFeedback">Add this package to your cart to keep it saved while you continue browsing.</p>
         <div class="plan-actions">
           <button class="btn btn-secondary" type="button" data-plan-add="${escapeHtml(planKey)}">Add to Cart</button>
@@ -2268,7 +2582,22 @@ function renderPlanDetailsPage() {
         </div>
       </article>
     </div>
+    ${renderPlanAddOnsMarkup(plan, planKey)}
   `;
+
+  planDetailsRoot.querySelectorAll("[data-plan-addon-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const addOnId = button.getAttribute("data-plan-addon-toggle") || "";
+      const wasAdded = toggleStoredPlanAddOn(planKey, addOnId);
+      const selectedAddOn = (Array.isArray(plan.addOns) ? plan.addOns : []).find((addOn) => addOn.id === addOnId);
+      showCartToast(
+        wasAdded
+          ? `${selectedAddOn?.name || "Add-on"} added to this package.`
+          : `${selectedAddOn?.name || "Add-on"} removed from this package.`
+      );
+      renderPlanDetailsPage();
+    });
+  });
 
   const couponToggle = document.getElementById("planCouponToggle");
   const couponForm = document.getElementById("planCouponForm");
@@ -2339,9 +2668,30 @@ function bindPortfolioQuoteTrigger(user) {
 }
 
 function bindPricingActions() {
+  if (pricingPlansSection) {
+    pricingPlansSection.querySelectorAll("[data-pricing-mode]").forEach((button) => {
+      button.addEventListener("click", () => {
+        renderPricingPageFilter(button.getAttribute("data-pricing-mode") || "without-hosting");
+      });
+    });
+
+    renderPricingPageFilter(getPricingPageMode());
+  }
+
   document.querySelectorAll("[data-plan-link]").forEach((link) => {
     link.addEventListener("click", () => {
-      saveSelectedPlan(link.dataset.planLink);
+      const planKey = link.dataset.planLink;
+      const plan = getPlanByKey(planKey);
+
+      if (plan && pricingPlansSection?.contains(link)) {
+        if (getPricingPageMode() === "with-hosting") {
+          setStoredPlanAddOnIds(planKey, getPlanDefaultAddOnIds(plan));
+        } else {
+          clearStoredPlanAddOnIds(planKey);
+        }
+      }
+
+      saveSelectedPlan(planKey);
     });
   });
 }
@@ -2829,7 +3179,10 @@ function renderPlanRequirementsPage(user) {
 
   saveSelectedPlan(planKey);
   const appliedCoupon = getStoredPlanCoupon(planKey);
-  const pricing = getPlanPricingWithCoupon(plan, appliedCoupon);
+  const selectedAddOns = getPlanAddOnsByIds(plan, getStoredPlanAddOnIds(planKey));
+  const pricing = getPlanPricingWithCoupon(plan, appliedCoupon, {
+    addOnIds: selectedAddOns.map((addOn) => addOn.id),
+  });
 
   const showBasicSection = planKey === "basic" || planKey === "business" || planKey === "professional";
   const showBusinessSection = planKey === "business" || planKey === "professional";
@@ -3058,6 +3411,12 @@ function renderPlanRequirementsPage(user) {
             <span>Plan Price</span>
             <strong>${formatInr(pricing.planAmount)}</strong>
           </div>
+          <div class="plan-form-summary-row" id="planRequirementAddOnRow" ${selectedAddOns.length ? "" : "hidden"}>
+            <span id="planRequirementAddOnLabel">${escapeHtml(
+              selectedAddOns.length ? selectedAddOns.map((addOn) => addOn.name).join(", ") : "Selected Add-ons"
+            )}</span>
+            <strong id="planRequirementAddOnValue">+ ${formatInr(pricing.addOnAmount)}</strong>
+          </div>
           <div class="plan-form-summary-row" id="planRequirementFastDeliveryRow" hidden>
             <span>Fast Delivery</span>
             <strong id="planRequirementFastDeliveryValue">+ ${formatInr(0)}</strong>
@@ -3171,6 +3530,7 @@ function renderPlanRequirementsPage(user) {
 
       const checkoutData = await createPlanPaymentOrder({
         planKey,
+        addOnIds: getStoredPlanAddOnIds(planKey),
         customerName,
         customerEmail,
         customerPhone,
@@ -3197,6 +3557,7 @@ function renderPlanRequirementsPage(user) {
 
       removeCartItem(planKey);
       clearStoredPlanCoupon(planKey);
+      clearStoredPlanAddOnIds(planKey);
       showPlanSuccessModal({
         title: "Payment Received",
         message: "Our team will contact you soon.",

@@ -1530,6 +1530,56 @@ button {
 .pricing-plans-head {
   margin-bottom: 30px;
 }
+
+.pricing-filter-bar {
+  margin-top: 20px;
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+.pricing-filter-label {
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--secondary);
+}
+
+.pricing-filter-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  flex-wrap: wrap;
+}
+
+.pricing-filter-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pricing-filter-btn.is-active {
+  background: linear-gradient(135deg, var(--secondary), var(--primary));
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(91, 33, 182, 0.2);
+}
+
+.pricing-filter-note {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
 .price-card-actions {
   display: grid;
   grid-template-columns: 1fr;
@@ -1715,6 +1765,65 @@ button {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.plan-addon-card {
+  margin-top: 20px;
+  display: grid;
+  gap: 18px;
+}
+
+.plan-addon-head {
+  display: grid;
+  gap: 8px;
+}
+
+.plan-addon-head h2 {
+  font-size: 1.4rem;
+  color: var(--secondary);
+}
+
+.plan-addon-list {
+  display: grid;
+  gap: 14px;
+}
+
+.plan-addon-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.plan-addon-item.is-selected {
+  border-color: rgba(124, 58, 237, 0.38);
+  background: linear-gradient(135deg, rgba(245, 243, 255, 0.96), rgba(255, 255, 255, 0.98));
+}
+
+.plan-addon-item h3 {
+  font-size: 1.05rem;
+  color: var(--secondary);
+  margin-bottom: 4px;
+}
+
+.plan-addon-item p {
+  color: var(--muted);
+}
+
+.plan-addon-item strong {
+  color: var(--primary);
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+
+.plan-addon-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
 }
 
 .plan-form-layout {
@@ -2352,6 +2461,39 @@ footer {
 }
 .footer-social a[href*="facebook"]:hover {
   color: #93c5fd;
+}
+.site-whatsapp-fab {
+  position: fixed;
+  right: clamp(16px, 2vw, 22px);
+  bottom: clamp(16px, 2vw, 22px);
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(54px, 5vw, 62px);
+  height: clamp(54px, 5vw, 62px);
+  border-radius: 999px;
+  border: 0;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+  line-height: 0;
+  box-shadow: 0 18px 40px rgba(22, 163, 74, 0.32);
+  transition: transform 0.24s ease, box-shadow 0.24s ease;
+}
+.site-whatsapp-fab:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 22px 48px rgba(22, 163, 74, 0.38);
+}
+.site-whatsapp-fab:focus-visible {
+  outline: 3px solid rgba(34, 197, 94, 0.32);
+  outline-offset: 5px;
+}
+.site-whatsapp-fab svg {
+  width: clamp(27px, 2.4vw, 30px);
+  height: clamp(27px, 2.4vw, 30px);
+  display: block;
+  fill: currentColor;
+  flex-shrink: 0;
 }
 .footer-copy {
   color: rgba(245, 243, 255, 0.88);
@@ -4474,6 +4616,9 @@ footer {
   .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .plan-layout { grid-template-columns: 1fr; }
   .plan-form-layout { grid-template-columns: 1fr; }
+  .plan-addon-item { align-items: flex-start; }
+  .plan-addon-actions { justify-items: start; }
+  .pricing-filter-actions { width: 100%; }
   .quote-request-layout { grid-template-columns: 1fr; }
   .order-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .process-wrap { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -4756,9 +4901,21 @@ footer {
     align-items: flex-start;
   }
   .plan-summary-row,
-  .plan-price-strip {
+  .plan-price-strip,
+  .plan-addon-item {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .pricing-filter-actions {
+    border-radius: 24px;
+  }
+  .pricing-filter-btn {
+    width: 100%;
+    text-align: center;
+  }
+  .plan-addon-actions {
+    width: 100%;
+    justify-items: start;
   }
   .process-wrap .step::after { display: none; }
   .navbar { height: 70px; }
