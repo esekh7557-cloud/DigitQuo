@@ -172,7 +172,6 @@
       overflow-x: auto;
       padding: 10px 2px 18px;
       scroll-behavior: auto;
-      scroll-snap-type: x proximity;
       scrollbar-width: thin;
       scrollbar-color: rgba(109, 40, 217, 0.55) rgba(221, 214, 254, 0.45);
       cursor: grab;
@@ -199,12 +198,13 @@
 
     .showcase-card {
       flex: 0 0 clamp(320px, 42vw, 520px);
-      scroll-snap-align: start;
       background: #fff;
       border: 1px solid rgba(109, 40, 217, 0.12);
       border-radius: 14px;
       overflow: hidden;
       box-shadow: 0 18px 42px rgba(76, 29, 149, 0.1);
+      transform: translateZ(0);
+      backface-visibility: hidden;
     }
 
     .showcase-card img {
@@ -245,32 +245,72 @@
       line-height: 1.85;
     }
 
-    .story-scroll-note {
-      display: inline-flex;
-      align-items: center;
-      margin-top: 16px;
-      padding: 10px 15px;
-      border-radius: 999px;
-      background: rgba(109, 40, 217, 0.08);
-      color: var(--primary-dark);
-      font-size: 0.92rem;
-      font-weight: 700;
-    }
-
     .story-visual {
       min-height: auto;
-      padding-right: 48px;
+      display: flex;
+      justify-content: flex-end;
+      padding-right: 32px;
+    }
+
+    .story-stack-shell {
+      position: relative;
+      width: min(100%, 700px);
+      padding-inline: 72px;
     }
 
     .story-stack {
       position: relative;
-      height: 364px;
-      width: min(100%, 532px);
-      margin-left: auto;
+      width: 100%;
+      aspect-ratio: 1919 / 1079;
+      height: auto;
+      margin-left: 0;
       cursor: grab;
       touch-action: pan-y pinch-zoom;
       user-select: none;
       -webkit-user-select: none;
+    }
+
+    .story-stack-nav {
+      position: absolute;
+      top: 50%;
+      z-index: 5;
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border: 2px solid rgba(109, 40, 217, 0.34);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.96);
+      color: var(--primary-dark);
+      box-shadow: 0 14px 34px rgba(76, 29, 149, 0.14);
+      cursor: pointer;
+      transform: translateY(-50%);
+      transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+    }
+
+    .story-stack-nav svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+      stroke: currentColor;
+      stroke-width: 3.25;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .story-stack-nav:hover {
+      transform: translateY(-50%) scale(1.04);
+      border-color: rgba(109, 40, 217, 0.34);
+      box-shadow: 0 18px 40px rgba(76, 29, 149, 0.18);
+    }
+
+    .story-stack-nav--prev {
+      left: 0;
+    }
+
+    .story-stack-nav--next {
+      right: 0;
     }
 
     .story-card {
@@ -293,7 +333,9 @@
     .story-card img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
+      object-position: center;
+      background: #fff;
       border-radius: 0;
     }
 
@@ -307,15 +349,23 @@
     .story-card.is-middle {
       z-index: 2;
       opacity: 0.98;
-      transform: translate3d(34px, 28px, 0) scale(1);
+      transform: translate3d(24px, 18px, 0) scale(0.99);
       filter: saturate(0.94);
     }
 
     .story-card.is-back {
       z-index: 1;
-      opacity: 0.96;
-      transform: translate3d(68px, 56px, 0) scale(1);
+      opacity: 0.82;
+      transform: translate3d(48px, 36px, 0) scale(0.97);
       filter: saturate(0.88);
+    }
+
+    .story-card.is-hidden {
+      z-index: 0;
+      opacity: 0;
+      transform: translate3d(56px, 42px, 0) scale(0.96);
+      filter: saturate(0.84);
+      pointer-events: none;
     }
 
     .section-tag {
@@ -498,7 +548,7 @@
       position: relative;
       display: inline-block;
       width: min(100%, 720px);
-      padding-right: 72px;
+      padding-right: 56px;
       padding-bottom: 28px;
     }
 
@@ -506,7 +556,7 @@
       position: absolute;
       right: 0;
       bottom: 18px;
-      width: 188px;
+      width: 148px;
       z-index: 2;
       pointer-events: none;
     }
@@ -554,7 +604,8 @@
       object-fit: cover;
     }
 
-    .story-stack:focus-visible {
+    .story-stack:focus-visible,
+    .story-stack-nav:focus-visible {
       outline: 3px solid rgba(109, 40, 217, 0.4);
       outline-offset: 8px;
     }
@@ -600,8 +651,13 @@
       .story-visual {
         position: static;
         min-height: auto;
+        justify-content: center;
         padding-right: 0;
         width: 100%;
+      }
+
+      .story-stack-shell {
+        margin-inline: auto;
       }
 
       .story-intro {
@@ -609,31 +665,30 @@
         max-width: none;
       }
 
-      .story-stack {
-        height: clamp(252px, 54vw, 320px);
-        margin-inline: auto;
-      }
-
       .story-card {
         border-radius: 0;
       }
 
       .story-card.is-middle {
-        transform: translate3d(22px, 18px, 0) scale(1);
+        transform: translate3d(18px, 14px, 0) scale(0.99);
       }
 
       .story-card.is-back {
-        transform: translate3d(44px, 34px, 0) scale(1);
+        transform: translate3d(34px, 26px, 0) scale(0.97);
+      }
+
+      .story-card.is-hidden {
+        transform: translate3d(42px, 30px, 0) scale(0.96);
       }
 
       .device-showcase {
         width: min(100%, 560px);
-        padding-right: 44px;
+        padding-right: 34px;
         padding-bottom: 18px;
       }
 
       .project-mobile-overlay {
-        width: 142px;
+        width: 116px;
         bottom: 10px;
       }
     }
@@ -686,29 +741,41 @@
       }
 
       .showcase-scroll {
+        scroll-snap-type: x proximity;
         gap: 14px;
         padding-bottom: 14px;
       }
 
       .showcase-card {
         flex-basis: min(84vw, 320px);
+        scroll-snap-align: start;
       }
 
       .project-story {
         padding: 72px 0 64px;
       }
 
-      .story-stack {
-        height: clamp(220px, 68vw, 290px);
-        width: min(100%, 360px);
+      .story-stack-shell {
+        width: min(100%, 388px);
+        padding-inline: 42px;
       }
 
       .story-card.is-middle {
-        transform: translate3d(14px, 12px, 0) scale(1);
+        transform: translate3d(12px, 10px, 0) scale(0.99);
       }
 
       .story-card.is-back {
-        transform: translate3d(28px, 24px, 0) scale(1);
+        transform: translate3d(22px, 18px, 0) scale(0.97);
+      }
+
+      .story-card.is-hidden {
+        transform: translate3d(28px, 22px, 0) scale(0.96);
+      }
+
+      .story-stack-nav {
+        width: 38px;
+        height: 38px;
+        font-size: 1rem;
       }
 
       .portfolio {
@@ -763,8 +830,8 @@
         position: relative;
         right: auto;
         bottom: auto;
-        width: min(42vw, 156px);
-        margin-top: -42px;
+        width: min(34vw, 112px);
+        margin-top: -34px;
         margin-left: auto;
       }
     }
@@ -860,24 +927,35 @@
               <div class="story-intro">
                 <h2 id="storySectionTitle">A clean interface built around clear sections and product-focused design.</h2>
                 <p>This website uses balanced spacing, structured content blocks, and a straightforward shopping layout to keep the experience easy to follow and visually consistent across key screens.</p>
-                <p class="story-scroll-note" id="storyStackHint">Swipe left or right to move through the stack.</p>
               </div>
             </div>
 
             <div class="story-visual">
-              <div class="story-stack" id="storyStack" aria-label="Stacked project preview images" aria-describedby="storyStackHint" tabindex="0">
-                <article class="story-card is-front" data-story-card="0">
-                  <img src="images/web2/Screenshot 2026-03-27 141151.png" alt="Stacked project preview from the web2 gallery" />
-                </article>
-                <article class="story-card is-middle" data-story-card="1">
-                  <img src="images/web2/Screenshot 2026-03-27 141207.png" alt="Stacked project preview from the web2 gallery" />
-                </article>
-                <article class="story-card is-back" data-story-card="2">
-                  <img src="images/web2/Screenshot 2026-03-27 141217.png" alt="Stacked project preview from the web2 gallery" />
-                </article>
-                <article class="story-card" data-story-card="3">
-                  <img src="images/web2/Screenshot 2026-03-27 141238.png" alt="Stacked project preview from the web2 gallery" />
-                </article>
+              <div class="story-stack-shell">
+                <button class="story-stack-nav story-stack-nav--prev" id="storyPrevButton" type="button" aria-label="Show previous stacked preview">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M14.5 5.5 8 12l6.5 6.5" />
+                  </svg>
+                </button>
+                <div class="story-stack" id="storyStack" aria-label="Stacked project preview images" tabindex="0">
+                  <article class="story-card is-front" data-story-card="0">
+                    <img src="images/web2/Screenshot 2026-03-27 141151.png" alt="Stacked project preview from the web2 gallery" />
+                  </article>
+                  <article class="story-card is-middle" data-story-card="1">
+                    <img src="images/web2/Screenshot 2026-03-27 141207.png" alt="Stacked project preview from the web2 gallery" />
+                  </article>
+                  <article class="story-card is-back" data-story-card="2">
+                    <img src="images/web2/Screenshot 2026-03-27 141217.png" alt="Stacked project preview from the web2 gallery" />
+                  </article>
+                  <article class="story-card" data-story-card="3">
+                    <img src="images/web2/Screenshot 2026-03-27 141238.png" alt="Stacked project preview from the web2 gallery" />
+                  </article>
+                </div>
+                <button class="story-stack-nav story-stack-nav--next" id="storyNextButton" type="button" aria-label="Show next stacked preview">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M9.5 5.5 16 12l-6.5 6.5" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -977,48 +1055,134 @@
     if (showcaseScroll) {
       let isPaused = false;
       let animationFrameId = null;
-      const resetPoint = showcaseScroll.scrollWidth / 2;
+      let resumeAutoScrollTimeoutId = null;
       const step = 0.45;
+      let loopWidth = 0;
+
+      const measureLoopWidth = () => {
+        const cards = Array.from(showcaseScroll.querySelectorAll(".showcase-card"));
+        const midpointIndex = Math.floor(cards.length / 2);
+        const midpointCard = cards[midpointIndex];
+        const firstCard = cards[0];
+
+        if (midpointCard instanceof HTMLElement && firstCard instanceof HTMLElement) {
+          loopWidth = midpointCard.offsetLeft - firstCard.offsetLeft;
+        } else {
+          loopWidth = showcaseScroll.scrollWidth / 2;
+        }
+      };
+
+      const pauseShowcase = () => {
+        isPaused = true;
+        if (resumeAutoScrollTimeoutId) {
+          window.clearTimeout(resumeAutoScrollTimeoutId);
+          resumeAutoScrollTimeoutId = null;
+        }
+      };
+
+      const resumeShowcaseAfterDelay = (delay = 0) => {
+        if (resumeAutoScrollTimeoutId) {
+          window.clearTimeout(resumeAutoScrollTimeoutId);
+        }
+
+        resumeAutoScrollTimeoutId = window.setTimeout(() => {
+          isPaused = false;
+          resumeAutoScrollTimeoutId = null;
+        }, delay);
+      };
+
+      const normalizeShowcasePosition = () => {
+        if (loopWidth <= 0) {
+          return;
+        }
+
+        if (showcaseScroll.scrollLeft >= loopWidth) {
+          showcaseScroll.scrollLeft -= loopWidth;
+        }
+      };
 
       const autoScroll = () => {
-        if (!isPaused) {
+        if (!isPaused && loopWidth > 0) {
           showcaseScroll.scrollLeft += step;
-
-          if (showcaseScroll.scrollLeft >= resetPoint) {
-            showcaseScroll.scrollLeft = 0;
-          }
+          normalizeShowcasePosition();
         }
 
         animationFrameId = window.requestAnimationFrame(autoScroll);
       };
 
+      const remeasureShowcase = () => {
+        const previousLoopWidth = loopWidth;
+        measureLoopWidth();
+
+        if (previousLoopWidth > 0 && loopWidth > 0 && showcaseScroll.scrollLeft >= loopWidth) {
+          showcaseScroll.scrollLeft %= loopWidth;
+        }
+      };
+
       showcaseScroll.addEventListener("mouseenter", () => {
-        isPaused = true;
+        pauseShowcase();
       });
 
       showcaseScroll.addEventListener("mouseleave", () => {
-        isPaused = false;
+        resumeShowcaseAfterDelay();
       });
 
       showcaseScroll.addEventListener("touchstart", () => {
-        isPaused = true;
+        pauseShowcase();
       }, { passive: true });
 
       showcaseScroll.addEventListener("touchend", () => {
-        isPaused = false;
+        resumeShowcaseAfterDelay(900);
       });
 
+      showcaseScroll.addEventListener("touchcancel", () => {
+        resumeShowcaseAfterDelay(900);
+      });
+
+      showcaseScroll.addEventListener("pointerdown", () => {
+        pauseShowcase();
+      });
+
+      showcaseScroll.addEventListener("pointerup", () => {
+        resumeShowcaseAfterDelay(900);
+      });
+
+      showcaseScroll.addEventListener("wheel", () => {
+        pauseShowcase();
+        resumeShowcaseAfterDelay(1200);
+      }, { passive: true });
+
+      showcaseScroll.addEventListener("scroll", () => {
+        normalizeShowcasePosition();
+      }, { passive: true });
+
+      window.addEventListener("resize", remeasureShowcase);
+      window.addEventListener("load", remeasureShowcase, { once: true });
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          pauseShowcase();
+        } else {
+          resumeShowcaseAfterDelay(120);
+        }
+      });
+
+      remeasureShowcase();
       animationFrameId = window.requestAnimationFrame(autoScroll);
 
       window.addEventListener("beforeunload", () => {
         if (animationFrameId) {
           window.cancelAnimationFrame(animationFrameId);
         }
+        if (resumeAutoScrollTimeoutId) {
+          window.clearTimeout(resumeAutoScrollTimeoutId);
+        }
       });
     }
 
     const storyCards = Array.from(document.querySelectorAll(".story-card"));
     const storyStack = document.getElementById("storyStack");
+    const storyPrevButton = document.getElementById("storyPrevButton");
+    const storyNextButton = document.getElementById("storyNextButton");
     let activeStoryIndex = 0;
     let storySwipeStartX = 0;
     let storySwipeStartY = 0;
@@ -1028,14 +1192,16 @@
       storyCards.forEach((card, index) => {
         const offset = (index - activeIndex + storyCards.length) % storyCards.length;
 
-        card.classList.remove("is-front", "is-middle", "is-back");
+        card.classList.remove("is-front", "is-middle", "is-back", "is-hidden");
 
         if (offset === 0) {
           card.classList.add("is-front");
         } else if (offset === 1) {
           card.classList.add("is-middle");
-        } else {
+        } else if (offset === 2) {
           card.classList.add("is-back");
+        } else {
+          card.classList.add("is-hidden");
         }
       });
     }
@@ -1132,6 +1298,16 @@
 
       storyStack.addEventListener("touchcancel", () => {
         storySwipeTracking = false;
+      });
+
+      storyPrevButton?.addEventListener("click", () => {
+        moveStoryStack(-1);
+        storyStack.focus();
+      });
+
+      storyNextButton?.addEventListener("click", () => {
+        moveStoryStack(1);
+        storyStack.focus();
       });
     }
 
