@@ -41,9 +41,10 @@
 
     .hero {
       position: relative;
-      min-height: 90vh;
+      min-height: calc(100vh - 76px);
       display: flex;
       align-items: center;
+      padding: 104px 0 84px;
       background: #0f172a;
       overflow: hidden;
       color: #fff;
@@ -171,9 +172,11 @@
       overflow-x: auto;
       padding: 10px 2px 18px;
       scroll-behavior: auto;
+      scroll-snap-type: x proximity;
       scrollbar-width: thin;
       scrollbar-color: rgba(109, 40, 217, 0.55) rgba(221, 214, 254, 0.45);
       cursor: grab;
+      -webkit-overflow-scrolling: touch;
     }
 
     .showcase-scroll:active {
@@ -196,6 +199,7 @@
 
     .showcase-card {
       flex: 0 0 clamp(320px, 42vw, 520px);
+      scroll-snap-align: start;
       background: #fff;
       border: 1px solid rgba(109, 40, 217, 0.12);
       border-radius: 14px;
@@ -263,7 +267,10 @@
       height: 364px;
       width: min(100%, 532px);
       margin-left: auto;
-      cursor: ns-resize;
+      cursor: grab;
+      touch-action: pan-y pinch-zoom;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     .story-card {
@@ -280,6 +287,7 @@
         box-shadow 0.5s ease,
         filter 0.5s ease;
       transform-origin: center center;
+      will-change: transform, opacity, filter;
     }
 
     .story-card img {
@@ -546,6 +554,11 @@
       object-fit: cover;
     }
 
+    .story-stack:focus-visible {
+      outline: 3px solid rgba(109, 40, 217, 0.4);
+      outline-offset: 8px;
+    }
+
     @media (max-width: 968px) {
       .hero-content {
         grid-template-columns: 1fr;
@@ -555,6 +568,12 @@
       .hero-text p {
         margin-left: auto;
         margin-right: auto;
+      }
+
+      .glass-card {
+        width: min(100%, 560px);
+        margin: 0 auto;
+        padding: 32px;
       }
 
       .project-item,
@@ -575,12 +594,14 @@
 
       .story-layout {
         grid-template-columns: 1fr;
+        gap: 34px;
       }
 
       .story-visual {
         position: static;
         min-height: auto;
         padding-right: 0;
+        width: 100%;
       }
 
       .story-intro {
@@ -589,7 +610,8 @@
       }
 
       .story-stack {
-        height: 252px;
+        height: clamp(252px, 54vw, 320px);
+        margin-inline: auto;
       }
 
       .story-card {
@@ -613,6 +635,137 @@
       .project-mobile-overlay {
         width: 142px;
         bottom: 10px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .hero {
+        min-height: auto;
+        padding: 92px 0 56px;
+      }
+
+      .blob {
+        width: 320px;
+        height: 320px;
+        filter: blur(64px);
+      }
+
+      .hero-content {
+        gap: 24px;
+      }
+
+      .hero-text h1 {
+        line-height: 1.04;
+        margin-bottom: 18px;
+      }
+
+      .hero-text p {
+        font-size: 1rem;
+        margin-bottom: 28px;
+      }
+
+      .glass-card {
+        padding: 24px 20px;
+        border-radius: 22px;
+      }
+
+      .portfolio-showcase {
+        padding: 28px 0 10px;
+      }
+
+      .showcase-head h2,
+      .story-intro h2 {
+        font-size: clamp(1.75rem, 8vw, 2.2rem);
+      }
+
+      .showcase-head p,
+      .story-intro p,
+      .project-info p {
+        font-size: 0.98rem;
+        line-height: 1.72;
+      }
+
+      .showcase-scroll {
+        gap: 14px;
+        padding-bottom: 14px;
+      }
+
+      .showcase-card {
+        flex-basis: min(84vw, 320px);
+      }
+
+      .project-story {
+        padding: 72px 0 64px;
+      }
+
+      .story-stack {
+        height: clamp(220px, 68vw, 290px);
+        width: min(100%, 360px);
+      }
+
+      .story-card.is-middle {
+        transform: translate3d(14px, 12px, 0) scale(1);
+      }
+
+      .story-card.is-back {
+        transform: translate3d(28px, 24px, 0) scale(1);
+      }
+
+      .portfolio {
+        padding: 68px 0;
+      }
+
+      .project-item,
+      .project-item:nth-child(even) {
+        gap: 28px;
+        padding: 22px 16px;
+        border-radius: 28px;
+      }
+
+      .project-info h2 {
+        font-size: clamp(1.9rem, 8vw, 2.45rem);
+        margin-bottom: 14px;
+      }
+
+      .project-summary,
+      .project-item--featured .project-summary {
+        grid-template-columns: 1fr;
+        margin: 20px 0 24px;
+      }
+
+      .project-metric {
+        text-align: left;
+      }
+
+      .btn-visit {
+        width: min(100%, 320px);
+      }
+
+      .device-showcase {
+        display: grid;
+        justify-items: center;
+        gap: 0;
+        width: min(100%, 360px);
+        padding-right: 0;
+        padding-bottom: 0;
+      }
+
+      .laptop-screen {
+        padding: 8px;
+      }
+
+      .laptop-base {
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .project-mobile-overlay {
+        position: relative;
+        right: auto;
+        bottom: auto;
+        width: min(42vw, 156px);
+        margin-top: -42px;
+        margin-left: auto;
       }
     }
   </style>
@@ -707,11 +860,12 @@
               <div class="story-intro">
                 <h2 id="storySectionTitle">A clean interface built around clear sections and product-focused design.</h2>
                 <p>This website uses balanced spacing, structured content blocks, and a straightforward shopping layout to keep the experience easy to follow and visually consistent across key screens.</p>
+                <p class="story-scroll-note" id="storyStackHint">Swipe left or right to move through the stack.</p>
               </div>
             </div>
 
             <div class="story-visual">
-              <div class="story-stack" id="storyStack" aria-label="Stacked project preview images">
+              <div class="story-stack" id="storyStack" aria-label="Stacked project preview images" aria-describedby="storyStackHint" tabindex="0">
                 <article class="story-card is-front" data-story-card="0">
                   <img src="images/web2/Screenshot 2026-03-27 141151.png" alt="Stacked project preview from the web2 gallery" />
                 </article>
@@ -866,6 +1020,9 @@
     const storyCards = Array.from(document.querySelectorAll(".story-card"));
     const storyStack = document.getElementById("storyStack");
     let activeStoryIndex = 0;
+    let storySwipeStartX = 0;
+    let storySwipeStartY = 0;
+    let storySwipeTracking = false;
 
     function updateStoryStack(activeIndex) {
       storyCards.forEach((card, index) => {
@@ -883,6 +1040,11 @@
       });
     }
 
+    function moveStoryStack(step) {
+      activeStoryIndex = (activeStoryIndex + step + storyCards.length) % storyCards.length;
+      updateStoryStack(activeStoryIndex);
+    }
+
     if (storyStack && storyCards.length) {
       updateStoryStack(activeStoryIndex);
 
@@ -896,18 +1058,81 @@
         }
 
         if (event.deltaY > 0) {
-          activeStoryIndex = (activeStoryIndex + 1) % storyCards.length;
+          moveStoryStack(1);
         } else if (event.deltaY < 0) {
-          activeStoryIndex = (activeStoryIndex - 1 + storyCards.length) % storyCards.length;
+          moveStoryStack(-1);
         }
-
-        updateStoryStack(activeStoryIndex);
         wheelLocked = true;
 
         window.setTimeout(() => {
           wheelLocked = false;
         }, 220);
       }, { passive: false });
+
+      storyStack.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+          event.preventDefault();
+          moveStoryStack(1);
+        } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+          event.preventDefault();
+          moveStoryStack(-1);
+        }
+      });
+
+      storyStack.addEventListener("touchstart", (event) => {
+        const touch = event.touches[0];
+        if (!touch) {
+          return;
+        }
+
+        storySwipeStartX = touch.clientX;
+        storySwipeStartY = touch.clientY;
+        storySwipeTracking = true;
+      }, { passive: true });
+
+      storyStack.addEventListener("touchmove", (event) => {
+        if (!storySwipeTracking) {
+          return;
+        }
+
+        const touch = event.touches[0];
+        if (!touch) {
+          return;
+        }
+
+        const deltaX = touch.clientX - storySwipeStartX;
+        const deltaY = touch.clientY - storySwipeStartY;
+
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 14) {
+          event.preventDefault();
+        }
+      }, { passive: false });
+
+      storyStack.addEventListener("touchend", (event) => {
+        if (!storySwipeTracking) {
+          return;
+        }
+
+        const touch = event.changedTouches[0];
+        storySwipeTracking = false;
+
+        if (!touch) {
+          return;
+        }
+
+        const deltaX = touch.clientX - storySwipeStartX;
+        const deltaY = touch.clientY - storySwipeStartY;
+
+        if (Math.abs(deltaX) < 42 || Math.abs(deltaX) <= Math.abs(deltaY)) {
+          return;
+        }
+
+        moveStoryStack(deltaX < 0 ? 1 : -1);
+      });
+
+      storyStack.addEventListener("touchcancel", () => {
+        storySwipeTracking = false;
+      });
     }
 
   </script>
