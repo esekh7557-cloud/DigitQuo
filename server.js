@@ -26,27 +26,78 @@ const PLAN_CATALOG = {
   basic: {
     name: "The Starter",
     amount: 8999,
-    addOns: [{ id: "hosting", name: "Hosting", amount: 4000 }],
+    addOns: [
+      { id: "hosting", name: "Hosting", amount: 4000, kind: "hosting" },
+      { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
+    ],
   },
   business: {
     name: "The Professional",
     amount: 10599,
-    addOns: [{ id: "hosting", name: "Hosting", amount: 4000 }],
+    addOns: [
+      { id: "hosting", name: "Hosting", amount: 4000, kind: "hosting" },
+      { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
+    ],
   },
   professional: {
     name: "Professional Plus",
     amount: 12999,
-    addOns: [{ id: "hosting", name: "Hosting", amount: 4000 }],
+    addOns: [
+      { id: "hosting", name: "Hosting", amount: 4000, kind: "hosting" },
+      { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
+    ],
   },
   ecommerce: {
     name: "Enterprise",
     amount: 22999,
-    addOns: [{ id: "vps-hosting", name: "VPS Hosting", amount: 17000 }],
+    addOns: [
+      { id: "vps-hosting", name: "VPS Hosting", amount: 17000, kind: "hosting" },
+      { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
+    ],
   },
   "advanced-ecommerce": {
     name: "Enterprise Plus",
     amount: 32999,
-    addOns: [{ id: "vps-hosting", name: "VPS Hosting", amount: 17000 }],
+    addOns: [
+      { id: "vps-hosting", name: "VPS Hosting", amount: 17000, kind: "hosting" },
+      { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
+    ],
+  },
+  "bot-basic": {
+    name: "Basic Bot",
+    amount: 699,
+    addOns: [
+      { id: "bot-hosting-basic", name: "Bot Hosting Setup", amount: 199, kind: "hosting" },
+      { id: "bot-maintenance-starter", name: "Starter Maintenance Setup", amount: 299, kind: "maintenance" },
+      { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
+    ],
+  },
+  "bot-standard": {
+    name: "Community Bot",
+    amount: 1999,
+    addOns: [
+      { id: "bot-hosting-premium", name: "Premium Bot Hosting Setup", amount: 499, kind: "hosting" },
+      { id: "bot-feature-updates", name: "Feature Update Retainer", amount: 599, kind: "maintenance" },
+      { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
+    ],
+  },
+  "bot-premium": {
+    name: "Professional Custom Bot",
+    amount: 4999,
+    addOns: [
+      { id: "bot-hosting-performance", name: "High-Performance Hosting Setup", amount: 999, kind: "hosting" },
+      { id: "bot-priority-support", name: "Priority Support Retainer", amount: 999, kind: "maintenance" },
+      { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
+    ],
+  },
+  "bot-enterprise": {
+    name: "Enterprise Bot",
+    amount: 10000,
+    addOns: [
+      { id: "bot-hosting-enterprise", name: "Enterprise Hosting Setup", amount: 1499, kind: "hosting" },
+      { id: "bot-enterprise-support", name: "Enterprise Support Retainer", amount: 1499, kind: "maintenance" },
+      { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
+    ],
   },
 };
 

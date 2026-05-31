@@ -127,6 +127,10 @@ function getPlanLabelFromKey(planKey) {
     professional: "Professional Plus",
     ecommerce: "Enterprise",
     "advanced-ecommerce": "Enterprise Plus",
+    "bot-basic": "Basic Bot",
+    "bot-standard": "Community Bot",
+    "bot-premium": "Professional Custom Bot",
+    "bot-enterprise": "Enterprise Bot",
     custom: "Custom Plan",
   };
 
@@ -1383,6 +1387,7 @@ function displayProjects(projects) {
       const paymentStatus = getPaymentStatusLabel(latestOrder?.payment_status);
       const summaryIdea = escapeHtml(
         project.site_config?.summary?.idea ||
+          project.site_config?.requirements?.bot?.serverIdea ||
           project.site_config?.requirements?.custom?.projectBrief ||
           project.site_config?.requirements?.basic?.websiteIdea ||
           project.site_config?.requirements?.ecommerce?.storeIdea ||
@@ -1453,11 +1458,14 @@ function viewProjectDetails(projectId) {
   const contact = project.site_config?.contact || {};
   const requirements = project.site_config?.requirements || {};
   const custom = requirements.custom || {};
+  const bot = requirements.bot || {};
   const professional = requirements.professional || {};
   const ecommerce = requirements.ecommerce || {};
   const advancedEcommerce = requirements.advancedEcommerce || {};
   const latestOrder = getLatestProjectOrder(project);
   const planKey = String(project.site_config?.plan?.key || project.template_id || "").trim().toLowerCase();
+  const showBotRequirements =
+    planKey.startsWith("bot-") && !isProjectDetailValueEmpty(requirements.bot);
   const showCustomRequirements =
     planKey === "custom" && !isProjectDetailValueEmpty(requirements.custom);
   const showBasicRequirements =
@@ -1513,6 +1521,22 @@ function viewProjectDetails(projectId) {
           </select>
         </div>
       </section>
+      ${
+        showBotRequirements
+          ? buildProjectDetailSection(`${project.site_config?.plan?.name || "Bot"} Requirements`, [
+              { label: "What should your bot do for the server?", value: bot.serverIdea },
+              { label: "Who is this bot for?", value: bot.serverAudience },
+              { label: "Expected server size", value: bot.serverSize },
+              { label: "Core bot systems needed", value: bot.features },
+              { label: "Other core feature", value: bot.otherFeature },
+              { label: "Advanced systems needed", value: bot.advancedFeatures },
+              { label: "Other advanced feature", value: bot.otherAdvancedFeature },
+              { label: "Commands, workflows, or automations", value: bot.commandsWorkflows },
+              { label: "Integrations needed", value: bot.integrations },
+              { label: "Reference bots or style direction", value: bot.references },
+            ])
+          : ""
+      }
       ${
         showCustomRequirements
           ? buildProjectDetailSection("Custom Plan Requirements", [
@@ -1876,7 +1900,7 @@ function displayOrders(orders) {
   const tbody = document.getElementById("ordersTableBody");
 
   if (!orders.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No orders found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No orders found</td></tr>';
     syncResponsiveTableLabels();
     return;
   }
@@ -1886,12 +1910,14 @@ function displayOrders(orders) {
       const statusColors = getStatusColor(order.status);
       const orderId = getOrderSequenceNumber(order.id);
       const userEmail = escapeHtml(order.profiles?.email || "Unknown");
+      const planName = escapeHtml(getOrderPlanName(order));
       const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : "Unknown date";
 
       return `
         <tr>
           <td><code style="background: var(--gray-light); padding: 2px 6px; border-radius: 4px;">${escapeHtml(String(orderId || ""))}</code></td>
           <td>${userEmail}</td>
+          <td>${planName}</td>
           <td>${escapeHtml(formatCurrency(order.amount || 0))}</td>
           <td>${escapeHtml(formatCurrency(order.discount_amount || 0))}</td>
           <td><strong>${escapeHtml(formatCurrency(order.final_amount || 0))}</strong></td>
@@ -1944,9 +1970,11 @@ function filterOrders() {
   const filtered = allOrders.filter((order) => {
     const customer = getOrderCustomerDetails(order);
     const orderNumber = getOrderSequenceNumber(order.id);
+    const planName = getOrderPlanName(order);
     const matchesSearch =
       String(customer.name || "").toLowerCase().includes(searchTerm) ||
       String(customer.email || "").toLowerCase().includes(searchTerm) ||
+      String(planName || "").toLowerCase().includes(searchTerm) ||
       String(orderNumber || "").toLowerCase().includes(searchTerm) ||
       String(order.id || "").toLowerCase().includes(searchTerm);
     const matchesStatus = !statusFilter || order.status === statusFilter;
@@ -2009,6 +2037,7 @@ function exportOrdersCSV() {
     return [
       order.id || "",
       order.profiles?.email || "Unknown",
+      getOrderPlanName(order),
       Number(order.amount || 0),
       Number(order.discount_amount || 0),
       Number(order.final_amount || 0),
@@ -2019,7 +2048,7 @@ function exportOrdersCSV() {
       .join(",");
   });
 
-  const csv = ["Order ID,User Email,Amount,Discount,Final Amount,Status,Date", ...rows].join("\n");
+  const csv = ["Order ID,User Email,Plan,Amount,Discount,Final Amount,Status,Date", ...rows].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");

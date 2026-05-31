@@ -1580,6 +1580,145 @@ button {
   font-size: 0.95rem;
 }
 
+.pricing-bot-link-card {
+  display: grid;
+  gap: 12px;
+}
+
+.pricing-bot-link-card .section-subtitle {
+  margin-bottom: 0;
+  max-width: 760px;
+}
+
+.bot-hero-wrap {
+  align-items: stretch;
+}
+
+.bot-hero-copy {
+  display: grid;
+  align-content: center;
+}
+
+.bot-hero-title {
+  max-width: 720px;
+}
+
+.bot-hero-card {
+  display: grid;
+  gap: 14px;
+  align-content: center;
+  min-height: 100%;
+}
+
+.bot-hero-stat {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgba(109, 40, 217, 0.06);
+  border: 1px solid rgba(109, 40, 217, 0.12);
+}
+
+.bot-hero-stat strong {
+  font-size: 1.45rem;
+  color: var(--secondary);
+}
+
+.bot-hero-stat span {
+  color: var(--muted);
+}
+
+.bot-pricing-section {
+  padding-top: 0;
+}
+
+.bot-pricing-head {
+  margin-bottom: 30px;
+}
+
+.bot-pricing-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.bot-price-card {
+  gap: 16px;
+}
+
+.bot-price-card-top {
+  display: grid;
+  gap: 8px;
+}
+
+.bot-price-card-top p {
+  margin: 0;
+}
+
+.bot-plan-tier {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(109, 40, 217, 0.08);
+  color: var(--secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bot-addon-shell {
+  margin-top: 28px;
+  display: grid;
+  gap: 18px;
+}
+
+.bot-addon-head {
+  display: grid;
+  gap: 10px;
+  max-width: 760px;
+}
+
+.bot-addon-head .section-subtitle {
+  margin-bottom: 0;
+}
+
+.bot-addon-grid {
+  align-items: stretch;
+}
+
+.bot-addon-card {
+  display: grid;
+  gap: 14px;
+}
+
+.bot-addon-card ul {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.bot-addon-card li::before {
+  content: '-';
+  color: var(--primary);
+  margin-right: 10px;
+  font-weight: 700;
+}
+
+.bot-pricing-cta {
+  margin-top: 28px;
+  display: grid;
+  gap: 12px;
+}
+
+.bot-pricing-cta .section-subtitle {
+  margin-bottom: 0;
+  max-width: 760px;
+}
+
 .price-card-actions {
   display: grid;
   grid-template-columns: 1fr;
@@ -4618,6 +4757,8 @@ footer {
     flex: 0 0 auto;
   }
   .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bot-pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bot-hero-wrap { grid-template-columns: 1fr; }
   .plan-layout { grid-template-columns: 1fr; }
   .plan-form-layout { grid-template-columns: 1fr; }
   .plan-addon-item { align-items: flex-start; }
@@ -4895,6 +5036,10 @@ footer {
   .cart-item-actions,
   .price-card-actions,
   .plan-check-grid {
+    grid-template-columns: 1fr;
+  }
+  .bot-pricing-grid,
+  .bot-addon-grid {
     grid-template-columns: 1fr;
   }
   .order-card-grid {

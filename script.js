@@ -175,7 +175,16 @@ const PLAN_DETAILS = {
       {
         id: "hosting",
         name: "Hosting",
+        description: "Launch support with hosting setup, SSL, and deployment assistance.",
+        kind: "hosting",
         price: 4000,
+      },
+      {
+        id: "connect-bot-website",
+        name: "Connect Bot with Website",
+        description: "Connect website forms, alerts, or member actions with your Discord bot.",
+        kind: "integration",
+        price: 1999,
       },
     ],
     features: [
@@ -196,7 +205,16 @@ const PLAN_DETAILS = {
       {
         id: "hosting",
         name: "Hosting",
+        description: "Launch support with hosting setup, SSL, and deployment assistance.",
+        kind: "hosting",
         price: 4000,
+      },
+      {
+        id: "connect-bot-website",
+        name: "Connect Bot with Website",
+        description: "Connect website forms, alerts, or member actions with your Discord bot.",
+        kind: "integration",
+        price: 1999,
       },
     ],
     features: [
@@ -218,7 +236,16 @@ const PLAN_DETAILS = {
       {
         id: "hosting",
         name: "Hosting",
+        description: "Launch support with hosting setup, SSL, and deployment assistance.",
+        kind: "hosting",
         price: 4000,
+      },
+      {
+        id: "connect-bot-website",
+        name: "Connect Bot with Website",
+        description: "Connect website forms, alerts, or member actions with your Discord bot.",
+        kind: "integration",
+        price: 1999,
       },
     ],
     features: [
@@ -240,7 +267,16 @@ const PLAN_DETAILS = {
       {
         id: "vps-hosting",
         name: "VPS Hosting",
+        description: "Higher-performance hosting for stores, portals, and heavier traffic.",
+        kind: "hosting",
         price: 17000,
+      },
+      {
+        id: "connect-bot-website",
+        name: "Connect Bot with Website",
+        description: "Connect website forms, alerts, or member actions with your Discord bot.",
+        kind: "integration",
+        price: 1999,
       },
     ],
     features: [
@@ -262,7 +298,16 @@ const PLAN_DETAILS = {
       {
         id: "vps-hosting",
         name: "VPS Hosting",
+        description: "Higher-performance hosting for stores, portals, and heavier traffic.",
+        kind: "hosting",
         price: 17000,
+      },
+      {
+        id: "connect-bot-website",
+        name: "Connect Bot with Website",
+        description: "Connect website forms, alerts, or member actions with your Discord bot.",
+        kind: "integration",
+        price: 1999,
       },
     ],
     features: [
@@ -273,6 +318,176 @@ const PLAN_DETAILS = {
       "Coupons",
       "Shipping Integration",
       "Domain",
+    ],
+  },
+  "bot-basic": {
+    name: "Basic Bot",
+    oldPrice: 999,
+    subtotal: 699,
+    breakdown: [{ label: "Bot Development", amount: 699 }],
+    detailsDescription: "This pricing covers the selected Discord bot build and any optional setup add-ons.",
+    requirementsDescription:
+      "Fill in your bot requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.",
+    addOns: [
+      {
+        id: "bot-hosting-basic",
+        name: "Bot Hosting Setup",
+        description: "Set up the first month of hosting so your bot can go live with basic uptime support.",
+        kind: "hosting",
+        price: 199,
+      },
+      {
+        id: "bot-maintenance-starter",
+        name: "Starter Maintenance Setup",
+        description: "Reserve the first month of minor fixes and light tweaks after delivery.",
+        kind: "maintenance",
+        price: 299,
+      },
+      {
+        id: "connect-bot-website",
+        name: "Connect Bot with Website",
+        description: "Connect website forms, alerts, or member actions with your Discord bot.",
+        kind: "integration",
+        price: 1999,
+      },
+    ],
+    features: [
+      "Basic custom bot",
+      "5-10 commands",
+      "Delivery in 3-5 days",
+      "Welcome system",
+      "Auto roles",
+      "Basic moderation",
+      "Simple embeds",
+      "3-5 days support",
+    ],
+  },
+  "bot-standard": {
+    name: "Community Bot",
+    oldPrice: 2499,
+    subtotal: 1999,
+    breakdown: [{ label: "Bot Development", amount: 1999 }],
+    detailsDescription: "This pricing covers the selected Discord bot build and any optional setup add-ons.",
+    requirementsDescription:
+      "Fill in your bot requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.",
+    addOns: [
+      {
+        id: "bot-hosting-premium",
+        name: "Premium Bot Hosting Setup",
+        description: "Set up a stronger hosting tier for active Discord communities and higher uptime needs.",
+        kind: "hosting",
+        price: 499,
+      },
+      {
+        id: "bot-feature-updates",
+        name: "Feature Update Retainer",
+        description: "Reserve the first month of post-launch feature tuning and smaller iterations.",
+        kind: "maintenance",
+        price: 599,
+      },
+      {
+        id: "connect-bot-website",
+        name: "Connect Bot with Website",
+        description: "Connect website forms, alerts, or member actions with your Discord bot.",
+        kind: "integration",
+        price: 1999,
+      },
+    ],
+    features: [
+      "Everything in Starter",
+      "Ticket system",
+      "Delivery in 5-7 days",
+      "Leveling or economy system",
+      "Logs and automod",
+      "Reaction roles",
+      "Database support",
+      "Custom embeds",
+      "7-14 days support",
+    ],
+  },
+  "bot-premium": {
+    name: "Professional Custom Bot",
+    oldPrice: 7999,
+    subtotal: 4999,
+    breakdown: [{ label: "Bot Development", amount: 4999 }],
+    detailsDescription: "This pricing covers the selected Discord bot build and any optional setup add-ons.",
+    requirementsDescription:
+      "Fill in your bot requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.",
+    addOns: [
+      {
+        id: "bot-hosting-performance",
+        name: "High-Performance Hosting Setup",
+        description: "Prepare a faster hosting tier for heavier usage, multi-system bots, and reliability needs.",
+        kind: "hosting",
+        price: 999,
+      },
+      {
+        id: "bot-priority-support",
+        name: "Priority Support Retainer",
+        description: "Reserve the first month of faster support and deeper post-launch fixes.",
+        kind: "maintenance",
+        price: 999,
+      },
+      {
+        id: "connect-bot-website",
+        name: "Connect Bot with Website",
+        description: "Connect website forms, alerts, or member actions with your Discord bot.",
+        kind: "integration",
+        price: 1999,
+      },
+    ],
+    features: [
+      "Fully custom bot",
+      "API integrations",
+      "Delivery in 7-12 days",
+      "Payment or crypto features",
+      "Basic dashboard",
+      "Multi-system bot setup",
+      "Database and optimization",
+      "Anti-abuse systems",
+      "Priority support",
+    ],
+  },
+  "bot-enterprise": {
+    name: "Enterprise Bot",
+    oldPrice: 14999,
+    subtotal: 10000,
+    breakdown: [{ label: "Base Enterprise Bot Scope", amount: 10000 }],
+    detailsDescription:
+      "This payment covers the starting scope for a larger custom bot build. After requirements review, any expanded enterprise work can be scoped separately.",
+    requirementsDescription:
+      "Fill in your enterprise bot requirements. When you click Continue, the Razorpay payment gateway opens. This payment secures the base enterprise scope and our team will review the full build with you.",
+    addOns: [
+      {
+        id: "bot-hosting-enterprise",
+        name: "Enterprise Hosting Setup",
+        description: "Prepare a stronger hosting baseline for product-grade bots, heavier traffic, or monetized systems.",
+        kind: "hosting",
+        price: 1499,
+      },
+      {
+        id: "bot-enterprise-support",
+        name: "Enterprise Support Retainer",
+        description: "Reserve the first month of higher-touch support for production bot operations.",
+        kind: "maintenance",
+        price: 1499,
+      },
+      {
+        id: "connect-bot-website",
+        name: "Connect Bot with Website",
+        description: "Connect website forms, alerts, or member actions with your Discord bot.",
+        kind: "integration",
+        price: 1999,
+      },
+    ],
+    features: [
+      "Big servers and monetized bots",
+      "Marketplace bot architecture",
+      "Delivery in 10-16 days",
+      "Tip.cc-like systems",
+      "Multi-chain crypto systems",
+      "SaaS bot platforms",
+      "Quoted after requirements review",
     ],
   },
 };
@@ -445,6 +660,58 @@ function getPlanByKey(planKey) {
   return PLAN_DETAILS[String(planKey || "").trim()] || null;
 }
 
+function isBotPlanKey(planKey) {
+  return String(planKey || "").trim().toLowerCase().startsWith("bot-");
+}
+
+function getPlanCatalogPagePath(planKey) {
+  return isBotPlanKey(planKey) ? "bot-pricing.html" : "pricing.html";
+}
+
+function getPlanContext(planKey, plan = getPlanByKey(planKey)) {
+  const isBot = isBotPlanKey(planKey);
+
+  return {
+    isBot,
+    browsePage: getPlanCatalogPagePath(planKey),
+    browseLabel: isBot ? "Browse Bot Plans" : "Browse Pricing",
+    detailsSubtitle:
+      plan?.detailsDescription ||
+      (isBot
+        ? "This pricing covers the selected Discord bot build and any optional setup add-ons."
+        : "This pricing includes website development and domain registration for the selected package."),
+    requirementsEyebrow: isBot ? "Bot Requirements Form" : "Website Requirements Form",
+    requirementsSubtitle:
+      plan?.requirementsDescription ||
+      "Fill in your project requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.",
+    addOnSubtitle: isBot
+      ? "These add-ons stay separate from the main bot build price unless you add them below."
+      : "These add-ons stay separate from the main package price unless you add them below.",
+    planNote: isBot
+      ? "The main bot build total stays unchanged unless you add an optional add-on below."
+      : "The main package total stays unchanged unless you add an optional add-on below.",
+    feedbackText: isBot
+      ? "Add this bot plan to your cart to keep it saved while you continue browsing."
+      : "Add this package to your cart to keep it saved while you continue browsing.",
+    projectNamePlaceholder: isBot ? "Enter your bot project name" : "Enter your project name",
+  };
+}
+
+function getPlanBreakdownRows(planKey, plan) {
+  if (Array.isArray(plan?.breakdown) && plan.breakdown.length) {
+    return plan.breakdown;
+  }
+
+  const subtotal = Number((plan?.subtotal ?? plan?.amount) || 0);
+  const domainPrice = Number(plan?.domainPrice || 0);
+  const websitePrice = Math.max(0, subtotal - domainPrice);
+
+  return [
+    { label: "Website Development", amount: websitePrice },
+    { label: "Domain Registration", amount: domainPrice },
+  ];
+}
+
 function readStoredPlanAddOns() {
   try {
     const raw = window.localStorage.getItem(PLAN_ADDONS_STORAGE_KEY);
@@ -530,8 +797,17 @@ function getPlanAddOnAmount(plan, addOnIds = []) {
   return getPlanAddOnsByIds(plan, addOnIds).reduce((sum, addOn) => sum + Number(addOn?.price || 0), 0);
 }
 
-function getPlanDefaultAddOnIds(plan) {
+function isHostingPlanAddOn(addOn) {
+  const kind = String(addOn?.kind || "").trim().toLowerCase();
+  const id = String(addOn?.id || "").trim().toLowerCase();
+  const name = String(addOn?.name || "").trim().toLowerCase();
+
+  return kind === "hosting" || id.includes("hosting") || name.includes("hosting");
+}
+
+function getPlanHostingAddOnIds(plan) {
   return (Array.isArray(plan?.addOns) ? plan.addOns : [])
+    .filter((addOn) => isHostingPlanAddOn(addOn))
     .map((addOn) => String(addOn?.id || "").trim())
     .filter(Boolean);
 }
@@ -546,7 +822,7 @@ function getPricingPageMode() {
 
 function getPlanCatalogPricing(plan, options = {}) {
   const includeHosting = options.includeHosting === true;
-  const addOnIds = includeHosting ? getPlanDefaultAddOnIds(plan) : [];
+  const addOnIds = includeHosting ? getPlanHostingAddOnIds(plan) : [];
   const addOnAmount = getPlanAddOnAmount(plan, addOnIds);
 
   return {
@@ -600,13 +876,14 @@ function renderPlanAddOnsMarkup(plan, planKey) {
   }
 
   const selectedIds = new Set(getStoredPlanAddOnIds(planKey));
+  const planContext = getPlanContext(planKey, plan);
 
   return `
     <article class="card plan-addon-card">
       <div class="plan-addon-head">
         <span class="eyebrow">Available Add-ons</span>
         <h2>Add extra services if needed</h2>
-        <p class="section-subtitle">These add-ons stay separate from the main package price unless you add them below.</p>
+        <p class="section-subtitle">${escapeHtml(planContext.addOnSubtitle)}</p>
       </div>
       <div class="plan-addon-list">
         ${addOns
@@ -615,7 +892,7 @@ function renderPlanAddOnsMarkup(plan, planKey) {
               <div class="plan-addon-item ${selectedIds.has(String(addOn.id || "").trim()) ? "is-selected" : ""}">
                 <div>
                   <h3>${escapeHtml(addOn.name || "Add-on")}</h3>
-                  <p>Optional add-on for this package.</p>
+                  <p>${escapeHtml(addOn.description || "Optional add-on for this package.")}</p>
                 </div>
                 <div class="plan-addon-actions">
                   <strong>${formatInr(addOn.price)}</strong>
@@ -643,6 +920,10 @@ function getPlanRequirementsPagePath(planKey) {
     professional: "professional-plus-form.html",
     ecommerce: "enterprise-form.html",
     "advanced-ecommerce": "enterprise-plus-form.html",
+    "bot-basic": "plan-requirements.html?plan=bot-basic",
+    "bot-standard": "plan-requirements.html?plan=bot-standard",
+    "bot-premium": "plan-requirements.html?plan=bot-premium",
+    "bot-enterprise": "plan-requirements.html?plan=bot-enterprise",
     custom: "custom-plan-form.html",
   };
 
@@ -812,6 +1093,10 @@ function getPlanDeliveryRange(planKey, options = {}) {
       professional: "4-6 days",
       ecommerce: "7-9 days",
       "advanced-ecommerce": "7-9 days",
+      "bot-basic": "2-4 days",
+      "bot-standard": "4-6 days",
+      "bot-premium": "5-9 days",
+      "bot-enterprise": "7-12 days",
     };
 
     return fastRanges[normalizedPlanKey] || "";
@@ -819,11 +1104,15 @@ function getPlanDeliveryRange(planKey, options = {}) {
 
   const standardRanges = {
     basic: "5-7 days",
-    business: "6-8 days",
-    professional: "6-8 days",
-    ecommerce: "10-13 days",
-    "advanced-ecommerce": "10-13 days",
-  };
+      business: "6-8 days",
+      professional: "6-8 days",
+      ecommerce: "10-13 days",
+      "advanced-ecommerce": "10-13 days",
+      "bot-basic": "3-5 days",
+      "bot-standard": "5-7 days",
+      "bot-premium": "7-12 days",
+      "bot-enterprise": "10-16 days",
+    };
 
   return standardRanges[normalizedPlanKey] || "";
 }
@@ -1089,17 +1378,21 @@ function buildCartItemFromPlan(planKey) {
     return null;
   }
 
+  const planContext = getPlanContext(planKey, plan);
   const selectedAddOns = getPlanAddOnsByIds(plan, getStoredPlanAddOnIds(planKey));
   const addOnAmount = selectedAddOns.reduce((sum, addOn) => sum + Number(addOn.price || 0), 0);
   const totalAmount = Number(plan.subtotal) + addOnAmount;
   const addOnLabel = selectedAddOns.length
     ? ` Add-ons: ${selectedAddOns.map((addOn) => addOn.name).join(", ")}.`
     : "";
+  const description = planContext.isBot
+    ? `${plan.features.length} included features for your Discord bot build.${addOnLabel}`
+    : `${plan.features.length} included features with domain registration and hosting support.${addOnLabel}`;
 
   return {
     planKey,
     title: plan.name,
-    description: `${plan.features.length} included features with domain registration and hosting support.${addOnLabel}`,
+    description,
     price: formatInr(totalAmount),
     amount: totalAmount,
   };
@@ -1502,6 +1795,9 @@ function renderCartPage(user) {
   const totalAmount = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const hasCustomOnlyPricing = items.length > 0 && items.every((item) => Number(item.amount || 0) === 0);
   const primaryPlanKey = items[items.length - 1]?.planKey || readSelectedPlan();
+  const planContext = getPlanContext(primaryPlanKey);
+  const browsePage = planContext.browsePage;
+  const browseLabel = planContext.browseLabel;
 
   if (!user) {
     cartRoot.innerHTML = `
@@ -1518,9 +1814,9 @@ function renderCartPage(user) {
     ? `
         <article class="card cart-empty">
           <h2>Your cart is empty</h2>
-          <p>${escapeHtml(user.fullName)}, you have no saved website packages in your cart yet.</p>
+          <p>${escapeHtml(user.fullName)}, you have no saved plans in your cart yet.</p>
           <div class="cart-empty-actions">
-            <a href="pricing.html" class="btn btn-primary">Browse Pricing</a>
+            <a href="${browsePage}" class="btn btn-primary">${browseLabel}</a>
             <a href="portfolio.html" class="btn btn-secondary">View Portfolio</a>
           </div>
         </article>
@@ -1530,7 +1826,7 @@ function renderCartPage(user) {
           (item) => `
             <article class="card cart-item">
               <div class="cart-item-copy">
-                <h3>${escapeHtml(item.title || "Website Package")}</h3>
+                <h3>${escapeHtml(item.title || "Selected Plan")}</h3>
                 <p>${escapeHtml(item.description || "Saved from your recent visit.")}</p>
               </div>
               <div class="cart-item-actions">
@@ -1583,7 +1879,7 @@ function renderCartPage(user) {
               <p><strong>Phone:</strong> ${escapeHtml(user.phone || "Not added yet")}</p>
               <p><strong>Items:</strong> ${items.length}</p>
               <p class="cart-total-row"><strong>Total:</strong> <span>${hasCustomOnlyPricing ? "Custom Quote" : formatInr(totalAmount)}</span></p>
-              <a href="${primaryPlanKey ? getPlanRequirementsPagePath(primaryPlanKey) || "pricing.html" : "pricing.html"}" class="btn btn-primary">${primaryPlanKey ? "Proceed to Buy" : "Browse Pricing"}</a>
+              <a href="${primaryPlanKey ? getPlanRequirementsPagePath(primaryPlanKey) || browsePage : browsePage}" class="btn btn-primary">${primaryPlanKey ? "Proceed to Buy" : browseLabel}</a>
               <a href="orders.html#ordersMain" class="btn btn-secondary">View Orders</a>
               ${
                 items.length
@@ -2487,6 +2783,7 @@ function renderPlanDetailsPage() {
 
   const params = new URLSearchParams(window.location.search);
   const planKey = params.get("plan") || readSelectedPlan();
+  const browsePage = getPlanCatalogPagePath(planKey);
   const plan = getPlanByKey(planKey);
   const requirementsPage = getPlanRequirementsPagePath(planKey);
 
@@ -2494,16 +2791,18 @@ function renderPlanDetailsPage() {
     planDetailsRoot.innerHTML = `
       <article class="card cart-empty">
         <h1 class="section-title">Plan Not Found</h1>
-        <p class="section-subtitle">Select a pricing package first to view the website and domain pricing breakdown.</p>
-        <a href="pricing.html" class="btn btn-primary">Back to Pricing</a>
+        <p class="section-subtitle">Select a plan first to view the pricing breakdown.</p>
+        <a href="${browsePage}" class="btn btn-primary">Back to Pricing</a>
       </article>
     `;
     return;
   }
 
   saveSelectedPlan(planKey);
-  const websitePrice = plan.subtotal - plan.domainPrice;
+  const planContext = getPlanContext(planKey, plan);
+  const breakdownRows = getPlanBreakdownRows(planKey, plan);
   const savings = plan.oldPrice - plan.subtotal;
+  const hasSavings = Number(plan.oldPrice || 0) > Number(plan.subtotal || 0);
   const appliedCoupon = getStoredPlanCoupon(planKey);
   const selectedAddOns = getPlanAddOnsByIds(plan, getStoredPlanAddOnIds(planKey));
   const pricing = getPlanPricingWithCoupon(plan, appliedCoupon, {
@@ -2515,11 +2814,11 @@ function renderPlanDetailsPage() {
       <article class="card plan-overview">
         <span class="eyebrow">Selected Package</span>
         <h1 class="section-title">${escapeHtml(plan.name)}</h1>
-        <p class="section-subtitle">This pricing includes website development and domain registration for the selected package.</p>
+        <p class="section-subtitle">${escapeHtml(planContext.detailsSubtitle)}</p>
         <div class="plan-price-strip">
-          <span class="old-price">${formatInr(plan.oldPrice)}</span>
+          ${hasSavings ? `<span class="old-price">${formatInr(plan.oldPrice)}</span>` : ""}
           <strong>${formatInr(plan.subtotal)}</strong>
-          <span class="plan-savings">You save ${formatInr(savings)}</span>
+          ${hasSavings ? `<span class="plan-savings">You save ${formatInr(savings)}</span>` : ""}
         </div>
         <ul class="plan-feature-list">
           ${plan.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}
@@ -2527,14 +2826,16 @@ function renderPlanDetailsPage() {
       </article>
       <article class="card plan-summary-card">
         <h2>Price Breakdown</h2>
-        <div class="plan-summary-row">
-          <span>Website Development</span>
-          <strong>${formatInr(websitePrice)}</strong>
-        </div>
-        <div class="plan-summary-row">
-          <span>Domain Registration</span>
-          <strong>${formatInr(plan.domainPrice)}</strong>
-        </div>
+        ${breakdownRows
+          .map(
+            (row) => `
+              <div class="plan-summary-row">
+                <span>${escapeHtml(row.label || "Plan Price")}</span>
+                <strong>${formatInr(row.amount || 0)}</strong>
+              </div>
+            `
+          )
+          .join("")}
         <div class="plan-summary-row" id="planAddOnRow" ${selectedAddOns.length ? "" : "hidden"}>
           <span id="planAddOnLabel">${escapeHtml(
             selectedAddOns.length ? selectedAddOns.map((addOn) => addOn.name).join(", ") : "Selected Add-ons"
@@ -2574,11 +2875,11 @@ function renderPlanDetailsPage() {
           <span>Total Pricing</span>
           <strong id="planFinalTotal">${formatInr(pricing.finalAmount)}</strong>
         </div>
-        <p class="plan-note">The main package total stays unchanged unless you add an optional add-on below.</p>
-        <p class="plan-feedback" id="planFeedback">Add this package to your cart to keep it saved while you continue browsing.</p>
+        <p class="plan-note">${escapeHtml(planContext.planNote)}</p>
+        <p class="plan-feedback" id="planFeedback">${escapeHtml(planContext.feedbackText)}</p>
         <div class="plan-actions">
           <button class="btn btn-secondary" type="button" data-plan-add="${escapeHtml(planKey)}">Add to Cart</button>
-          <a href="${requirementsPage || "pricing.html"}" class="btn btn-primary" data-plan-buy-link="${escapeHtml(planKey)}">Proceed to Buy</a>
+          <a href="${requirementsPage || browsePage}" class="btn btn-primary" data-plan-buy-link="${escapeHtml(planKey)}">Proceed to Buy</a>
         </div>
       </article>
     </div>
@@ -2685,7 +2986,7 @@ function bindPricingActions() {
 
       if (plan && pricingPlansSection?.contains(link)) {
         if (getPricingPageMode() === "with-hosting") {
-          setStoredPlanAddOnIds(planKey, getPlanDefaultAddOnIds(plan));
+          setStoredPlanAddOnIds(planKey, getPlanHostingAddOnIds(plan));
         } else {
           clearStoredPlanAddOnIds(planKey);
         }
@@ -3158,6 +3459,7 @@ function renderPlanRequirementsPage(user) {
   const params = new URLSearchParams(window.location.search);
   const pagePlanKey = planRequirementsRoot.dataset.planKey || "";
   const planKey = pagePlanKey || params.get("plan") || readSelectedPlan();
+  const browsePage = getPlanCatalogPagePath(planKey);
   const plan = getPlanByKey(planKey);
   const requirementsPage = getPlanRequirementsPagePath(planKey);
 
@@ -3166,7 +3468,7 @@ function renderPlanRequirementsPage(user) {
       <article class="card cart-empty">
         <h1 class="section-title">Plan Not Found</h1>
         <p class="section-subtitle">Choose a package first before filling the project requirement form.</p>
-        <a href="pricing.html" class="btn btn-primary">Back to Pricing</a>
+        <a href="${browsePage}" class="btn btn-primary">Back to Pricing</a>
       </article>
     `;
     return;
@@ -3178,12 +3480,15 @@ function renderPlanRequirementsPage(user) {
   }
 
   saveSelectedPlan(planKey);
+  const planContext = getPlanContext(planKey, plan);
   const appliedCoupon = getStoredPlanCoupon(planKey);
   const selectedAddOns = getPlanAddOnsByIds(plan, getStoredPlanAddOnIds(planKey));
   const pricing = getPlanPricingWithCoupon(plan, appliedCoupon, {
     addOnIds: selectedAddOns.map((addOn) => addOn.id),
   });
 
+  const showBotSection = isBotPlanKey(planKey);
+  const showAdvancedBotSection = planKey === "bot-premium" || planKey === "bot-enterprise";
   const showBasicSection = planKey === "basic" || planKey === "business" || planKey === "professional";
   const showBusinessSection = planKey === "business" || planKey === "professional";
   const showProfessionalSection = planKey === "professional";
@@ -3193,9 +3498,9 @@ function renderPlanRequirementsPage(user) {
   planRequirementsRoot.innerHTML = `
     <div class="plan-form-layout">
       <article class="card plan-form-card">
-        <span class="eyebrow">Website Requirements Form</span>
+        <span class="eyebrow">${escapeHtml(planContext.requirementsEyebrow)}</span>
         <h1 class="section-title">${escapeHtml(plan.name)}</h1>
-        <p class="section-subtitle">Fill in your project requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.</p>
+        <p class="section-subtitle">${escapeHtml(planContext.requirementsSubtitle)}</p>
 
         <form id="planRequirementsForm" class="contact-form">
           <div class="field-row">
@@ -3216,7 +3521,7 @@ function renderPlanRequirementsPage(user) {
 
           <div class="field-block">
             <label for="projectName">Project name</label>
-            <input id="projectName" name="projectName" type="text" placeholder="Enter your project name" required />
+            <input id="projectName" name="projectName" type="text" placeholder="${escapeHtml(planContext.projectNamePlaceholder)}" required />
           </div>
 
           <div class="field-block">
@@ -3227,6 +3532,85 @@ function renderPlanRequirementsPage(user) {
             </label>
             <p class="plan-form-option-note" id="planFastDeliveryTimingNote" hidden aria-live="polite"></p>
           </div>
+
+          ${
+            showBotSection
+              ? `
+                <div class="plan-form-section">
+                  <h3>${escapeHtml(plan.name)} Requirements</h3>
+                  <div class="field-block">
+                    <label for="botIdea">What should your bot do for the server?</label>
+                    <textarea id="botIdea" name="botIdea" required></textarea>
+                  </div>
+                  <div class="field-row">
+                    <div class="field-block">
+                      <label for="serverAudience">Who is this bot for?</label>
+                      <input id="serverAudience" name="serverAudience" type="text" placeholder="Gaming community, creator server, support team..." required />
+                    </div>
+                    <div class="field-block">
+                      <label for="serverSize">Expected server size</label>
+                      <input id="serverSize" name="serverSize" type="text" placeholder="Example: 500 members" required />
+                    </div>
+                  </div>
+                  <div class="field-block">
+                    <label>Core bot systems needed</label>
+                    ${renderCheckboxGroup(
+                      "botFeatures",
+                      [
+                        "Welcome System",
+                        "Auto Roles",
+                        "Moderation Commands",
+                        "Reaction Roles",
+                        "Ticket System",
+                        "Logs and Automod",
+                        "Leveling or Economy",
+                        "Custom Embeds",
+                        "Giveaways or Events",
+                      ],
+                      "botOtherFeature"
+                    )}
+                  </div>
+                  ${
+                    showAdvancedBotSection
+                      ? `
+                        <div class="field-block">
+                          <label>Advanced systems needed</label>
+                          ${renderCheckboxGroup(
+                            "botAdvancedFeatures",
+                            [
+                              "API Integrations",
+                              "Payment or Crypto Features",
+                              "Dashboard",
+                              "Marketplace Logic",
+                              "SaaS Bot Platform",
+                              "Database Optimization",
+                              "Multi-Server Sync",
+                              "Anti-Abuse Systems",
+                            ],
+                            "botAdvancedOtherFeature"
+                          )}
+                        </div>
+                      `
+                      : ""
+                  }
+                  <div class="field-block">
+                    <label for="botCommands">Commands, workflows, or automations you already know you need</label>
+                    <textarea id="botCommands" name="botCommands" placeholder="Examples: onboarding flow, application review, purchase logging, wallet checks..."></textarea>
+                  </div>
+                  <div class="field-row">
+                    <div class="field-block">
+                      <label for="botIntegrations">Integrations needed</label>
+                      <input id="botIntegrations" name="botIntegrations" type="text" placeholder="APIs, payments, dashboards, webhooks..." />
+                    </div>
+                    <div class="field-block">
+                      <label for="botReferences">Reference bots or style direction</label>
+                      <input id="botReferences" name="botReferences" type="text" placeholder="Links, examples, or bot names" />
+                    </div>
+                  </div>
+                </div>
+              `
+              : ""
+          }
 
           ${
             showBasicSection
@@ -3476,6 +3860,20 @@ function renderPlanRequirementsPage(user) {
       delivery: {
         fastDelivery,
       },
+      bot: showBotSection
+        ? {
+            serverIdea: String(formData.get("botIdea") || "").trim(),
+            serverAudience: String(formData.get("serverAudience") || "").trim(),
+            serverSize: String(formData.get("serverSize") || "").trim(),
+            features: readCheckboxValues(formData, "botFeatures"),
+            otherFeature: String(formData.get("botOtherFeature") || "").trim(),
+            advancedFeatures: readCheckboxValues(formData, "botAdvancedFeatures"),
+            otherAdvancedFeature: String(formData.get("botAdvancedOtherFeature") || "").trim(),
+            commandsWorkflows: String(formData.get("botCommands") || "").trim(),
+            integrations: String(formData.get("botIntegrations") || "").trim(),
+            references: String(formData.get("botReferences") || "").trim(),
+          }
+        : null,
       basic: {
         websiteIdea: String(formData.get("websiteIdea") || "").trim(),
         businessDetails: String(formData.get("businessDetails") || "").trim(),
@@ -3516,6 +3914,7 @@ function renderPlanRequirementsPage(user) {
     };
 
       const ideaSummary =
+        requirements.bot?.serverIdea ||
         requirements.ecommerce?.storeIdea ||
         requirements.basic.websiteIdea ||
         `${plan.name} Requirement`;
