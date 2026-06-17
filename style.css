@@ -1523,12 +1523,17 @@ button {
 }
 
 .price-card { position: relative; display: flex; flex-direction: column; gap: 14px; }
+.price-card h3 {
+  overflow-wrap: anywhere;
+}
 .pricing-plans-section {
   padding-top: 12px;
 }
 
 .pricing-plans-head {
   margin-bottom: 30px;
+  display: grid;
+  gap: 18px;
 }
 
 .pricing-filter-bar {
@@ -1578,6 +1583,7 @@ button {
 .pricing-filter-note {
   color: var(--muted);
   font-size: 0.95rem;
+  max-width: 52ch;
 }
 
 .pricing-bot-link-card {
@@ -1597,6 +1603,7 @@ button {
 .bot-hero-copy {
   display: grid;
   align-content: center;
+  gap: 10px;
 }
 
 .bot-hero-title {
@@ -1643,6 +1650,7 @@ button {
 
 .bot-price-card {
   gap: 16px;
+  min-height: 100%;
 }
 
 .bot-price-card-top {
@@ -1686,11 +1694,13 @@ button {
 
 .bot-addon-grid {
   align-items: stretch;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .bot-addon-card {
   display: grid;
   gap: 14px;
+  min-height: 100%;
 }
 
 .bot-addon-card ul {
@@ -2364,8 +2374,16 @@ select {
   transition: var(--transition);
   background: #fff;
 }
+select,
+textarea {
+  min-height: 52px;
+}
+textarea {
+  min-height: 150px;
+  resize: vertical;
+}
 select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.16); }
-textarea { min-height: 130px; resize: vertical; }
+textarea { min-height: 150px; resize: vertical; }
 
 .quote-request-layout {
   display: grid;
@@ -4691,6 +4709,25 @@ footer {
 
 @media (max-width: 1000px) {
   .hero-wrap, .contact-wrap { grid-template-columns: 1fr; }
+  .pricing-plans-head,
+  .bot-pricing-head,
+  .bot-addon-head,
+  .bot-pricing-cta,
+  .pricing-bot-link-card {
+    justify-items: center;
+    text-align: center;
+  }
+  .pricing-plans-head .section-subtitle,
+  .bot-pricing-head .section-subtitle,
+  .bot-addon-head .section-subtitle,
+  .bot-pricing-cta .section-subtitle,
+  .pricing-bot-link-card .section-subtitle {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .pricing-filter-bar {
+    justify-items: center;
+  }
   .home-price-card {
     padding: 42px 24px 66px;
     border-radius: 28px;
@@ -4758,7 +4795,22 @@ footer {
   }
   .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .bot-pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bot-addon-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .bot-hero-wrap { grid-template-columns: 1fr; }
+  .bot-hero-copy,
+  .bot-hero-card {
+    justify-items: center;
+    text-align: center;
+  }
+  .bot-hero-title,
+  .bot-hero-copy .section-subtitle {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .bot-hero-card {
+    width: min(100%, 680px);
+    margin-inline: auto;
+  }
   .plan-layout { grid-template-columns: 1fr; }
   .plan-form-layout { grid-template-columns: 1fr; }
   .plan-addon-item { align-items: flex-start; }
@@ -5038,9 +5090,67 @@ footer {
   .plan-check-grid {
     grid-template-columns: 1fr;
   }
+  .price-card {
+    padding: 20px 18px;
+    border-radius: 20px;
+  }
+  .price-card .badge {
+    position: static;
+    width: fit-content;
+    margin-bottom: 4px;
+  }
+  .price {
+    font-size: clamp(1.6rem, 1.25rem + 1.5vw, 1.95rem);
+    line-height: 1.15;
+  }
+  .price small,
+  .old-price {
+    display: block;
+    margin-right: 0;
+    margin-top: 6px;
+  }
+  .hero-actions,
+  .pricing-bot-link-card .hero-actions,
+  .bot-pricing-cta .hero-actions,
+  .bot-hero-copy .hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+  .hero-actions .btn,
+  .pricing-bot-link-card .hero-actions .btn,
+  .bot-pricing-cta .hero-actions .btn,
+  .bot-hero-copy .hero-actions .btn {
+    width: 100%;
+  }
   .bot-pricing-grid,
   .bot-addon-grid {
     grid-template-columns: 1fr;
+  }
+  .pricing-filter-bar {
+    justify-items: stretch;
+  }
+  .pricing-filter-label,
+  .pricing-filter-note {
+    text-align: center;
+  }
+  .pricing-filter-actions {
+    padding: 10px;
+    gap: 8px;
+  }
+  .contact-wrap {
+    gap: 16px;
+  }
+  .contact-form {
+    padding: 18px;
+    border-radius: 20px;
+  }
+  .social-buttons {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .social-btn {
+    justify-content: center;
   }
   .order-card-grid {
     grid-template-columns: 1fr;
