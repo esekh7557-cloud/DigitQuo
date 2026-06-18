@@ -17,7 +17,10 @@ const CART_STORAGE_KEY = "dq_cart_items";
 const SELECTED_PLAN_STORAGE_KEY = "dq_selected_plan";
 const PLAN_COUPONS_STORAGE_KEY = "dq_plan_coupons";
 const PLAN_ADDONS_STORAGE_KEY = "dq_plan_addons";
+const DISPLAY_CURRENCY_STORAGE_KEY = "dq_display_currency";
 const dqAuth = window.dqAuth;
+let currentUiUser = null;
+let cryptoRatesCache = null;
 const FOOTER_FAQ_ITEMS = [
   {
     question: "1. What services do you provide?",
@@ -656,6 +659,199 @@ function formatInr(value) {
   }).format(Number(value || 0));
 }
 
+function readDisplayCurrencyPreference() {
+  try {
+    const raw = window.localStorage.getItem(DISPLAY_CURRENCY_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    const mode = parsed?.mode === "crypto" ? "crypto" : "inr";
+    const crypto = ["btc", "ltc", "doge", "bch", "trx"].includes(String(parsed?.crypto || "").toLowerCase())
+      ? String(parsed.crypto).toLowerCase()
+      : "btc";
+    return { mode, crypto };
+  } catch {
+    return { mode: "inr", crypto: "btc" };
+  }
+}
+
+function writeDisplayCurrencyPreference(value) {
+  const safeValue = {
+    mode: value?.mode === "crypto" ? "crypto" : "inr",
+    crypto: ["btc", "ltc", "doge", "bch", "trx"].includes(String(value?.crypto || "").toLowerCase())
+      ? String(value.crypto).toLowerCase()
+      : "btc",
+  };
+  window.localStorage.setItem(DISPLAY_CURRENCY_STORAGE_KEY, JSON.stringify(safeValue));
+}
+
+function getSelectedDisplayCurrencyCode() {
+  const preference = readDisplayCurrencyPreference();
+  return preference.mode === "crypto" ? preference.crypto.toUpperCase() : "INR";
+}
+
+async function fetchCryptoRates() {
+  if (cryptoRatesCache) {
+    return cryptoRatesCache;
+  }
+
+  cryptoRatesCache = fetchJson("/api/payments/crypto/rates")
+    .then((payload) => payload?.rates || {})
+    .catch((error) => {
+      cryptoRatesCache = null;
+      console.error("Could not load crypto rates, falling back to INR display:", error);
+      return {};
+    });
+
+  return cryptoRatesCache;
+}
+
+function formatCryptoValue(amount, currency) {
+  const decimals = String(currency || "").trim().toLowerCase() === "trx" ? 6 : 8;
+  return `${Number(amount || 0).toFixed(decimals).replace(/\.?0+$/, "")} ${String(currency || "").toUpperCase()}`;
+}
+
+async function formatDisplayPrice(value, options = {}) {
+  const numericValue = Number(value || 0);
+  if (!Number.isFinite(numericValue)) {
+    return options.fallback || "Custom Quote";
+  }
+
+  const preference = readDisplayCurrencyPreference();
+  if (preference.mode !== "crypto") {
+    return formatInr(numericValue);
+  }
+
+  const rates = await fetchCryptoRates();
+  const rate = Number(rates?.[preference.crypto]);
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return formatInr(numericValue);
+  }
+
+  return formatCryptoValue(numericValue / rate, preference.crypto);
+}
+
+async function formatDisplayPriceRange(minValue, maxValue, options = {}) {
+  const min = Number(minValue || 0);
+  const max = Number(maxValue || 0);
+  const plus = options.plus === true;
+
+  if (plus) {
+    return `${await formatDisplayPrice(min)}+`;
+  }
+
+  return `${await formatDisplayPrice(min)} - ${await formatDisplayPrice(max)}`;
+}
+
+function getDisplayCurrencyControlMarkup(label = "Display Currency") {
+  const preference = readDisplayCurrencyPreference();
+  return `
+    <div class="display-currency-bar" aria-label="${escapeHtml(label)}">
+      <span class="pricing-filter-label">${escapeHtml(label)}</span>
+      <div class="display-currency-controls">
+        <select class="display-currency-select" data-display-currency>
+          <option value="inr" ${preference.mode === "inr" ? "selected" : ""}>INR</option>
+          <option value="crypto" ${preference.mode === "crypto" ? "selected" : ""}>Crypto</option>
+        </select>
+        <select class="display-currency-select" data-display-crypto ${preference.mode === "crypto" ? "" : "hidden"}>
+          <option value="btc" ${preference.crypto === "btc" ? "selected" : ""}>BTC</option>
+          <option value="ltc" ${preference.crypto === "ltc" ? "selected" : ""}>LTC</option>
+          <option value="doge" ${preference.crypto === "doge" ? "selected" : ""}>DOGE</option>
+          <option value="bch" ${preference.crypto === "bch" ? "selected" : ""}>BCH</option>
+          <option value="trx" ${preference.crypto === "trx" ? "selected" : ""}>TRX</option>
+        </select>
+      </div>
+    </div>
+  `;
+}
+
+function bindDisplayCurrencyControls() {
+  const preference = readDisplayCurrencyPreference();
+  document.querySelectorAll("[data-display-currency]").forEach((select) => {
+    if (select instanceof HTMLSelectElement) {
+      select.value = preference.mode;
+    }
+  });
+  document.querySelectorAll("[data-display-crypto]").forEach((select) => {
+    if (select instanceof HTMLSelectElement) {
+      select.value = preference.crypto;
+      select.hidden = preference.mode !== "crypto";
+    }
+  });
+
+  document.querySelectorAll("[data-display-currency]").forEach((select) => {
+    if (select.dataset.bound === "true") {
+      return;
+    }
+    select.dataset.bound = "true";
+    select.addEventListener("change", async (event) => {
+      const target = event.currentTarget;
+      const next = readDisplayCurrencyPreference();
+      next.mode = target instanceof HTMLSelectElement && target.value === "crypto" ? "crypto" : "inr";
+      writeDisplayCurrencyPreference(next);
+      await rerenderDisplayCurrencyViews();
+    });
+  });
+
+  document.querySelectorAll("[data-display-crypto]").forEach((select) => {
+    if (select.dataset.bound === "true") {
+      return;
+    }
+    select.dataset.bound = "true";
+    select.addEventListener("change", async (event) => {
+      const target = event.currentTarget;
+      const next = readDisplayCurrencyPreference();
+      next.crypto = target instanceof HTMLSelectElement ? target.value : "btc";
+      next.mode = "crypto";
+      writeDisplayCurrencyPreference(next);
+      await rerenderDisplayCurrencyViews();
+    });
+  });
+}
+
+async function rerenderDisplayCurrencyViews() {
+  await renderPlanDetailsPage();
+  await bindPricingActions();
+  await renderPlanRequirementsPage(currentUiUser);
+  await renderStaticDisplayMoney();
+  await initAuthUi();
+}
+
+async function renderStaticDisplayMoney() {
+  const homePricingNodes = Array.from(document.querySelectorAll("[data-home-pricing-plan]"));
+  for (const node of homePricingNodes) {
+    const planKey = String(node.getAttribute("data-home-pricing-plan") || "").trim();
+    const plan = getPlanByKey(planKey);
+    if (!plan) {
+      continue;
+    }
+
+    const suffix = node.getAttribute("data-price-suffix") || "";
+    node.innerHTML = `${plan.oldPrice ? `<span class="old-price">${escapeHtml(await formatDisplayPrice(plan.oldPrice))}</span> ` : ""}${escapeHtml(
+      await formatDisplayPrice(plan.subtotal ?? plan.amount ?? 0)
+    )}${suffix ? ` <small class="home-price-term">${escapeHtml(suffix)}</small>` : ""}`;
+  }
+
+  const rangeNodes = Array.from(document.querySelectorAll("[data-bot-range]"));
+  for (const node of rangeNodes) {
+    const [minValue, maxValue] = String(node.getAttribute("data-bot-range") || "").split("|");
+    const suffix = node.getAttribute("data-price-suffix") || "";
+    node.innerHTML = `${escapeHtml(await formatDisplayPriceRange(minValue, maxValue))}${suffix ? ` <small>${escapeHtml(suffix)}</small>` : ""}`;
+  }
+
+  const plusNodes = Array.from(document.querySelectorAll("[data-bot-plus]"));
+  for (const node of plusNodes) {
+    const minValue = Number(node.getAttribute("data-bot-plus") || 0);
+    const suffix = node.getAttribute("data-price-suffix") || "";
+    node.innerHTML = `${escapeHtml(await formatDisplayPriceRange(minValue, minValue, { plus: true }))}${suffix ? ` <small>${escapeHtml(suffix)}</small>` : ""}`;
+  }
+
+  const singleNodes = Array.from(document.querySelectorAll("[data-bot-addon-price]"));
+  for (const node of singleNodes) {
+    const value = Number(node.getAttribute("data-bot-addon-price") || 0);
+    const suffix = node.getAttribute("data-price-suffix") || "";
+    node.textContent = `${await formatDisplayPrice(value)}${suffix}`;
+  }
+}
+
 function getPlanByKey(planKey) {
   return PLAN_DETAILS[String(planKey || "").trim()] || null;
 }
@@ -832,7 +1028,7 @@ function getPlanCatalogPricing(plan, options = {}) {
   };
 }
 
-function renderPricingPageFilter(mode = "without-hosting") {
+async function renderPricingPageFilter(mode = "without-hosting") {
   if (!pricingPlansSection) {
     return;
   }
@@ -848,13 +1044,14 @@ function renderPricingPageFilter(mode = "without-hosting") {
 
   const filterNote = document.getElementById("pricingFilterNote");
   if (filterNote) {
+    const currencyCode = getSelectedDisplayCurrencyCode();
     filterNote.textContent =
       normalizedMode === "with-hosting"
-        ? "Showing package prices with hosting add-ons included."
-        : "Showing base package prices without hosting add-ons.";
+        ? `Showing package prices with hosting add-ons included in ${currencyCode}.`
+        : `Showing base package prices without hosting add-ons in ${currencyCode}.`;
   }
 
-  pricingPlansSection.querySelectorAll("[data-pricing-plan]").forEach((card) => {
+  const pricingTasks = Array.from(pricingPlansSection.querySelectorAll("[data-pricing-plan]")).map(async (card) => {
     const planKey = card.getAttribute("data-pricing-plan") || "";
     const plan = getPlanByKey(planKey);
     const priceNode = card.querySelector("[data-pricing-price]");
@@ -863,13 +1060,15 @@ function renderPricingPageFilter(mode = "without-hosting") {
     }
 
     const pricing = getPlanCatalogPricing(plan, { includeHosting: normalizedMode === "with-hosting" });
-    priceNode.innerHTML = `<span class="old-price">${escapeHtml(formatInr(pricing.oldPrice))}</span> ${escapeHtml(
-      formatInr(pricing.subtotal)
-    )} <small>/ project</small>`;
+    priceNode.innerHTML = `<span class="old-price">${escapeHtml(await formatDisplayPrice(pricing.oldPrice))}</span> ${escapeHtml(
+      await formatDisplayPrice(pricing.subtotal)
+    )} <small>${escapeHtml(card.getAttribute("data-price-suffix") || "/ project")}</small>`;
   });
+
+  await Promise.all(pricingTasks);
 }
 
-function renderPlanAddOnsMarkup(plan, planKey) {
+async function renderPlanAddOnsMarkup(plan, planKey) {
   const addOns = Array.isArray(plan?.addOns) ? plan.addOns : [];
   if (!addOns.length) {
     return "";
@@ -886,16 +1085,16 @@ function renderPlanAddOnsMarkup(plan, planKey) {
         <p class="section-subtitle">${escapeHtml(planContext.addOnSubtitle)}</p>
       </div>
       <div class="plan-addon-list">
-        ${addOns
-          .map(
-            (addOn) => `
+        ${(
+          await Promise.all(
+            addOns.map(async (addOn) => `
               <div class="plan-addon-item ${selectedIds.has(String(addOn.id || "").trim()) ? "is-selected" : ""}">
                 <div>
                   <h3>${escapeHtml(addOn.name || "Add-on")}</h3>
                   <p>${escapeHtml(addOn.description || "Optional add-on for this package.")}</p>
                 </div>
                 <div class="plan-addon-actions">
-                  <strong>${formatInr(addOn.price)}</strong>
+                  <strong>${escapeHtml(await formatDisplayPrice(addOn.price))}</strong>
                   <button
                     class="btn ${selectedIds.has(String(addOn.id || "").trim()) ? "btn-secondary" : "btn-primary"}"
                     type="button"
@@ -905,9 +1104,9 @@ function renderPlanAddOnsMarkup(plan, planKey) {
                   </button>
                 </div>
               </div>
-            `
+            `)
           )
-          .join("")}
+        ).join("")}
       </div>
     </article>
   `;
@@ -1187,7 +1386,7 @@ function setPlanCouponFeedback(message, state = "info") {
   feedback.dataset.state = state;
 }
 
-function syncPlanCouponUi(planKey) {
+async function syncPlanCouponUi(planKey) {
   const plan = getPlanByKey(planKey);
   if (!plan) {
     return;
@@ -1201,7 +1400,7 @@ function syncPlanCouponUi(planKey) {
     addOnIds: selectedAddOns.map((addOn) => addOn.id),
   });
   const couponToggle = document.getElementById("planCouponToggle");
-  const couponForm = document.getElementById("planCouponForm");
+    const couponForm = document.getElementById("planCouponForm");
   const couponInput = document.getElementById("planCouponCode");
   const clearButton = document.getElementById("clearPlanCouponBtn");
   const addOnRow = document.getElementById("planAddOnRow");
@@ -1211,6 +1410,7 @@ function syncPlanCouponUi(planKey) {
   const couponValue = document.getElementById("planCouponDiscountValue");
   const finalTotal = document.getElementById("planFinalTotal");
   const requirementAddOnRow = document.getElementById("planRequirementAddOnRow");
+  const requirementPlanAmount = document.getElementById("planRequirementPlanAmount");
   const requirementAddOnLabel = document.getElementById("planRequirementAddOnLabel");
   const requirementAddOnValue = document.getElementById("planRequirementAddOnValue");
   const requirementFastDeliveryRow = document.getElementById("planRequirementFastDeliveryRow");
@@ -1253,7 +1453,7 @@ function syncPlanCouponUi(planKey) {
   }
 
   if (addOnValue) {
-    addOnValue.textContent = `+ ${formatInr(pricing.addOnAmount)}`;
+    addOnValue.textContent = `+ ${await formatDisplayPrice(pricing.addOnAmount)}`;
   }
 
   if (couponLabel) {
@@ -1261,15 +1461,19 @@ function syncPlanCouponUi(planKey) {
   }
 
   if (couponValue) {
-    couponValue.textContent = pricing.discountAmount ? `- ${formatInr(pricing.discountAmount)}` : formatInr(0);
+    couponValue.textContent = pricing.discountAmount ? `- ${await formatDisplayPrice(pricing.discountAmount)}` : await formatDisplayPrice(0);
   }
 
   if (finalTotal) {
-    finalTotal.textContent = formatInr(pricing.finalAmount);
+    finalTotal.textContent = await formatDisplayPrice(pricing.finalAmount);
   }
 
   if (requirementAddOnRow) {
     requirementAddOnRow.hidden = selectedAddOns.length === 0;
+  }
+
+  if (requirementPlanAmount) {
+    requirementPlanAmount.textContent = await formatDisplayPrice(pricing.planAmount);
   }
 
   if (requirementAddOnLabel) {
@@ -1279,7 +1483,7 @@ function syncPlanCouponUi(planKey) {
   }
 
   if (requirementAddOnValue) {
-    requirementAddOnValue.textContent = `+ ${formatInr(pricing.addOnAmount)}`;
+    requirementAddOnValue.textContent = `+ ${await formatDisplayPrice(pricing.addOnAmount)}`;
   }
 
   if (requirementFastDeliveryRow) {
@@ -1287,11 +1491,11 @@ function syncPlanCouponUi(planKey) {
   }
 
   if (requirementFastDeliveryValue) {
-    requirementFastDeliveryValue.textContent = `+ ${formatInr(pricing.fastDeliveryFee)}`;
+    requirementFastDeliveryValue.textContent = `+ ${await formatDisplayPrice(pricing.fastDeliveryFee)}`;
   }
 
   if (requirementBaseAmount) {
-    requirementBaseAmount.textContent = formatInr(pricing.baseAmount);
+    requirementBaseAmount.textContent = await formatDisplayPrice(pricing.baseAmount);
   }
 
   if (requirementCouponRow) {
@@ -1303,11 +1507,11 @@ function syncPlanCouponUi(planKey) {
   }
 
   if (requirementCouponValue) {
-    requirementCouponValue.textContent = pricing.discountAmount ? `- ${formatInr(pricing.discountAmount)}` : formatInr(0);
+    requirementCouponValue.textContent = pricing.discountAmount ? `- ${await formatDisplayPrice(pricing.discountAmount)}` : await formatDisplayPrice(0);
   }
 
   if (requirementFinalAmount) {
-    requirementFinalAmount.textContent = formatInr(pricing.finalAmount);
+    requirementFinalAmount.textContent = await formatDisplayPrice(pricing.finalAmount);
   }
 
   if (requirementCouponNote) {
@@ -1346,7 +1550,7 @@ async function revalidateStoredPlanCoupon(planKey, options = {}) {
     }
 
     setStoredPlanCoupon(planKey, coupon);
-    syncPlanCouponUi(planKey);
+    await syncPlanCouponUi(planKey);
 
     if (!options.silent) {
       setPlanCouponFeedback(`Coupon ${normalizeCouponCode(coupon.coupon_code)} applied successfully.`, "success");
@@ -1354,7 +1558,7 @@ async function revalidateStoredPlanCoupon(planKey, options = {}) {
     return coupon;
   } catch (error) {
     clearStoredPlanCoupon(planKey);
-    syncPlanCouponUi(planKey);
+    await syncPlanCouponUi(planKey);
     if (!options.silent) {
       setPlanCouponFeedback(error.message || "This coupon is no longer available.", "error");
     }
@@ -1362,7 +1566,7 @@ async function revalidateStoredPlanCoupon(planKey, options = {}) {
   }
 }
 
-function buildCartItemFromPlan(planKey) {
+async function buildCartItemFromPlan(planKey) {
   if (String(planKey || "").trim() === "custom") {
     return {
       planKey: "custom",
@@ -1393,7 +1597,7 @@ function buildCartItemFromPlan(planKey) {
     planKey,
     title: plan.name,
     description,
-    price: formatInr(totalAmount),
+    price: await formatDisplayPrice(totalAmount),
     amount: totalAmount,
   };
 }
@@ -1786,7 +1990,7 @@ function updatePlanBuyLinks(user) {
   });
 }
 
-function renderCartPage(user) {
+async function renderCartPage(user) {
   if (!cartRoot) {
     return;
   }
@@ -1821,22 +2025,22 @@ function renderCartPage(user) {
           </div>
         </article>
       `
-    : items
-        .map(
-          (item) => `
+    : (
+        await Promise.all(
+          items.map(async (item) => `
             <article class="card cart-item">
               <div class="cart-item-copy">
                 <h3>${escapeHtml(item.title || "Selected Plan")}</h3>
                 <p>${escapeHtml(item.description || "Saved from your recent visit.")}</p>
               </div>
               <div class="cart-item-actions">
-                <div class="cart-price">${escapeHtml(item.price || "Custom")}</div>
+                <div class="cart-price">${Number(item.amount || 0) > 0 ? escapeHtml(await formatDisplayPrice(item.amount || 0)) : escapeHtml(item.price || "Custom")}</div>
                 <button class="btn btn-secondary" type="button" data-cart-remove="${escapeHtml(item.planKey || "")}">Remove</button>
               </div>
             </article>
-          `
+          `)
         )
-        .join("");
+      ).join("");
 
   cartRoot.innerHTML = `
     <div class="profile-grid account-page-grid">
@@ -1878,7 +2082,8 @@ function renderCartPage(user) {
               <p><strong>Name:</strong> ${escapeHtml(user.fullName)}</p>
               <p><strong>Phone:</strong> ${escapeHtml(user.phone || "Not added yet")}</p>
               <p><strong>Items:</strong> ${items.length}</p>
-              <p class="cart-total-row"><strong>Total:</strong> <span>${hasCustomOnlyPricing ? "Custom Quote" : formatInr(totalAmount)}</span></p>
+              <div class="cart-currency-shell">${getDisplayCurrencyControlMarkup("Billing Currency")}</div>
+              <p class="cart-total-row"><strong>Total:</strong> <span>${hasCustomOnlyPricing ? "Custom Quote" : escapeHtml(await formatDisplayPrice(totalAmount))}</span></p>
               <a href="${primaryPlanKey ? getPlanRequirementsPagePath(primaryPlanKey) || browsePage : browsePage}" class="btn btn-primary">${primaryPlanKey ? "Proceed to Buy" : browseLabel}</a>
               <a href="orders.html#ordersMain" class="btn btn-secondary">View Orders</a>
               ${
@@ -1907,6 +2112,8 @@ function renderCartPage(user) {
   if (window.location.hash === "#cartMain") {
     cartRoot.querySelector("#cartMain")?.scrollIntoView({ block: "start" });
   }
+
+  bindDisplayCurrencyControls();
 }
 
 function renderProfilePage(user) {
@@ -1985,7 +2192,10 @@ function renderProfilePage(user) {
             </div>
             <div class="account-row account-row--static">
               <span class="account-row__label">Account currency <span class="account-row__hint">i</span></span>
-              <strong class="account-row__value">INR</strong>
+              <strong class="account-row__value">${escapeHtml(getSelectedDisplayCurrencyCode())}</strong>
+            </div>
+            <div class="account-currency-controls">
+              ${getDisplayCurrencyControlMarkup("Billing Currency")}
             </div>
           </div>
         </article>
@@ -2499,6 +2709,8 @@ function renderProfilePage(user) {
   if (window.location.hash === "#accountMain") {
     profileRoot.querySelector("#accountMain")?.scrollIntoView({ block: "start" });
   }
+
+  bindDisplayCurrencyControls();
 }
 
 async function renderOrdersPage(user) {
@@ -2662,9 +2874,13 @@ async function renderOrdersPage(user) {
           <div class="account-page-header">
             <h2>Account Activity</h2>
           </div>
+          <div class="orders-currency-shell">
+            ${getDisplayCurrencyControlMarkup("Billing Currency")}
+          </div>
           <div class="orders-list">
-            ${orders
-              .map((order) => {
+            ${(
+              await Promise.all(
+                orders.map(async (order) => {
                 const title = order.projects?.project_name || order.projects?.template_id || "Website Plan";
                 const createdAt = order.created_at ? new Date(order.created_at).toLocaleString() : "Unknown date";
                 return `
@@ -2682,15 +2898,15 @@ async function renderOrdersPage(user) {
                     <div class="order-card-grid">
                       <div class="order-card-item">
                         <span>Total</span>
-                        <strong>${formatInr(order.final_amount || 0)}</strong>
+                        <strong>${escapeHtml(await formatDisplayPrice(order.final_amount || 0))}</strong>
                       </div>
                       <div class="order-card-item">
                         <span>Original Amount</span>
-                        <strong>${formatInr(order.amount || 0)}</strong>
+                        <strong>${escapeHtml(await formatDisplayPrice(order.amount || 0))}</strong>
                       </div>
                       <div class="order-card-item">
                         <span>Discount</span>
-                        <strong>${formatInr(order.discount_amount || 0)}</strong>
+                        <strong>${escapeHtml(await formatDisplayPrice(order.discount_amount || 0))}</strong>
                       </div>
                       <div class="order-card-item">
                         <span>Purchased On</span>
@@ -2704,7 +2920,7 @@ async function renderOrdersPage(user) {
                   </article>
                 `;
               })
-              .join("")}
+            )).join("")}
           </div>
         </div>
       </div>
@@ -2722,6 +2938,7 @@ async function renderOrdersPage(user) {
     if (window.location.hash === "#ordersMain") {
       ordersRoot.querySelector("#ordersMain")?.scrollIntoView({ block: "start" });
     }
+    bindDisplayCurrencyControls();
   } catch (error) {
     ordersRoot.innerHTML = `
       <div class="profile-grid account-page-grid">
@@ -2776,7 +2993,7 @@ async function renderOrdersPage(user) {
   }
 }
 
-function renderPlanDetailsPage() {
+async function renderPlanDetailsPage() {
   if (!planDetailsRoot) {
     return;
   }
@@ -2815,10 +3032,13 @@ function renderPlanDetailsPage() {
         <span class="eyebrow">Selected Package</span>
         <h1 class="section-title">${escapeHtml(plan.name)}</h1>
         <p class="section-subtitle">${escapeHtml(planContext.detailsSubtitle)}</p>
+        <div class="plan-currency-shell">
+          ${getDisplayCurrencyControlMarkup("Display Currency")}
+        </div>
         <div class="plan-price-strip">
-          ${hasSavings ? `<span class="old-price">${formatInr(plan.oldPrice)}</span>` : ""}
-          <strong>${formatInr(plan.subtotal)}</strong>
-          ${hasSavings ? `<span class="plan-savings">You save ${formatInr(savings)}</span>` : ""}
+          ${hasSavings ? `<span class="old-price">${escapeHtml(await formatDisplayPrice(plan.oldPrice))}</span>` : ""}
+          <strong>${escapeHtml(await formatDisplayPrice(plan.subtotal))}</strong>
+          ${hasSavings ? `<span class="plan-savings">You save ${escapeHtml(await formatDisplayPrice(savings))}</span>` : ""}
         </div>
         <ul class="plan-feature-list">
           ${plan.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}
@@ -2826,21 +3046,21 @@ function renderPlanDetailsPage() {
       </article>
       <article class="card plan-summary-card">
         <h2>Price Breakdown</h2>
-        ${breakdownRows
-          .map(
-            (row) => `
+        ${(
+          await Promise.all(
+            breakdownRows.map(async (row) => `
               <div class="plan-summary-row">
                 <span>${escapeHtml(row.label || "Plan Price")}</span>
-                <strong>${formatInr(row.amount || 0)}</strong>
+                <strong>${escapeHtml(await formatDisplayPrice(row.amount || 0))}</strong>
               </div>
-            `
+            `)
           )
-          .join("")}
+        ).join("")}
         <div class="plan-summary-row" id="planAddOnRow" ${selectedAddOns.length ? "" : "hidden"}>
           <span id="planAddOnLabel">${escapeHtml(
             selectedAddOns.length ? selectedAddOns.map((addOn) => addOn.name).join(", ") : "Selected Add-ons"
           )}</span>
-          <strong id="planAddOnValue">+ ${formatInr(pricing.addOnAmount)}</strong>
+          <strong id="planAddOnValue">+ ${escapeHtml(await formatDisplayPrice(pricing.addOnAmount))}</strong>
         </div>
         <button
           class="plan-coupon-toggle"
@@ -2869,11 +3089,11 @@ function renderPlanDetailsPage() {
         </form>
         <div class="plan-summary-row">
           <span id="planCouponLabel">${escapeHtml(appliedCoupon ? `Coupon (${appliedCoupon.coupon_code})` : "Coupon Discount")}</span>
-          <strong id="planCouponDiscountValue">${pricing.discountAmount ? `- ${formatInr(pricing.discountAmount)}` : formatInr(0)}</strong>
+          <strong id="planCouponDiscountValue">${pricing.discountAmount ? `- ${escapeHtml(await formatDisplayPrice(pricing.discountAmount))}` : escapeHtml(await formatDisplayPrice(0))}</strong>
         </div>
         <div class="plan-summary-row total">
           <span>Total Pricing</span>
-          <strong id="planFinalTotal">${formatInr(pricing.finalAmount)}</strong>
+          <strong id="planFinalTotal">${escapeHtml(await formatDisplayPrice(pricing.finalAmount))}</strong>
         </div>
         <p class="plan-note">${escapeHtml(planContext.planNote)}</p>
         <p class="plan-feedback" id="planFeedback">${escapeHtml(planContext.feedbackText)}</p>
@@ -2883,7 +3103,7 @@ function renderPlanDetailsPage() {
         </div>
       </article>
     </div>
-    ${renderPlanAddOnsMarkup(plan, planKey)}
+    ${await renderPlanAddOnsMarkup(plan, planKey)}
   `;
 
   planDetailsRoot.querySelectorAll("[data-plan-addon-toggle]").forEach((button) => {
@@ -2896,7 +3116,9 @@ function renderPlanDetailsPage() {
           ? `${selectedAddOn?.name || "Add-on"} added to this package.`
           : `${selectedAddOn?.name || "Add-on"} removed from this package.`
       );
-      renderPlanDetailsPage();
+      renderPlanDetailsPage().catch((error) => {
+        console.error("Could not rerender plan details:", error);
+      });
     });
   });
 
@@ -2909,7 +3131,9 @@ function renderPlanDetailsPage() {
     }
 
     couponForm.hidden = !couponForm.hidden;
-    syncPlanCouponUi(planKey);
+    syncPlanCouponUi(planKey).catch((error) => {
+      console.error("Could not sync coupon UI:", error);
+    });
   });
 
   couponForm?.addEventListener("submit", async (event) => {
@@ -2936,7 +3160,7 @@ function renderPlanDetailsPage() {
       }
 
       setStoredPlanCoupon(planKey, coupon);
-      syncPlanCouponUi(planKey);
+      await syncPlanCouponUi(planKey);
       setPlanCouponFeedback(`Coupon ${couponCode} applied successfully.`, "success");
     } catch (error) {
       setPlanCouponFeedback(error.message || "Could not apply coupon right now.", "error");
@@ -2950,11 +3174,15 @@ function renderPlanDetailsPage() {
 
   clearCouponButton?.addEventListener("click", () => {
     clearStoredPlanCoupon(planKey);
-    syncPlanCouponUi(planKey);
+    syncPlanCouponUi(planKey).catch((error) => {
+      console.error("Could not sync coupon UI:", error);
+    });
     setPlanCouponFeedback("Coupon removed.", "info");
   });
 
-  syncPlanCouponUi(planKey);
+  syncPlanCouponUi(planKey).catch((error) => {
+    console.error("Could not sync coupon UI:", error);
+  });
   revalidateStoredPlanCoupon(planKey, { silent: true }).catch((error) => {
     console.error("Could not revalidate stored coupon:", error);
   });
@@ -2968,18 +3196,28 @@ function bindPortfolioQuoteTrigger(user) {
   portfolioQuoteLink.href = user ? "quote-request.html" : "login.html?redirect=quote-request.html";
 }
 
-function bindPricingActions() {
+async function bindPricingActions() {
   if (pricingPlansSection) {
     pricingPlansSection.querySelectorAll("[data-pricing-mode]").forEach((button) => {
+      if (button.dataset.bound === "true") {
+        return;
+      }
+      button.dataset.bound = "true";
       button.addEventListener("click", () => {
-        renderPricingPageFilter(button.getAttribute("data-pricing-mode") || "without-hosting");
+        renderPricingPageFilter(button.getAttribute("data-pricing-mode") || "without-hosting").catch((error) => {
+          console.error("Could not update pricing filter:", error);
+        });
       });
     });
 
-    renderPricingPageFilter(getPricingPageMode());
+    await renderPricingPageFilter(getPricingPageMode());
   }
 
   document.querySelectorAll("[data-plan-link]").forEach((link) => {
+    if (link.dataset.bound === "true") {
+      return;
+    }
+    link.dataset.bound = "true";
     link.addEventListener("click", () => {
       const planKey = link.dataset.planLink;
       const plan = getPlanByKey(planKey);
@@ -2995,10 +3233,13 @@ function bindPricingActions() {
       saveSelectedPlan(planKey);
     });
   });
+
+  await renderStaticDisplayMoney();
+  bindDisplayCurrencyControls();
 }
 
-function handlePlanAdd(planKey) {
-  const item = buildCartItemFromPlan(planKey);
+async function handlePlanAdd(planKey) {
+  const item = await buildCartItemFromPlan(planKey);
   if (!item) {
     return;
   }
@@ -3179,7 +3420,7 @@ function bindCustomPlanForm(user) {
   });
 }
 
-function renderCustomPlanPage(user) {
+async function renderCustomPlanPage(user) {
   if (!customPlanRoot || !customPlanForm) {
     return;
   }
@@ -3206,7 +3447,7 @@ function renderCustomPlanPage(user) {
   }
 
   saveSelectedPlan("custom");
-  upsertCartItem(buildCartItemFromPlan("custom"));
+  upsertCartItem(await buildCartItemFromPlan("custom"));
   bindCustomPlanForm(user);
 }
 
@@ -3606,7 +3847,7 @@ async function openCryptoPaymentModal(checkoutData) {
   throw new Error("Crypto payment was not confirmed yet. You can check the order later from your account.");
 }
 
-function renderPlanRequirementsPage(user) {
+async function renderPlanRequirementsPage(user) {
   if (!planRequirementsRoot) {
     return;
   }
@@ -3965,28 +4206,31 @@ function renderPlanRequirementsPage(user) {
       <aside class="plan-form-sidebar">
         <article class="card">
           <h2>Selected Plan</h2>
-          <p class="plan-form-price" id="planRequirementFinalAmount">${formatInr(pricing.finalAmount)}</p>
+          <div class="plan-currency-shell">
+            ${getDisplayCurrencyControlMarkup("Display Currency")}
+          </div>
+          <p class="plan-form-price" id="planRequirementFinalAmount">${escapeHtml(await formatDisplayPrice(pricing.finalAmount))}</p>
           <div class="plan-form-summary-row">
             <span>Plan Price</span>
-            <strong>${formatInr(pricing.planAmount)}</strong>
+            <strong id="planRequirementPlanAmount">${escapeHtml(await formatDisplayPrice(pricing.planAmount))}</strong>
           </div>
           <div class="plan-form-summary-row" id="planRequirementAddOnRow" ${selectedAddOns.length ? "" : "hidden"}>
             <span id="planRequirementAddOnLabel">${escapeHtml(
               selectedAddOns.length ? selectedAddOns.map((addOn) => addOn.name).join(", ") : "Selected Add-ons"
             )}</span>
-            <strong id="planRequirementAddOnValue">+ ${formatInr(pricing.addOnAmount)}</strong>
+            <strong id="planRequirementAddOnValue">+ ${escapeHtml(await formatDisplayPrice(pricing.addOnAmount))}</strong>
           </div>
           <div class="plan-form-summary-row" id="planRequirementFastDeliveryRow" hidden>
             <span>Fast Delivery</span>
-            <strong id="planRequirementFastDeliveryValue">+ ${formatInr(0)}</strong>
+            <strong id="planRequirementFastDeliveryValue">+ ${escapeHtml(await formatDisplayPrice(0))}</strong>
           </div>
           <div class="plan-form-summary-row">
             <span>Subtotal</span>
-            <strong id="planRequirementBaseAmount">${formatInr(pricing.baseAmount)}</strong>
+            <strong id="planRequirementBaseAmount">${escapeHtml(await formatDisplayPrice(pricing.baseAmount))}</strong>
           </div>
           <div class="plan-form-summary-row" id="planRequirementCouponRow" ${appliedCoupon ? "" : "hidden"}>
             <span id="planRequirementCouponLabel">${escapeHtml(appliedCoupon ? `Coupon (${appliedCoupon.coupon_code})` : "Coupon Discount")}</span>
-            <strong id="planRequirementCouponValue">${pricing.discountAmount ? `- ${formatInr(pricing.discountAmount)}` : formatInr(0)}</strong>
+            <strong id="planRequirementCouponValue">${pricing.discountAmount ? `- ${escapeHtml(await formatDisplayPrice(pricing.discountAmount))}` : escapeHtml(await formatDisplayPrice(0))}</strong>
           </div>
           <div class="plan-form-summary-row">
             <span>Checkout Currency</span>
@@ -4014,7 +4258,9 @@ function renderPlanRequirementsPage(user) {
   const cryptoCurrencyInput = document.getElementById("planCryptoCurrency");
   const paymentMethodLabel = document.getElementById("planRequirementPaymentMethodLabel");
   fastDeliveryInput?.addEventListener("change", () => {
-    syncPlanCouponUi(planKey);
+    syncPlanCouponUi(planKey).catch((error) => {
+      console.error("Could not sync plan coupon UI:", error);
+    });
   });
 
   const syncPaymentMethodUi = () => {
@@ -4031,6 +4277,7 @@ function renderPlanRequirementsPage(user) {
   paymentMethodInput?.addEventListener("change", syncPaymentMethodUi);
   cryptoCurrencyInput?.addEventListener("change", syncPaymentMethodUi);
   syncPaymentMethodUi();
+  bindDisplayCurrencyControls();
 
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -4210,15 +4457,16 @@ function mergeUserAndProfile(user, profile) {
 
 async function initAuthUi() {
   if (!dqAuth || !dqAuth.isConfigured()) {
+    currentUiUser = null;
     bindPortfolioQuoteTrigger(null);
     updateQuoteActionLinks(null);
     updatePlanBuyLinks(null);
-    renderCartPage(null);
+    await renderCartPage(null);
     renderProfilePage(null);
-    renderOrdersPage(null);
+    await renderOrdersPage(null);
     renderQuoteRequestPage(null);
-    renderCustomPlanPage(null);
-    renderPlanRequirementsPage(null);
+    await renderCustomPlanPage(null);
+    await renderPlanRequirementsPage(null);
     return;
   }
 
@@ -4227,42 +4475,45 @@ async function initAuthUi() {
     const profile = typeof dqAuth.getCurrentProfile === "function" ? await dqAuth.getCurrentProfile() : null;
     const user = mergeUserAndProfile(rawUser, profile);
     if (!user) {
+      currentUiUser = null;
       bindPortfolioQuoteTrigger(null);
       updateQuoteActionLinks(null);
       updatePlanBuyLinks(null);
-      renderCartPage(null);
+      await renderCartPage(null);
       renderProfilePage(null);
-      renderOrdersPage(null);
+      await renderOrdersPage(null);
       renderQuoteRequestPage(null);
-      renderCustomPlanPage(null);
-      renderPlanRequirementsPage(null);
+      await renderCustomPlanPage(null);
+      await renderPlanRequirementsPage(null);
       return;
     }
 
+    currentUiUser = user;
     bindPortfolioQuoteTrigger(user);
     updateQuoteActionLinks(user);
     updatePlanBuyLinks(user);
     buildProfileMenu(user);
-    renderCartPage(user);
+    await renderCartPage(user);
     renderProfilePage(user);
-    renderOrdersPage(user);
+    await renderOrdersPage(user);
     renderQuoteRequestPage(user);
-    renderCustomPlanPage(user);
-    renderPlanRequirementsPage(user);
+    await renderCustomPlanPage(user);
+    await renderPlanRequirementsPage(user);
   } catch {
+    currentUiUser = null;
     bindPortfolioQuoteTrigger(null);
     updateQuoteActionLinks(null);
     updatePlanBuyLinks(null);
-    renderCartPage(null);
+    await renderCartPage(null);
     renderProfilePage(null);
-    renderOrdersPage(null);
+    await renderOrdersPage(null);
     renderQuoteRequestPage(null);
-    renderCustomPlanPage(null);
-    renderPlanRequirementsPage(null);
+    await renderCustomPlanPage(null);
+    await renderPlanRequirementsPage(null);
   }
 }
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
   if (!(event.target instanceof Element)) {
     return;
   }
@@ -4273,25 +4524,32 @@ document.addEventListener("click", (event) => {
   }
 
   if (target.dataset.planAdd) {
-    handlePlanAdd(target.dataset.planAdd);
+    await handlePlanAdd(target.dataset.planAdd);
     return;
   }
 
   if (target.dataset.cartRemove) {
     removeCartItem(target.dataset.cartRemove);
-    initAuthUi();
+    await initAuthUi();
     return;
   }
 
   if (target.dataset.cartClear === "true") {
     clearCart();
-    initAuthUi();
+    await initAuthUi();
   }
 });
 
-renderPlanDetailsPage();
-bindPricingActions();
-initAuthUi();
+renderPlanDetailsPage().catch((error) => {
+  console.error("Could not render plan details page:", error);
+});
+bindPricingActions().catch((error) => {
+  console.error("Could not bind pricing actions:", error);
+});
+initAuthUi().catch((error) => {
+  console.error("Could not initialize auth UI:", error);
+});
 initAutoTechRows();
 window.addEventListener("load", initAutoTechRows, { once: true });
 window.addEventListener("resize", initAutoTechRows);
+  bindDisplayCurrencyControls();

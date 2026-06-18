@@ -1,0 +1,5 @@
+const { handleGetCryptoPaymentStatus } = require("../../_lib/backend");
+
+module.exports = async (req, res) => {
+  await handleGetCryptoPaymentStatus(req, res);
+};

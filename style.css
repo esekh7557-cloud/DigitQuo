@@ -1586,6 +1586,30 @@ button {
   max-width: 52ch;
 }
 
+.display-currency-bar {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.display-currency-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.display-currency-select {
+  min-width: 120px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--secondary);
+  font: inherit;
+  font-weight: 700;
+}
+
 .pricing-bot-link-card {
   display: grid;
   gap: 12px;
@@ -1744,6 +1768,14 @@ button {
   text-decoration: line-through;
   margin-right: 8px;
 }
+
+.plan-currency-shell,
+.cart-currency-shell,
+.orders-currency-shell,
+.account-currency-controls {
+  margin-bottom: 12px;
+}
+
 .plan-shell {
   width: 100%;
   max-width: calc(1440px + (var(--page-pad-wide) * 2));

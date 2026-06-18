@@ -52,11 +52,27 @@
             </div>
             <p class="pricing-filter-note" id="pricingFilterNote">Showing base package prices without hosting add-ons.</p>
           </div>
+          <div class="display-currency-bar" aria-label="Display currency">
+            <span class="pricing-filter-label">Display Currency</span>
+            <div class="display-currency-controls">
+              <select class="display-currency-select" data-display-currency>
+                <option value="inr">INR</option>
+                <option value="crypto">Crypto</option>
+              </select>
+              <select class="display-currency-select" data-display-crypto hidden>
+                <option value="btc">BTC</option>
+                <option value="ltc">LTC</option>
+                <option value="doge">DOGE</option>
+                <option value="bch">BCH</option>
+                <option value="trx">TRX</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div class="card-grid">
           <article class="card price-card" data-pricing-plan="basic">
             <h3>The Starter</h3>
-            <div class="price" data-pricing-price><span class="old-price">&#8377;11,000</span> &#8377;8,999 <small>/ project</small></div>
+            <div class="price" data-pricing-price data-price-suffix="/ project"><span class="old-price">&#8377;11,000</span> &#8377;8,999 <small>/ project</small></div>
             <ul>
               <li>Custom landing website for new businesses</li>
               <li>Up to 5 focused sections</li>
@@ -73,7 +89,7 @@
           <article class="card price-card featured" data-pricing-plan="business">
             <span class="badge">Most Popular</span>
             <h3>The Professional</h3>
-            <div class="price" data-pricing-price><span class="old-price">&#8377;14,000</span> &#8377;10,599 <small>/ project</small></div>
+            <div class="price" data-pricing-price data-price-suffix="/ project"><span class="old-price">&#8377;14,000</span> &#8377;10,599 <small>/ project</small></div>
             <ul>
               <li>Multi-page website for growing brands</li>
               <li>Professional design system and page structure</li>
@@ -89,7 +105,7 @@
           </article>
           <article class="card price-card" data-pricing-plan="professional">
             <h3>Professional Plus</h3>
-            <div class="price" data-pricing-price><span class="old-price">&#8377;18,000</span> &#8377;12,999 <small>/ project</small></div>
+            <div class="price" data-pricing-price data-price-suffix="/ project"><span class="old-price">&#8377;18,000</span> &#8377;12,999 <small>/ project</small></div>
             <ul>
               <li>8-12 pages with premium UI direction</li>
               <li>Premium UI Design</li>
@@ -105,7 +121,7 @@
           </article>
           <article class="card price-card" data-pricing-plan="ecommerce">
             <h3>Enterprise</h3>
-            <div class="price" data-pricing-price><span class="old-price">&#8377;33,000</span> &#8377;22,999 <small>/ project</small></div>
+            <div class="price" data-pricing-price data-price-suffix="/ project"><span class="old-price">&#8377;33,000</span> &#8377;22,999 <small>/ project</small></div>
             <ul>
               <li>Custom architecture for e-commerce or portals</li>
               <li>Up to 50 products</li>
@@ -121,7 +137,7 @@
           </article>
           <article class="card price-card" data-pricing-plan="advanced-ecommerce">
             <h3>Enterprise Plus</h3>
-            <div class="price" data-pricing-price><span class="old-price">&#8377;53,000</span> &#8377;32,999 <small>/ project</small></div>
+            <div class="price" data-pricing-price data-price-suffix="/ project"><span class="old-price">&#8377;53,000</span> &#8377;32,999 <small>/ project</small></div>
             <ul>
               <li>Unlimited Products</li>
               <li>Advanced Admin Panel</li>

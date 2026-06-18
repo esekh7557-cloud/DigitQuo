@@ -940,6 +940,38 @@ async function getCryptoQuoteInInr(currency, inrAmount) {
   };
 }
 
+async function getSupportedCryptoRatesInInr() {
+  const currencies = ["btc", "ltc", "doge", "bch", "trx"];
+  const results = await Promise.allSettled(
+    currencies.map(async (currency) => {
+      const ticker = await apironeFetch(`/ticker?currency=${encodeURIComponent(currency)}&fiat=inr`);
+      const rate = Number(ticker?.inr);
+      if (!Number.isFinite(rate) || rate <= 0) {
+        throw new Error(`Could not fetch INR rate for ${currency.toUpperCase()}.`);
+      }
+      return [currency, rate];
+    })
+  );
+
+  const successfulEntries = results
+    .filter((result) => result.status === "fulfilled")
+    .map((result) => result.value);
+
+  const failedCurrencies = results
+    .map((result, index) => ({ result, currency: currencies[index] }))
+    .filter((entry) => entry.result.status === "rejected");
+
+  failedCurrencies.forEach((entry) => {
+    console.error(`Crypto rate fetch failed for ${entry.currency.toUpperCase()}:`, entry.result.reason?.message || entry.result.reason);
+  });
+
+  if (!successfulEntries.length) {
+    throw new Error("Could not fetch any crypto rates.");
+  }
+
+  return Object.fromEntries(successfulEntries);
+}
+
 async function handleAdminCreateUser(req, res) {
   const adminContext = await requireAdminAccess(req, res);
   if (!adminContext) {
@@ -1735,6 +1767,22 @@ async function handleGetCryptoPaymentStatus(req, res) {
   }
 }
 
+async function handleGetCryptoRates(req, res) {
+  try {
+    const rates = await getSupportedCryptoRatesInInr();
+    json(res, 200, {
+      baseCurrency: "INR",
+      rates,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    json(res, status, {
+      error: error.message || "Could not load crypto rates.",
+    });
+  }
+}
+
 async function handleCryptoWebhook(req, res) {
   const callbackHost = String(req.headers.host || "");
   const sourceHeader = String(req.headers["x-forwarded-host"] || "");
@@ -2063,6 +2111,11 @@ async function route(req, res) {
 
   if (req.method === "GET" && pathname === "/api/payments/crypto/status") {
     await handleGetCryptoPaymentStatus(req, res);
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/payments/crypto/rates") {
+    await handleGetCryptoRates(req, res);
     return;
   }
 
