@@ -6,6 +6,7 @@ const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "";
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "";
 const APP_BASE_URL = process.env.APP_BASE_URL || "";
 const APIRONE_API_BASE = "https://apirone.com/api/v2";
+const FRANKFURTER_API_BASE = "https://api.frankfurter.dev/v2";
 const APIRONE_BTC_WALLET_ID = process.env.APIRONE_BTC_WALLET_ID || "";
 const APIRONE_LTC_WALLET_ID = process.env.APIRONE_LTC_WALLET_ID || "";
 const APIRONE_DOGE_WALLET_ID = process.env.APIRONE_DOGE_WALLET_ID || "";
@@ -460,6 +461,37 @@ async function apironeFetch(pathname, options = {}) {
   return data;
 }
 
+async function frankfurterFetch(pathname) {
+  const response = await fetch(`${FRANKFURTER_API_BASE}${pathname}`, {
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      (data && typeof data === "object" && (data.message || data.error)) ||
+      "Exchange rate request failed.";
+    const error = new Error(message);
+    error.status = response.status;
+    error.details = data;
+    throw error;
+  }
+
+  return data;
+}
+
 function buildRazorpayReceipt(orderId) {
   return String(orderId || "")
     .replace(/[^a-zA-Z0-9]/g, "")
@@ -535,6 +567,18 @@ async function getSupportedCryptoRatesInInr() {
   }
 
   return Object.fromEntries(successfulEntries);
+}
+
+async function getDisplayCurrencyRates() {
+  const usdRatePayload = await frankfurterFetch("/rate/INR/USD");
+  const usdRate = Number(usdRatePayload?.rate);
+  if (!Number.isFinite(usdRate) || usdRate <= 0) {
+    throw new Error("Could not fetch the current USD exchange rate.");
+  }
+
+  return {
+    usd: usdRate,
+  };
 }
 
 function getPlanConfig(planKey) {
@@ -1532,6 +1576,26 @@ async function handleGetCryptoRates(req, res) {
   }
 }
 
+async function handleGetDisplayCurrencyRates(req, res) {
+  if (req.method !== "GET") {
+    sendJson(res, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  try {
+    const rates = await getDisplayCurrencyRates();
+    sendJson(res, 200, {
+      baseCurrency: "INR",
+      rates,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    sendJson(res, error.status || 500, {
+      error: error.message || "Could not load display currency rates.",
+    });
+  }
+}
+
 async function handleCryptoWebhook(req, res) {
   if (req.method !== "POST") {
     res.status(405).send("method not allowed");
@@ -1642,6 +1706,7 @@ module.exports = {
   handleCreateCryptoOrder,
   handleCreateRazorpayOrder,
   handleCryptoWebhook,
+  handleGetDisplayCurrencyRates,
   handleGetCryptoPaymentStatus,
   handleGetCryptoRates,
   handleVerifyRazorpayPayment,

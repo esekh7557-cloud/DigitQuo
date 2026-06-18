@@ -20,7 +20,7 @@ const PLAN_ADDONS_STORAGE_KEY = "dq_plan_addons";
 const DISPLAY_CURRENCY_STORAGE_KEY = "dq_display_currency";
 const dqAuth = window.dqAuth;
 let currentUiUser = null;
-let cryptoRatesCache = null;
+let displayCurrencyRatesCache = null;
 const FOOTER_FAQ_ITEMS = [
   {
     question: "1. What services do you provide?",
@@ -659,54 +659,57 @@ function formatInr(value) {
   }).format(Number(value || 0));
 }
 
+function formatUsd(value) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
 function readDisplayCurrencyPreference() {
   try {
     const raw = window.localStorage.getItem(DISPLAY_CURRENCY_STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    const mode = parsed?.mode === "crypto" ? "crypto" : "inr";
-    const crypto = ["btc", "ltc", "doge", "bch", "trx"].includes(String(parsed?.crypto || "").toLowerCase())
-      ? String(parsed.crypto).toLowerCase()
-      : "btc";
-    return { mode, crypto };
+    const currency =
+      parsed?.currency === "usd" || parsed?.mode === "crypto"
+        ? "usd"
+        : parsed?.mode === "inr"
+        ? "inr"
+        : "inr";
+    return { currency };
   } catch {
-    return { mode: "inr", crypto: "btc" };
+    return { currency: "inr" };
   }
 }
 
 function writeDisplayCurrencyPreference(value) {
   const safeValue = {
-    mode: value?.mode === "crypto" ? "crypto" : "inr",
-    crypto: ["btc", "ltc", "doge", "bch", "trx"].includes(String(value?.crypto || "").toLowerCase())
-      ? String(value.crypto).toLowerCase()
-      : "btc",
+    currency: value?.currency === "usd" ? "usd" : "inr",
   };
   window.localStorage.setItem(DISPLAY_CURRENCY_STORAGE_KEY, JSON.stringify(safeValue));
 }
 
 function getSelectedDisplayCurrencyCode() {
   const preference = readDisplayCurrencyPreference();
-  return preference.mode === "crypto" ? preference.crypto.toUpperCase() : "INR";
+  return preference.currency === "usd" ? "USD" : "INR";
 }
 
-async function fetchCryptoRates() {
-  if (cryptoRatesCache) {
-    return cryptoRatesCache;
+async function fetchDisplayCurrencyRates() {
+  if (displayCurrencyRatesCache) {
+    return displayCurrencyRatesCache;
   }
 
-  cryptoRatesCache = fetchJson("/api/payments/crypto/rates")
+  displayCurrencyRatesCache = fetchJson("/api/payments/display/rates")
     .then((payload) => payload?.rates || {})
     .catch((error) => {
-      cryptoRatesCache = null;
-      console.error("Could not load crypto rates, falling back to INR display:", error);
+      displayCurrencyRatesCache = null;
+      console.error("Could not load USD exchange rates, falling back to INR display:", error);
       return {};
     });
 
-  return cryptoRatesCache;
-}
-
-function formatCryptoValue(amount, currency) {
-  const decimals = String(currency || "").trim().toLowerCase() === "trx" ? 6 : 8;
-  return `${Number(amount || 0).toFixed(decimals).replace(/\.?0+$/, "")} ${String(currency || "").toUpperCase()}`;
+  return displayCurrencyRatesCache;
 }
 
 async function formatDisplayPrice(value, options = {}) {
@@ -716,17 +719,17 @@ async function formatDisplayPrice(value, options = {}) {
   }
 
   const preference = readDisplayCurrencyPreference();
-  if (preference.mode !== "crypto") {
+  if (preference.currency !== "usd") {
     return formatInr(numericValue);
   }
 
-  const rates = await fetchCryptoRates();
-  const rate = Number(rates?.[preference.crypto]);
-  if (!Number.isFinite(rate) || rate <= 0) {
+  const rates = await fetchDisplayCurrencyRates();
+  const usdRate = Number(rates?.usd);
+  if (!Number.isFinite(usdRate) || usdRate <= 0) {
     return formatInr(numericValue);
   }
 
-  return formatCryptoValue(numericValue / rate, preference.crypto);
+  return formatUsd(numericValue * usdRate);
 }
 
 async function formatDisplayPriceRange(minValue, maxValue, options = {}) {
@@ -748,15 +751,8 @@ function getDisplayCurrencyControlMarkup(label = "Display Currency") {
       <span class="pricing-filter-label">${escapeHtml(label)}</span>
       <div class="display-currency-controls">
         <select class="display-currency-select" data-display-currency>
-          <option value="inr" ${preference.mode === "inr" ? "selected" : ""}>INR</option>
-          <option value="crypto" ${preference.mode === "crypto" ? "selected" : ""}>Crypto</option>
-        </select>
-        <select class="display-currency-select" data-display-crypto ${preference.mode === "crypto" ? "" : "hidden"}>
-          <option value="btc" ${preference.crypto === "btc" ? "selected" : ""}>BTC</option>
-          <option value="ltc" ${preference.crypto === "ltc" ? "selected" : ""}>LTC</option>
-          <option value="doge" ${preference.crypto === "doge" ? "selected" : ""}>DOGE</option>
-          <option value="bch" ${preference.crypto === "bch" ? "selected" : ""}>BCH</option>
-          <option value="trx" ${preference.crypto === "trx" ? "selected" : ""}>TRX</option>
+          <option value="inr" ${preference.currency === "inr" ? "selected" : ""}>INR</option>
+          <option value="usd" ${preference.currency === "usd" ? "selected" : ""}>USD</option>
         </select>
       </div>
     </div>
@@ -767,13 +763,7 @@ function bindDisplayCurrencyControls() {
   const preference = readDisplayCurrencyPreference();
   document.querySelectorAll("[data-display-currency]").forEach((select) => {
     if (select instanceof HTMLSelectElement) {
-      select.value = preference.mode;
-    }
-  });
-  document.querySelectorAll("[data-display-crypto]").forEach((select) => {
-    if (select instanceof HTMLSelectElement) {
-      select.value = preference.crypto;
-      select.hidden = preference.mode !== "crypto";
+      select.value = preference.currency;
     }
   });
 
@@ -784,24 +774,9 @@ function bindDisplayCurrencyControls() {
     select.dataset.bound = "true";
     select.addEventListener("change", async (event) => {
       const target = event.currentTarget;
-      const next = readDisplayCurrencyPreference();
-      next.mode = target instanceof HTMLSelectElement && target.value === "crypto" ? "crypto" : "inr";
-      writeDisplayCurrencyPreference(next);
-      await rerenderDisplayCurrencyViews();
-    });
-  });
-
-  document.querySelectorAll("[data-display-crypto]").forEach((select) => {
-    if (select.dataset.bound === "true") {
-      return;
-    }
-    select.dataset.bound = "true";
-    select.addEventListener("change", async (event) => {
-      const target = event.currentTarget;
-      const next = readDisplayCurrencyPreference();
-      next.crypto = target instanceof HTMLSelectElement ? target.value : "btc";
-      next.mode = "crypto";
-      writeDisplayCurrencyPreference(next);
+      writeDisplayCurrencyPreference({
+        currency: target instanceof HTMLSelectElement && target.value === "usd" ? "usd" : "inr",
+      });
       await rerenderDisplayCurrencyViews();
     });
   });
