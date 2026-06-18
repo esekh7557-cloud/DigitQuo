@@ -12,6 +12,13 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "https://umflohaswnlwzrqbzmxs.s
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "";
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "";
+const APP_BASE_URL = process.env.APP_BASE_URL || "";
+const APIRONE_API_BASE = "https://apirone.com/api/v2";
+const APIRONE_BTC_WALLET_ID = process.env.APIRONE_BTC_WALLET_ID || "";
+const APIRONE_LTC_WALLET_ID = process.env.APIRONE_LTC_WALLET_ID || "";
+const APIRONE_DOGE_WALLET_ID = process.env.APIRONE_DOGE_WALLET_ID || "";
+const APIRONE_BCH_WALLET_ID = process.env.APIRONE_BCH_WALLET_ID || "";
+const APIRONE_TRX_WALLET_ID = process.env.APIRONE_TRX_WALLET_ID || "";
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const SESSION_COOKIE = "dq_session";
@@ -450,6 +457,126 @@ function hasRazorpayConfig() {
   return Boolean(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
 }
 
+function hasAppBaseUrl() {
+  return Boolean(APP_BASE_URL);
+}
+
+function getCryptoWalletId(currency) {
+  switch (String(currency || "").trim().toLowerCase()) {
+    case "btc":
+      return APIRONE_BTC_WALLET_ID;
+    case "ltc":
+      return APIRONE_LTC_WALLET_ID;
+    case "doge":
+      return APIRONE_DOGE_WALLET_ID;
+    case "bch":
+      return APIRONE_BCH_WALLET_ID;
+    case "trx":
+      return APIRONE_TRX_WALLET_ID;
+    default:
+      return "";
+  }
+}
+
+function hasApironeConfigForCurrency(currency) {
+  return Boolean(getCryptoWalletId(currency));
+}
+
+function getCryptoConfirmationRequirement(currency) {
+  switch (String(currency || "").trim().toLowerCase()) {
+    case "btc":
+      return 1;
+    case "ltc":
+      return 3;
+    case "doge":
+      return 6;
+    case "bch":
+      return 1;
+    case "trx":
+      return 1;
+    default:
+      return 1;
+  }
+}
+
+function getCryptoCurrencyLabel(currency) {
+  switch (String(currency || "").trim().toLowerCase()) {
+    case "btc":
+      return "Bitcoin";
+    case "ltc":
+      return "Litecoin";
+    case "doge":
+      return "Dogecoin";
+    case "bch":
+      return "Bitcoin Cash";
+    case "trx":
+      return "Tron";
+    default:
+      return String(currency || "").toUpperCase();
+  }
+}
+
+function getCryptoUriScheme(currency) {
+  switch (String(currency || "").trim().toLowerCase()) {
+    case "btc":
+      return "bitcoin";
+    case "ltc":
+      return "litecoin";
+    case "doge":
+      return "dogecoin";
+    case "bch":
+      return "bitcoincash";
+    case "trx":
+      return "tron";
+    default:
+      return String(currency || "").toLowerCase();
+  }
+}
+
+function getCryptoMinorUnitDecimals(currency) {
+  switch (String(currency || "").trim().toLowerCase()) {
+    case "btc":
+    case "ltc":
+    case "doge":
+    case "bch":
+      return 8;
+    case "trx":
+      return 6;
+    default:
+      return 8;
+  }
+}
+
+function formatCryptoDecimalFromMinorUnits(value, decimals) {
+  const safeDecimals = Number.isFinite(decimals) ? Math.max(0, decimals) : 8;
+  const raw = String(value || "0").trim();
+  const negative = raw.startsWith("-");
+  const digitsOnly = raw.replace(/[^\d]/g, "") || "0";
+
+  if (safeDecimals === 0) {
+    return `${negative ? "-" : ""}${digitsOnly}`;
+  }
+
+  const padded = digitsOnly.padStart(safeDecimals + 1, "0");
+  const integerPart = padded.slice(0, -safeDecimals) || "0";
+  const decimalPart = padded.slice(-safeDecimals).replace(/0+$/, "");
+  return `${negative ? "-" : ""}${integerPart}${decimalPart ? `.${decimalPart}` : ""}`;
+}
+
+function convertDecimalAmountToMinorUnits(amount, decimals) {
+  const safeDecimals = Number.isFinite(decimals) ? Math.max(0, decimals) : 8;
+  const normalized = String(amount || "0").trim();
+
+  if (!/^\d+(?:\.\d+)?$/.test(normalized)) {
+    throw new Error("Invalid amount for conversion.");
+  }
+
+  const [whole, fraction = ""] = normalized.split(".");
+  const fractionPadded = `${fraction}${"0".repeat(safeDecimals)}`.slice(0, safeDecimals);
+  const combined = `${whole}${fractionPadded}`.replace(/^0+(?=\d)/, "");
+  return combined || "0";
+}
+
 async function supabaseFetch(pathname, options = {}) {
   if (!hasSupabaseAdminConfig()) {
     throw new Error("Supabase admin backend is not configured.");
@@ -732,6 +859,40 @@ async function razorpayFetch(pathname, options = {}) {
   return data;
 }
 
+async function apironeFetch(pathname, options = {}) {
+  const response = await fetch(`${APIRONE_API_BASE}${pathname}`, {
+    method: options.method || "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      (data && typeof data === "object" && (data.description || data.error || data.message)) ||
+      "Apirone request failed.";
+    const error = new Error(message);
+    error.status = response.status;
+    error.details = data;
+    throw error;
+  }
+
+  return data;
+}
+
 function buildRazorpayReceipt(orderId) {
   return String(orderId || "")
     .replace(/[^a-zA-Z0-9]/g, "")
@@ -745,6 +906,38 @@ function verifyRazorpaySignature(orderId, paymentId, signature) {
     .digest("hex");
 
   return expectedSignature === signature;
+}
+
+function buildApironeCallbackUrl() {
+  const baseUrl = String(APP_BASE_URL || "").trim().replace(/\/+$/, "");
+  return baseUrl ? `${baseUrl}/api/crypto/webhook` : "";
+}
+
+async function getCryptoQuoteInInr(currency, inrAmount) {
+  const normalizedCurrency = String(currency || "").trim().toLowerCase();
+  const amountValue = Number(inrAmount || 0);
+  if (!normalizedCurrency || !Number.isFinite(amountValue) || amountValue <= 0) {
+    throw new Error("Invalid crypto quote request.");
+  }
+
+  const ticker = await apironeFetch(
+    `/ticker?currency=${encodeURIComponent(normalizedCurrency)}&fiat=inr`
+  );
+  const inrPerCoin = Number(ticker?.inr);
+  if (!Number.isFinite(inrPerCoin) || inrPerCoin <= 0) {
+    throw new Error("Could not fetch the current crypto exchange rate.");
+  }
+
+  const decimals = getCryptoMinorUnitDecimals(normalizedCurrency);
+  const cryptoAmountDecimal = (amountValue / inrPerCoin).toFixed(decimals);
+  const cryptoAmountMinor = convertDecimalAmountToMinorUnits(cryptoAmountDecimal, decimals);
+
+  return {
+    inrPerCoin,
+    decimals,
+    cryptoAmountDecimal,
+    cryptoAmountMinor,
+  };
 }
 
 async function handleAdminCreateUser(req, res) {
@@ -1245,6 +1438,412 @@ async function handleVerifyRazorpayPayment(req, res) {
   }
 }
 
+async function handleCreateCryptoOrder(req, res) {
+  const authContext = await requireAuthenticatedProfile(req, res);
+  if (!authContext) {
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  const planKey = String(body.planKey || "").trim();
+  const plan = getPlanConfig(planKey);
+  const currency = String(body.cryptoCurrency || "").trim().toLowerCase();
+  const walletId = getCryptoWalletId(currency);
+
+  if (!plan) {
+    json(res, 400, { error: "Selected plan could not be found." });
+    return;
+  }
+
+  if (!walletId) {
+    json(res, 400, { error: "This crypto currency is not configured yet." });
+    return;
+  }
+
+  if (!hasAppBaseUrl()) {
+    json(res, 500, {
+      error: "Crypto payments are not configured on the server. Add APP_BASE_URL and Apirone wallet IDs.",
+    });
+    return;
+  }
+
+  try {
+    const customerName = normalizeName(body.customerName);
+    const customerEmail = normalizeEmail(body.customerEmail || authContext.user.email || authContext.profile.email);
+    const customerPhone = normalizePhone(body.customerPhone);
+    const projectName = String(body.projectName || "").trim();
+    const ideaSummary = String(body.ideaSummary || "").trim();
+    const addOnIds = normalizePlanAddOnIds(body.addOnIds);
+    const fastDelivery = body.fastDelivery === true || String(body.fastDelivery || "").trim().toLowerCase() === "yes";
+    const requirements = body.requirements && typeof body.requirements === "object" ? body.requirements : {};
+
+    if (customerName.length < 2) {
+      throw new Error("Please enter your full name.");
+    }
+
+    if (!isValidEmail(customerEmail)) {
+      throw new Error("Please enter a valid email address.");
+    }
+
+    if (!isValidPhone(customerPhone)) {
+      throw new Error("Please enter a valid phone number.");
+    }
+
+    if (!projectName) {
+      throw new Error("Please enter your project name.");
+    }
+
+    if (!arePlanAddOnIdsValid(plan, addOnIds)) {
+      throw new Error("One or more selected add-ons are invalid.");
+    }
+
+    let appliedCoupon = null;
+    const couponCode = normalizeCouponCode(body.couponCode);
+    if (couponCode) {
+      appliedCoupon = await findCouponByCode(couponCode);
+      const couponError = getCouponValidationError(appliedCoupon);
+      if (couponError) {
+        const error = new Error(couponError);
+        error.status = 400;
+        throw error;
+      }
+    }
+
+    const pricing = getPlanPricing(plan, appliedCoupon, {
+      addOnIds,
+      fastDelivery,
+    });
+
+    await supabaseFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(authContext.user.id)}`, {
+      method: "PATCH",
+      body: {
+        full_name: customerName,
+        phone: customerPhone,
+      },
+    });
+
+    const createdProjects = await supabaseFetch("/rest/v1/projects", {
+      method: "POST",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: {
+        user_id: authContext.user.id,
+        project_name: (projectName || ideaSummary || `${plan.name} Project`).slice(0, 120),
+        template_id: planKey,
+        site_config: {
+          source: "plan_requirements_form",
+          submitted_at: new Date().toISOString(),
+          contact: {
+            full_name: customerName,
+            email: customerEmail,
+            phone: customerPhone,
+          },
+          plan: {
+            key: planKey,
+            name: plan.name,
+            price: pricing.baseAmount,
+            base_price: pricing.planAmount,
+            add_ons: pricing.selectedAddOns.map((addOn) => ({
+              id: addOn.id,
+              name: addOn.name,
+              price: Number(addOn.amount || addOn.price || 0),
+            })),
+            add_on_amount: pricing.addOnAmount,
+            fast_delivery: fastDelivery,
+            fast_delivery_fee: pricing.fastDeliveryFee,
+            coupon_code: appliedCoupon?.coupon_code || null,
+            discount_amount: pricing.discountAmount,
+            final_price: pricing.finalAmount,
+            payment_method: "crypto",
+            crypto_currency: currency,
+          },
+          summary: {
+            project_name: projectName,
+            idea: ideaSummary || `${plan.name} Requirement`,
+          },
+          requirements,
+        },
+        is_active: false,
+      },
+    });
+
+    const createdProject = Array.isArray(createdProjects) ? createdProjects[0] : null;
+    if (!createdProject?.id) {
+      throw new Error("Could not create project.");
+    }
+
+    const createdOrders = await supabaseFetch("/rest/v1/orders", {
+      method: "POST",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: {
+        user_id: authContext.user.id,
+        project_id: createdProject.id,
+        amount: pricing.baseAmount,
+        coupon_id: appliedCoupon?.id || null,
+        discount_amount: pricing.discountAmount,
+        final_amount: pricing.finalAmount,
+        payment_status: "unpaid",
+        status: "pending",
+        payment_method: "crypto",
+        payment_currency: "INR",
+        crypto_currency: currency,
+        crypto_confirmation_target: getCryptoConfirmationRequirement(currency),
+      },
+    });
+
+    const createdOrder = Array.isArray(createdOrders) ? createdOrders[0] : null;
+    if (!createdOrder?.id) {
+      throw new Error("Could not create order.");
+    }
+
+    try {
+      const quote = await getCryptoQuoteInInr(currency, pricing.finalAmount);
+      const paymentUriScheme = getCryptoUriScheme(currency);
+      const callbackUrl = buildApironeCallbackUrl();
+      const addressResult = await apironeFetch(`/wallets/${encodeURIComponent(walletId)}/addresses`, {
+        method: "POST",
+        body: {
+          callback: {
+            method: "POST",
+            url: callbackUrl,
+            data: {
+              order_id: createdOrder.id,
+              project_id: createdProject.id,
+              currency,
+            },
+          },
+        },
+      });
+
+      const paymentAddress = String(addressResult?.address || "").trim();
+      if (!paymentAddress) {
+        throw new Error("Apirone did not return a payment address.");
+      }
+
+      const paymentUri = `${paymentUriScheme}:${paymentAddress}?amount=${quote.cryptoAmountDecimal}`;
+
+      await supabaseFetch(`/rest/v1/orders?id=eq.${encodeURIComponent(createdOrder.id)}`, {
+        method: "PATCH",
+        body: {
+          crypto_wallet_id: walletId,
+          crypto_payment_address: paymentAddress,
+          crypto_amount_expected: quote.cryptoAmountMinor,
+          crypto_payment_uri: paymentUri,
+          payment_reference: addressResult?.wallet || walletId,
+        },
+      });
+
+      json(res, 201, {
+        siteOrderId: createdOrder.id,
+        projectId: createdProject.id,
+        planKey,
+        planName: plan.name,
+        paymentMethod: "crypto",
+        paymentStatus: "pending",
+        customer: {
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone,
+        },
+        pricing: {
+          amount: pricing.baseAmount,
+          baseAmount: pricing.planAmount,
+          addOnAmount: pricing.addOnAmount,
+          fastDeliveryFee: pricing.fastDeliveryFee,
+          discountAmount: pricing.discountAmount,
+          finalAmount: pricing.finalAmount,
+        },
+        crypto: {
+          currency,
+          label: getCryptoCurrencyLabel(currency),
+          walletId,
+          address: paymentAddress,
+          amount: quote.cryptoAmountDecimal,
+          amountMinor: quote.cryptoAmountMinor,
+          amountInr: pricing.finalAmount,
+          exchangeRateInr: quote.inrPerCoin,
+          paymentUri,
+          confirmationsRequired: getCryptoConfirmationRequirement(currency),
+          qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(paymentUri)}`,
+        },
+      });
+    } catch (apironeError) {
+      try {
+        await supabaseFetch(`/rest/v1/orders?id=eq.${encodeURIComponent(createdOrder.id)}`, {
+          method: "PATCH",
+          body: {
+            status: "failed",
+          },
+        });
+      } catch {}
+
+      throw apironeError;
+    }
+  } catch (error) {
+    const status = error.status || 500;
+    json(res, status, {
+      error: error.message || "Could not create crypto payment order.",
+    });
+  }
+}
+
+async function handleGetCryptoPaymentStatus(req, res) {
+  const authContext = await requireAuthenticatedProfile(req, res);
+  if (!authContext) {
+    return;
+  }
+
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const siteOrderId = String(url.searchParams.get("siteOrderId") || "").trim();
+  if (!siteOrderId) {
+    json(res, 400, { error: "Missing siteOrderId." });
+    return;
+  }
+
+  try {
+    const orders = await supabaseFetch(
+      `/rest/v1/orders?select=id,project_id,status,payment_status,final_amount,payment_method,payment_currency,crypto_currency,crypto_amount_expected,crypto_amount_received,crypto_payment_address,crypto_payment_uri,crypto_tx_hash,crypto_confirmations,crypto_confirmation_target,updated_at&id=eq.${encodeURIComponent(siteOrderId)}&user_id=eq.${encodeURIComponent(authContext.user.id)}&limit=1`
+    );
+    const order = Array.isArray(orders) ? orders[0] : null;
+
+    if (!order) {
+      json(res, 404, { error: "Order not found." });
+      return;
+    }
+
+    json(res, 200, {
+      order: {
+        ...order,
+        crypto_amount_expected_decimal: formatCryptoDecimalFromMinorUnits(
+          order.crypto_amount_expected,
+          getCryptoMinorUnitDecimals(order.crypto_currency)
+        ),
+        crypto_amount_received_decimal: formatCryptoDecimalFromMinorUnits(
+          order.crypto_amount_received,
+          getCryptoMinorUnitDecimals(order.crypto_currency)
+        ),
+      },
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    json(res, status, {
+      error: error.message || "Could not load crypto payment status.",
+    });
+  }
+}
+
+async function handleCryptoWebhook(req, res) {
+  const callbackHost = String(req.headers.host || "");
+  const sourceHeader = String(req.headers["x-forwarded-host"] || "");
+  const body = await readJsonBody(req);
+
+  const address = String(body.input_address || body.address || "").trim();
+  const currency = String(body.currency || "").trim().toLowerCase();
+  const confirmations = Number(body.confirmations ?? body.confirmation ?? 0);
+  const amountMinor = String(body.value || "0").trim();
+  const inputTransactionHash = String(body.input_transaction_hash || "").trim();
+  const orderIdFromCallback = String(body?.data?.order_id || "").trim();
+
+  if (!address || !currency || !orderIdFromCallback) {
+    res.writeHead(400, {
+      ...getSecurityHeaders(),
+      "Content-Type": "text/plain; charset=utf-8",
+    });
+    res.end("invalid");
+    return;
+  }
+
+  try {
+    const orders = await supabaseFetch(
+      `/rest/v1/orders?select=id,project_id,coupon_id,payment_status,status,crypto_currency,crypto_payment_address,crypto_amount_expected,crypto_confirmation_target&id=eq.${encodeURIComponent(orderIdFromCallback)}&limit=1`
+    );
+    const order = Array.isArray(orders) ? orders[0] : null;
+
+    if (!order) {
+      throw new Error("Order not found for callback.");
+    }
+
+    if (String(order.crypto_currency || "").trim().toLowerCase() !== currency) {
+      throw new Error("Crypto currency mismatch in callback.");
+    }
+
+    if (String(order.crypto_payment_address || "").trim() !== address) {
+      throw new Error("Crypto payment address mismatch in callback.");
+    }
+
+    const expectedMinor = BigInt(String(order.crypto_amount_expected || "0"));
+    const receivedMinor = BigInt(amountMinor || "0");
+    const confirmationTarget = Number(order.crypto_confirmation_target || getCryptoConfirmationRequirement(currency));
+    const isPaidEnough = receivedMinor >= expectedMinor && expectedMinor > 0n;
+    const isConfirmed = isPaidEnough && confirmations >= confirmationTarget;
+    const nextPaymentStatus = isConfirmed ? "paid" : order.payment_status || "unpaid";
+    const nextOrderStatus = isConfirmed ? "pending" : receivedMinor > 0n ? "ongoing" : order.status || "pending";
+
+    await supabaseFetch(`/rest/v1/orders?id=eq.${encodeURIComponent(order.id)}`, {
+      method: "PATCH",
+      body: {
+        payment_status: nextPaymentStatus,
+        status: nextOrderStatus,
+        crypto_amount_received: receivedMinor.toString(),
+        crypto_tx_hash: inputTransactionHash || null,
+        crypto_confirmations: Number.isFinite(confirmations) ? confirmations : 0,
+      },
+    });
+
+    if (isConfirmed && order.project_id) {
+      await supabaseFetch(`/rest/v1/projects?id=eq.${encodeURIComponent(order.project_id)}`, {
+        method: "PATCH",
+        body: {
+          is_active: true,
+        },
+      });
+
+      if (order.coupon_id) {
+        try {
+          const coupons = await supabaseFetch(
+            `/rest/v1/coupons?select=id,current_uses&id=eq.${encodeURIComponent(order.coupon_id)}&limit=1`
+          );
+          const coupon = Array.isArray(coupons) ? coupons[0] : null;
+          if (coupon?.id) {
+            await supabaseFetch(`/rest/v1/coupons?id=eq.${encodeURIComponent(coupon.id)}`, {
+              method: "PATCH",
+              body: {
+                current_uses: Number(coupon.current_uses || 0) + 1,
+              },
+            });
+          }
+        } catch (couponUsageError) {
+          console.error("Could not update coupon usage after crypto payment:", couponUsageError);
+        }
+      }
+    }
+
+    res.writeHead(200, {
+      ...getSecurityHeaders(),
+      "Content-Type": "text/plain; charset=utf-8",
+    });
+    res.end("ok");
+  } catch (error) {
+    console.error("Crypto webhook error:", {
+      error: error.message,
+      callbackHost,
+      sourceHeader,
+      address,
+      currency,
+      confirmations,
+      orderIdFromCallback,
+    });
+    res.writeHead(500, {
+      ...getSecurityHeaders(),
+      "Content-Type": "text/plain; charset=utf-8",
+    });
+    res.end("error");
+  }
+}
+
 async function handleRegister(req, res) {
   const body = await readJsonBody(req);
   const fullName = normalizeName(body.fullName);
@@ -1454,6 +2053,21 @@ async function route(req, res) {
 
   if (req.method === "POST" && pathname === "/api/payments/razorpay/verify") {
     await handleVerifyRazorpayPayment(req, res);
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/payments/crypto/create-order") {
+    await handleCreateCryptoOrder(req, res);
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/payments/crypto/status") {
+    await handleGetCryptoPaymentStatus(req, res);
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/crypto/webhook") {
+    await handleCryptoWebhook(req, res);
     return;
   }
 

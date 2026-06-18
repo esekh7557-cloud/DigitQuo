@@ -3332,6 +3332,22 @@ async function createPlanPaymentOrder(payload) {
   });
 }
 
+async function createPlanCryptoOrder(payload) {
+  const accessToken = await getAuthAccessToken();
+  if (!accessToken) {
+    throw new Error("Please sign in again before continuing.");
+  }
+
+  return fetchJson("/api/payments/crypto/create-order", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 async function verifyPlanPayment(payload) {
   const accessToken = await getAuthAccessToken();
   if (!accessToken) {
@@ -3345,6 +3361,20 @@ async function verifyPlanPayment(payload) {
       Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(payload),
+  });
+}
+
+async function getCryptoPaymentStatus(siteOrderId) {
+  const accessToken = await getAuthAccessToken();
+  if (!accessToken) {
+    throw new Error("Please sign in again before checking payment status.");
+  }
+
+  return fetchJson(`/api/payments/crypto/status?siteOrderId=${encodeURIComponent(siteOrderId)}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
   });
 }
 
@@ -3451,6 +3481,131 @@ function showPlanSuccessModal(options = {}) {
   }, 5000);
 }
 
+function ensureCryptoPaymentModal() {
+  let modal = document.getElementById("cryptoPaymentModal");
+  if (modal) {
+    return modal;
+  }
+
+  modal = document.createElement("div");
+  modal.className = "plan-success-modal";
+  modal.id = "cryptoPaymentModal";
+  modal.setAttribute("hidden", "");
+  modal.innerHTML = `
+    <div class="plan-success-dialog crypto-payment-dialog">
+      <h3 id="cryptoPaymentTitle">Complete Your Crypto Payment</h3>
+      <p id="cryptoPaymentSummary">Send the exact amount to the address below.</p>
+      <img id="cryptoPaymentQr" alt="Crypto payment QR code" hidden />
+      <div class="crypto-payment-grid">
+        <div>
+          <span class="crypto-payment-label">Currency</span>
+          <strong id="cryptoPaymentCurrency">-</strong>
+        </div>
+        <div>
+          <span class="crypto-payment-label">Amount</span>
+          <strong id="cryptoPaymentAmount">-</strong>
+        </div>
+      </div>
+      <div class="crypto-payment-address-box">
+        <span class="crypto-payment-label">Payment Address</span>
+        <code id="cryptoPaymentAddress">-</code>
+      </div>
+      <p class="crypto-payment-status" id="cryptoPaymentStatus">Waiting for payment detection.</p>
+      <div class="plan-form-actions">
+        <button class="btn btn-secondary" type="button" id="cryptoCopyAddressBtn">Copy Address</button>
+        <a class="btn btn-primary" href="#" id="cryptoOpenWalletBtn" target="_blank" rel="noopener noreferrer">Open Wallet</a>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  return modal;
+}
+
+async function openCryptoPaymentModal(checkoutData) {
+  const modal = ensureCryptoPaymentModal();
+  const title = document.getElementById("cryptoPaymentTitle");
+  const summary = document.getElementById("cryptoPaymentSummary");
+  const qr = document.getElementById("cryptoPaymentQr");
+  const currency = document.getElementById("cryptoPaymentCurrency");
+  const amount = document.getElementById("cryptoPaymentAmount");
+  const address = document.getElementById("cryptoPaymentAddress");
+  const status = document.getElementById("cryptoPaymentStatus");
+  const copyButton = document.getElementById("cryptoCopyAddressBtn");
+  const walletLink = document.getElementById("cryptoOpenWalletBtn");
+  const crypto = checkoutData?.crypto || {};
+
+  if (title) {
+    title.textContent = `Pay with ${crypto.label || String(crypto.currency || "").toUpperCase()}`;
+  }
+  if (summary) {
+    summary.textContent = `Order ${checkoutData.siteOrderId} will be confirmed after ${crypto.confirmationsRequired || 1} blockchain confirmation(s).`;
+  }
+  if (currency) {
+    currency.textContent = `${crypto.label || "-"} (${String(crypto.currency || "").toUpperCase()})`;
+  }
+  if (amount) {
+    amount.textContent = `${crypto.amount || "-"} ${String(crypto.currency || "").toUpperCase()}`;
+  }
+  if (address) {
+    address.textContent = crypto.address || "-";
+  }
+  if (status) {
+    status.textContent = "Waiting for payment detection.";
+  }
+  if (walletLink) {
+    walletLink.href = crypto.paymentUri || "#";
+  }
+  if (qr) {
+    if (crypto.qrCodeUrl) {
+      qr.src = crypto.qrCodeUrl;
+      qr.hidden = false;
+    } else {
+      qr.hidden = true;
+    }
+  }
+
+  copyButton.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(crypto.address || "");
+      if (status) {
+        status.textContent = "Address copied. Waiting for payment detection.";
+      }
+    } catch {
+      if (status) {
+        status.textContent = "Could not copy the address automatically.";
+      }
+    }
+  };
+
+  modal.removeAttribute("hidden");
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 15 * 60 * 1000) {
+    await new Promise((resolve) => window.setTimeout(resolve, 8000));
+    const response = await getCryptoPaymentStatus(checkoutData.siteOrderId);
+    const order = response?.order || {};
+
+    if (status) {
+      if (order.payment_status === "paid") {
+        status.textContent = `Payment confirmed with ${Number(order.crypto_confirmations || 0)} confirmation(s).`;
+      } else if (Number(order.crypto_confirmations || 0) > 0 || Number(order.crypto_amount_received || 0) > 0) {
+        status.textContent = `Payment detected. Confirmations: ${Number(order.crypto_confirmations || 0)} / ${Number(
+          order.crypto_confirmation_target || crypto.confirmationsRequired || 1
+        )}.`;
+      } else {
+        status.textContent = "Waiting for payment detection.";
+      }
+    }
+
+    if (order.payment_status === "paid") {
+      modal.setAttribute("hidden", "");
+      return order;
+    }
+  }
+
+  throw new Error("Crypto payment was not confirmed yet. You can check the order later from your account.");
+}
+
 function renderPlanRequirementsPage(user) {
   if (!planRequirementsRoot) {
     return;
@@ -3531,6 +3686,26 @@ function renderPlanRequirementsPage(user) {
               <span>Fast delivery (+10%)</span>
             </label>
             <p class="plan-form-option-note" id="planFastDeliveryTimingNote" hidden aria-live="polite"></p>
+          </div>
+
+          <div class="field-block">
+            <label for="planPaymentMethod">Payment Method</label>
+            <select id="planPaymentMethod" name="paymentMethod" required>
+              <option value="inr">INR</option>
+              <option value="crypto">Crypto</option>
+            </select>
+          </div>
+
+          <div class="field-block" id="planCryptoCurrencyField" hidden>
+            <label for="planCryptoCurrency">Select Cryptocurrency</label>
+            <select id="planCryptoCurrency" name="cryptoCurrency">
+              <option value="btc">Bitcoin (BTC)</option>
+              <option value="ltc">Litecoin (LTC)</option>
+              <option value="doge">Dogecoin (DOGE)</option>
+              <option value="bch">Bitcoin Cash (BCH)</option>
+              <option value="trx">Tron (TRX)</option>
+            </select>
+            <p class="plan-form-option-note">A unique payment address will be generated after you submit this form.</p>
           </div>
 
           ${
@@ -3813,6 +3988,10 @@ function renderPlanRequirementsPage(user) {
             <span id="planRequirementCouponLabel">${escapeHtml(appliedCoupon ? `Coupon (${appliedCoupon.coupon_code})` : "Coupon Discount")}</span>
             <strong id="planRequirementCouponValue">${pricing.discountAmount ? `- ${formatInr(pricing.discountAmount)}` : formatInr(0)}</strong>
           </div>
+          <div class="plan-form-summary-row">
+            <span>Checkout Currency</span>
+            <strong id="planRequirementPaymentMethodLabel">INR</strong>
+          </div>
           <p class="plan-form-coupon-note" id="planRequirementCouponNote">
             ${
               appliedCoupon
@@ -3830,9 +4009,28 @@ function renderPlanRequirementsPage(user) {
 
   const form = document.getElementById("planRequirementsForm");
   const fastDeliveryInput = document.getElementById("planFastDelivery");
+  const paymentMethodInput = document.getElementById("planPaymentMethod");
+  const cryptoCurrencyField = document.getElementById("planCryptoCurrencyField");
+  const cryptoCurrencyInput = document.getElementById("planCryptoCurrency");
+  const paymentMethodLabel = document.getElementById("planRequirementPaymentMethodLabel");
   fastDeliveryInput?.addEventListener("change", () => {
     syncPlanCouponUi(planKey);
   });
+
+  const syncPaymentMethodUi = () => {
+    const paymentMethod = String(paymentMethodInput?.value || "inr").trim().toLowerCase();
+    const cryptoCurrency = String(cryptoCurrencyInput?.value || "btc").trim().toUpperCase();
+    if (cryptoCurrencyField) {
+      cryptoCurrencyField.hidden = paymentMethod !== "crypto";
+    }
+    if (paymentMethodLabel) {
+      paymentMethodLabel.textContent = paymentMethod === "crypto" ? cryptoCurrency : "INR";
+    }
+  };
+
+  paymentMethodInput?.addEventListener("change", syncPaymentMethodUi);
+  cryptoCurrencyInput?.addEventListener("change", syncPaymentMethodUi);
+  syncPaymentMethodUi();
 
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -3855,6 +4053,8 @@ function renderPlanRequirementsPage(user) {
     const customerPhone = String(formData.get("customerPhone") || "").trim();
     const projectName = String(formData.get("projectName") || "").trim();
     const fastDelivery = String(formData.get("fastDelivery") || "").trim() === "yes";
+    const paymentMethod = String(formData.get("paymentMethod") || "inr").trim().toLowerCase();
+    const cryptoCurrency = String(formData.get("cryptoCurrency") || "btc").trim().toLowerCase();
 
     const requirements = {
       delivery: {
@@ -3924,10 +4124,10 @@ function renderPlanRequirementsPage(user) {
     try {
       if (submitButton instanceof HTMLButtonElement) {
         submitButton.disabled = true;
-        submitButton.textContent = "Opening Payment...";
+        submitButton.textContent = paymentMethod === "crypto" ? "Creating Crypto Payment..." : "Opening Payment...";
       }
 
-      const checkoutData = await createPlanPaymentOrder({
+      const orderPayload = {
         planKey,
         addOnIds: getStoredPlanAddOnIds(planKey),
         customerName,
@@ -3938,21 +4138,35 @@ function renderPlanRequirementsPage(user) {
         fastDelivery,
         couponCode: getStoredPlanCoupon(planKey)?.coupon_code || "",
         requirements,
-      });
+      };
 
-      const paymentResponse = await openRazorpayCheckout(checkoutData);
+      if (paymentMethod === "crypto") {
+        const checkoutData = await createPlanCryptoOrder({
+          ...orderPayload,
+          cryptoCurrency,
+        });
 
-      if (submitButton instanceof HTMLButtonElement) {
-        submitButton.textContent = "Verifying Payment...";
+        if (submitButton instanceof HTMLButtonElement) {
+          submitButton.textContent = "Waiting for Confirmation...";
+        }
+
+        await openCryptoPaymentModal(checkoutData);
+      } else {
+        const checkoutData = await createPlanPaymentOrder(orderPayload);
+        const paymentResponse = await openRazorpayCheckout(checkoutData);
+
+        if (submitButton instanceof HTMLButtonElement) {
+          submitButton.textContent = "Verifying Payment...";
+        }
+
+        await verifyPlanPayment({
+          siteOrderId: checkoutData.siteOrderId,
+          projectId: checkoutData.projectId,
+          razorpayOrderId: paymentResponse.razorpay_order_id,
+          razorpayPaymentId: paymentResponse.razorpay_payment_id,
+          razorpaySignature: paymentResponse.razorpay_signature,
+        });
       }
-
-      await verifyPlanPayment({
-        siteOrderId: checkoutData.siteOrderId,
-        projectId: checkoutData.projectId,
-        razorpayOrderId: paymentResponse.razorpay_order_id,
-        razorpayPaymentId: paymentResponse.razorpay_payment_id,
-        razorpaySignature: paymentResponse.razorpay_signature,
-      });
 
       removeCartItem(planKey);
       clearStoredPlanCoupon(planKey);

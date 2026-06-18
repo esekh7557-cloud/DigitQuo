@@ -2483,6 +2483,55 @@ textarea { min-height: 150px; resize: vertical; }
   font-size: 1.5rem;
 }
 
+.crypto-payment-dialog {
+  width: min(520px, 100%);
+  text-align: left;
+}
+
+.crypto-payment-dialog img {
+  width: 220px;
+  height: 220px;
+  margin: 0 auto;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  padding: 10px;
+  background: #fff;
+}
+
+.crypto-payment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.crypto-payment-grid > div,
+.crypto-payment-address-box {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(245, 243, 255, 0.96), rgba(255, 255, 255, 0.98));
+  border: 1px solid rgba(216, 180, 254, 0.36);
+}
+
+.crypto-payment-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.crypto-payment-address-box code {
+  word-break: break-all;
+  color: var(--secondary);
+}
+
+.crypto-payment-status {
+  color: var(--secondary);
+  font-weight: 600;
+}
+
 footer {
   padding: 36px 0 46px;
   border-top: 1px solid rgba(255, 255, 255, 0.16);
