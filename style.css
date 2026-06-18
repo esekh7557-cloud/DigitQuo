@@ -4977,6 +4977,10 @@ footer {
   .user-menu {
     order: 3;
   }
+  .nav-cart-link + .user-menu,
+  .user-menu {
+    margin-left: auto;
+  }
   .nav-cta,
   .nav-cart-link { display: none !important; }
 }
