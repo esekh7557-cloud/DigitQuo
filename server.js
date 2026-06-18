@@ -73,7 +73,7 @@ const PLAN_CATALOG = {
   },
   "bot-basic": {
     name: "Basic Bot",
-    amount: 699,
+    amount: 662,
     addOns: [
       { id: "bot-hosting-basic", name: "Bot Hosting Setup", amount: 199, kind: "hosting" },
       { id: "bot-maintenance-starter", name: "Starter Maintenance Setup", amount: 299, kind: "maintenance" },
@@ -82,7 +82,7 @@ const PLAN_CATALOG = {
   },
   "bot-standard": {
     name: "Community Bot",
-    amount: 1999,
+    amount: 1891,
     addOns: [
       { id: "bot-hosting-premium", name: "Premium Bot Hosting Setup", amount: 499, kind: "hosting" },
       { id: "bot-feature-updates", name: "Feature Update Retainer", amount: 599, kind: "maintenance" },
@@ -91,7 +91,7 @@ const PLAN_CATALOG = {
   },
   "bot-premium": {
     name: "Professional Custom Bot",
-    amount: 4999,
+    amount: 5674,
     addOns: [
       { id: "bot-hosting-performance", name: "High-Performance Hosting Setup", amount: 999, kind: "hosting" },
       { id: "bot-priority-support", name: "Priority Support Retainer", amount: 999, kind: "maintenance" },

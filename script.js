@@ -325,9 +325,9 @@ const PLAN_DETAILS = {
   },
   "bot-basic": {
     name: "Basic Bot",
-    oldPrice: 999,
-    subtotal: 699,
-    breakdown: [{ label: "Bot Development", amount: 699 }],
+    oldPrice: 662,
+    subtotal: 662,
+    breakdown: [{ label: "Bot Development", amount: 662 }],
     detailsDescription: "This pricing covers the selected Discord bot build and any optional setup add-ons.",
     requirementsDescription:
       "Fill in your bot requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.",
@@ -367,9 +367,9 @@ const PLAN_DETAILS = {
   },
   "bot-standard": {
     name: "Community Bot",
-    oldPrice: 2499,
-    subtotal: 1999,
-    breakdown: [{ label: "Bot Development", amount: 1999 }],
+    oldPrice: 1891,
+    subtotal: 1891,
+    breakdown: [{ label: "Bot Development", amount: 1891 }],
     detailsDescription: "This pricing covers the selected Discord bot build and any optional setup add-ons.",
     requirementsDescription:
       "Fill in your bot requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.",
@@ -410,9 +410,9 @@ const PLAN_DETAILS = {
   },
   "bot-premium": {
     name: "Professional Custom Bot",
-    oldPrice: 7999,
-    subtotal: 4999,
-    breakdown: [{ label: "Bot Development", amount: 4999 }],
+    oldPrice: 5674,
+    subtotal: 5674,
+    breakdown: [{ label: "Bot Development", amount: 5674 }],
     detailsDescription: "This pricing covers the selected Discord bot build and any optional setup add-ons.",
     requirementsDescription:
       "Fill in your bot requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.",
@@ -739,6 +739,10 @@ async function formatDisplayPriceRange(minValue, maxValue, options = {}) {
 
   if (plus) {
     return `${await formatDisplayPrice(min)}+`;
+  }
+
+  if (min === max) {
+    return await formatDisplayPrice(min);
   }
 
   return `${await formatDisplayPrice(min)} - ${await formatDisplayPrice(max)}`;
