@@ -3924,6 +3924,8 @@ async function renderPlanRequirementsPage(user) {
               <option value="doge">Dogecoin (DOGE)</option>
               <option value="bch">Bitcoin Cash (BCH)</option>
               <option value="trx">Tron (TRX)</option>
+              <option value="eth">Ethereum (ETH)</option>
+              <option value="bnb">BNB Smart Chain (BNB)</option>
             </select>
             <p class="plan-form-option-note">A unique payment address will be generated after you submit this form.</p>
           </div>

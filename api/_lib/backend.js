@@ -1,4 +1,41 @@
+const fs = require("fs");
+const path = require("path");
 const crypto = require("crypto");
+
+function loadDotEnvFile(envPath) {
+  if (!fs.existsSync(envPath)) {
+    return;
+  }
+
+  const contents = fs.readFileSync(envPath, "utf8");
+  contents.split(/\r?\n/).forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      return;
+    }
+
+    const equalsIndex = trimmed.indexOf("=");
+    if (equalsIndex === -1) {
+      return;
+    }
+
+    const key = trimmed.slice(0, equalsIndex).trim();
+    if (!key || Object.prototype.hasOwnProperty.call(process.env, key)) {
+      return;
+    }
+
+    let value = trimmed.slice(equalsIndex + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    process.env[key] = value;
+  });
+}
+loadDotEnvFile(path.join(process.cwd(), ".env"));
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://umflohaswnlwzrqbzmxs.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -12,6 +49,9 @@ const APIRONE_LTC_WALLET_ID = process.env.APIRONE_LTC_WALLET_ID || "";
 const APIRONE_DOGE_WALLET_ID = process.env.APIRONE_DOGE_WALLET_ID || "";
 const APIRONE_BCH_WALLET_ID = process.env.APIRONE_BCH_WALLET_ID || "";
 const APIRONE_TRX_WALLET_ID = process.env.APIRONE_TRX_WALLET_ID || "";
+const APIRONE_ETH_WALLET_ID = process.env.APIRONE_ETH_WALLET_ID || "";
+const APIRONE_BNB_WALLET_ID = process.env.APIRONE_BNB_WALLET_ID || "";
+const APIRONE_TBTC_WALLET_ID = process.env.APIRONE_TBTC_WALLET_ID || "";
 
 const PLAN_CATALOG = {
   basic: {
@@ -178,6 +218,12 @@ function getCryptoWalletId(currency) {
       return APIRONE_BCH_WALLET_ID;
     case "trx":
       return APIRONE_TRX_WALLET_ID;
+    case "eth":
+      return APIRONE_ETH_WALLET_ID;
+    case "bnb":
+      return APIRONE_BNB_WALLET_ID;
+    case "tbtc":
+      return APIRONE_TBTC_WALLET_ID;
     default:
       return "";
   }
@@ -194,6 +240,11 @@ function getCryptoConfirmationRequirement(currency) {
     case "bch":
       return 1;
     case "trx":
+      return 1;
+    case "eth":
+    case "bnb":
+      return 12;
+    case "tbtc":
       return 1;
     default:
       return 1;
@@ -212,6 +263,12 @@ function getCryptoCurrencyLabel(currency) {
       return "Bitcoin Cash";
     case "trx":
       return "Tron";
+    case "eth":
+      return "Ethereum";
+    case "bnb":
+      return "BNB Smart Chain";
+    case "tbtc":
+      return "Bitcoin Testnet";
     default:
       return String(currency || "").toUpperCase();
   }
@@ -229,6 +286,11 @@ function getCryptoUriScheme(currency) {
       return "bitcoincash";
     case "trx":
       return "tron";
+    case "eth":
+    case "bnb":
+      return "ethereum";
+    case "tbtc":
+      return "bitcoin";
     default:
       return String(currency || "").toLowerCase();
   }
@@ -238,10 +300,14 @@ function getCryptoMinorUnitDecimals(currency) {
   switch (String(currency || "").trim().toLowerCase()) {
     case "trx":
       return 6;
+    case "eth":
+    case "bnb":
+      return 18;
     case "btc":
     case "ltc":
     case "doge":
     case "bch":
+    case "tbtc":
     default:
       return 8;
   }
@@ -538,7 +604,7 @@ async function getCryptoQuoteInInr(currency, inrAmount) {
 }
 
 async function getSupportedCryptoRatesInInr() {
-  const currencies = ["btc", "ltc", "doge", "bch", "trx"];
+  const currencies = ["btc", "ltc", "doge", "bch", "trx", "eth", "bnb"];
   const results = await Promise.allSettled(
     currencies.map(async (currency) => {
       const ticker = await apironeFetch(`/ticker?currency=${encodeURIComponent(currency)}&fiat=inr`);
