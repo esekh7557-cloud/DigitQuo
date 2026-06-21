@@ -3797,11 +3797,18 @@ async function openPaymentMethodSelectionModal(planName) {
   cryptoCurrencySelect.value = "btc";
   if (cryptoField) {
     cryptoField.hidden = true;
+    cryptoField.style.display = "none";
   }
 
   const syncUi = () => {
     if (cryptoField) {
-      cryptoField.hidden = paymentMethodSelect.value !== "crypto";
+      const showCrypto = paymentMethodSelect.value === "crypto";
+      cryptoField.hidden = !showCrypto;
+      cryptoField.style.display = showCrypto ? "" : "none";
+      cryptoCurrencySelect.disabled = !showCrypto;
+      if (!showCrypto) {
+        cryptoCurrencySelect.value = "btc";
+      }
     }
   };
 
@@ -3921,6 +3928,15 @@ function buildCryptoPaymentSvgDataUrl(crypto = {}) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
+function getCryptoPaymentQrCodeUrl(paymentUri) {
+  const safePaymentUri = String(paymentUri || "").trim();
+  if (!safePaymentUri) {
+    return "";
+  }
+
+  return `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(safePaymentUri)}`;
+}
+
 async function openCryptoPaymentModal(checkoutData) {
   const modal = ensureCryptoPaymentModal();
   const title = document.getElementById("cryptoPaymentTitle");
@@ -3956,7 +3972,10 @@ async function openCryptoPaymentModal(checkoutData) {
     walletLink.href = crypto.paymentUri || "#";
   }
   if (qr) {
-    if (crypto.address) {
+    if (crypto.paymentUri) {
+      qr.src = getCryptoPaymentQrCodeUrl(crypto.paymentUri);
+      qr.hidden = false;
+    } else if (crypto.address) {
       qr.src = buildCryptoPaymentSvgDataUrl(crypto);
       qr.hidden = false;
     } else {
