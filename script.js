@@ -20,6 +20,7 @@ const PLAN_ADDONS_STORAGE_KEY = "dq_plan_addons";
 const DISPLAY_CURRENCY_STORAGE_KEY = "dq_display_currency";
 const dqAuth = window.dqAuth;
 let currentUiUser = null;
+let authUiSubscriptionBound = false;
 let displayCurrencyRatesCache = null;
 const FOOTER_FAQ_ITEMS = [
   {
@@ -4810,6 +4811,28 @@ async function initAuthUi() {
   }
 }
 
+async function bindAuthUiSubscription() {
+  if (authUiSubscriptionBound || !dqAuth || !dqAuth.isConfigured()) {
+    return;
+  }
+
+  try {
+    const client = await dqAuth.getClient();
+    if (!client) {
+      return;
+    }
+
+    authUiSubscriptionBound = true;
+    client.auth.onAuthStateChange(() => {
+      initAuthUi().catch((error) => {
+        console.error("Could not refresh auth UI after auth change:", error);
+      });
+    });
+  } catch (error) {
+    console.error("Could not bind auth UI subscription:", error);
+  }
+}
+
 document.addEventListener("click", async (event) => {
   if (!(event.target instanceof Element)) {
     return;
@@ -4842,6 +4865,9 @@ renderPlanDetailsPage().catch((error) => {
 });
 bindPricingActions().catch((error) => {
   console.error("Could not bind pricing actions:", error);
+});
+bindAuthUiSubscription().catch((error) => {
+  console.error("Could not start auth UI subscription:", error);
 });
 initAuthUi().catch((error) => {
   console.error("Could not initialize auth UI:", error);
