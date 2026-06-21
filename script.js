@@ -4184,7 +4184,9 @@ async function renderPlanRequirementsPage(user) {
   }
 
   if (!user) {
-    window.location.href = `login.html?redirect=${encodeURIComponent(requirementsPage || "pricing.html")}`;
+    const currentRequirementsPath = `${window.location.pathname.split("/").pop() || "plan-requirements.html"}${window.location.search}`;
+    const loginRedirectTarget = requirementsPage || currentRequirementsPath || "pricing.html";
+    window.location.href = `login.html?redirect=${encodeURIComponent(loginRedirectTarget)}`;
     return;
   }
 

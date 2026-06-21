@@ -582,11 +582,23 @@
     function getPostLoginRedirect() {
       const query = new URLSearchParams(window.location.search);
       const redirect = query.get("redirect");
-      if (!redirect || !/^[a-zA-Z0-9-]+\.html$/.test(redirect)) {
+      if (!redirect) {
         return "index.html";
       }
 
-      return redirect;
+      try {
+        const redirectUrl = new URL(redirect, window.location.origin);
+        const isSameOrigin = redirectUrl.origin === window.location.origin;
+        const isHtmlPage = /^[a-zA-Z0-9-]+\.html$/.test(redirectUrl.pathname.split("/").pop() || "");
+
+        if (!isSameOrigin || !isHtmlPage) {
+          return "index.html";
+        }
+
+        return `${redirectUrl.pathname.replace(/^\//, "")}${redirectUrl.search}${redirectUrl.hash}`;
+      } catch (error) {
+        return "index.html";
+      }
     }
 
     function getOauthReturnUrl() {
