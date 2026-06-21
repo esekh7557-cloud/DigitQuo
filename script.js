@@ -4018,7 +4018,7 @@ async function openCryptoPaymentModal(checkoutData) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 15 * 60 * 1000) {
     if (userExited) {
-      throw new Error("Crypto payment window closed. You can complete the payment later from your order details.");
+      throw new Error("Crypto payment failed.");
     }
 
     await new Promise((resolve) => window.setTimeout(resolve, 8000));
