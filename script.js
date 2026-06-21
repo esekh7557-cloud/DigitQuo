@@ -4187,7 +4187,13 @@ async function renderPlanRequirementsPage(user) {
   let authenticatedUser = user;
 
   if (!authenticatedUser) {
-    authenticatedUser = await resolveAuthenticatedUiUser();
+    planRequirementsRoot.innerHTML = `
+      <article class="card">
+        <h1 class="section-title">Checking Login</h1>
+        <p class="section-subtitle">Please wait while we confirm your session and load the requirements form.</p>
+      </article>
+    `;
+    authenticatedUser = await waitForAuthenticatedUiUser();
   }
 
   if (!authenticatedUser) {
@@ -4768,6 +4774,23 @@ async function resolveAuthenticatedUiUser() {
   const rawUser = await dqAuth.getCurrentUser();
   const profile = typeof dqAuth.getCurrentProfile === "function" ? await dqAuth.getCurrentProfile() : null;
   return mergeUserAndProfile(rawUser, profile);
+}
+
+async function waitForAuthenticatedUiUser(attempts = 4, delayMs = 250) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const user = await resolveAuthenticatedUiUser();
+    if (user) {
+      return user;
+    }
+
+    if (attempt < attempts - 1) {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, delayMs);
+      });
+    }
+  }
+
+  return null;
 }
 
 async function initAuthUi() {
