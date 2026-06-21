@@ -21,8 +21,8 @@ function formatInr(value) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(Number(value || 0));
 }
 
@@ -30,8 +30,8 @@ function formatUsd(value) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(Number(value || 0));
 }
 
@@ -328,7 +328,7 @@ function toggleCouponDiscountInputState() {
     discountInput.min = "1";
     discountInput.removeAttribute("max");
     discountInput.placeholder = "500";
-    discountInput.step = "0.01";
+    discountInput.step = "1";
     return;
   }
 
@@ -336,7 +336,7 @@ function toggleCouponDiscountInputState() {
   discountInput.min = "1";
   discountInput.max = "100";
   discountInput.placeholder = "20";
-  discountInput.step = "0.01";
+  discountInput.step = "1";
 }
 
 function isRevenueOrder(order) {

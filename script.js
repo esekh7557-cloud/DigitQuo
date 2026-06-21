@@ -173,6 +173,7 @@ const PLAN_DETAILS = {
     name: "The Starter",
     oldPrice: 11000,
     subtotal: 8999,
+    usdSubtotal: 99,
     domainPrice: 999,
     addOns: [
       {
@@ -203,6 +204,7 @@ const PLAN_DETAILS = {
     name: "The Professional",
     oldPrice: 14000,
     subtotal: 10599,
+    usdSubtotal: 119,
     domainPrice: 999,
     addOns: [
       {
@@ -234,6 +236,7 @@ const PLAN_DETAILS = {
     name: "Professional Plus",
     oldPrice: 18000,
     subtotal: 12999,
+    usdSubtotal: 139,
     domainPrice: 999,
     addOns: [
       {
@@ -265,6 +268,7 @@ const PLAN_DETAILS = {
     name: "Enterprise",
     oldPrice: 33000,
     subtotal: 22999,
+    usdSubtotal: 249,
     domainPrice: 999,
     addOns: [
       {
@@ -296,6 +300,7 @@ const PLAN_DETAILS = {
     name: "Enterprise Plus",
     oldPrice: 53000,
     subtotal: 32999,
+    usdSubtotal: 349,
     domainPrice: 999,
     addOns: [
       {
@@ -325,9 +330,10 @@ const PLAN_DETAILS = {
   },
   "bot-basic": {
     name: "Basic Bot",
-    oldPrice: 662,
-    subtotal: 662,
-    breakdown: [{ label: "Bot Development", amount: 662 }],
+    oldPrice: 699,
+    subtotal: 699,
+    usdSubtotal: 6.99,
+    breakdown: [{ label: "Bot Development", amount: 699 }],
     detailsDescription: "This pricing covers the selected Discord bot build and any optional setup add-ons.",
     requirementsDescription:
       "Fill in your bot requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.",
@@ -367,9 +373,10 @@ const PLAN_DETAILS = {
   },
   "bot-standard": {
     name: "Community Bot",
-    oldPrice: 1891,
-    subtotal: 1891,
-    breakdown: [{ label: "Bot Development", amount: 1891 }],
+    oldPrice: 1899,
+    subtotal: 1899,
+    usdSubtotal: 19,
+    breakdown: [{ label: "Bot Development", amount: 1899 }],
     detailsDescription: "This pricing covers the selected Discord bot build and any optional setup add-ons.",
     requirementsDescription:
       "Fill in your bot requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.",
@@ -410,9 +417,10 @@ const PLAN_DETAILS = {
   },
   "bot-premium": {
     name: "Professional Custom Bot",
-    oldPrice: 5674,
-    subtotal: 5674,
-    breakdown: [{ label: "Bot Development", amount: 5674 }],
+    oldPrice: 5499,
+    subtotal: 5499,
+    usdSubtotal: 59,
+    breakdown: [{ label: "Bot Development", amount: 5499 }],
     detailsDescription: "This pricing covers the selected Discord bot build and any optional setup add-ons.",
     requirementsDescription:
       "Fill in your bot requirements. When you click Continue, the Razorpay payment gateway opens. After successful payment, our team will contact you soon.",
@@ -453,9 +461,10 @@ const PLAN_DETAILS = {
   },
   "bot-enterprise": {
     name: "Enterprise Bot",
-    oldPrice: 14999,
-    subtotal: 10000,
-    breakdown: [{ label: "Base Enterprise Bot Scope", amount: 10000 }],
+    oldPrice: 9999,
+    subtotal: 9999,
+    usdSubtotal: 99,
+    breakdown: [{ label: "Base Enterprise Bot Scope", amount: 9999 }],
     detailsDescription:
       "This payment covers the starting scope for a larger custom bot build. After requirements review, any expanded enterprise work can be scoped separately.",
     requirementsDescription:
@@ -654,8 +663,8 @@ function formatInr(value) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(Number(value || 0));
 }
 
@@ -663,8 +672,8 @@ function formatUsd(value) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(Number(value || 0));
 }
 
@@ -730,6 +739,15 @@ async function formatDisplayPrice(value, options = {}) {
   }
 
   return formatUsd(numericValue * usdRate);
+}
+
+async function formatPriceInCurrency(value, currencyCode) {
+  const numericValue = Number(value || 0);
+  if (!Number.isFinite(numericValue)) {
+    return "Custom Quote";
+  }
+
+  return currencyCode === "usd" ? formatUsd(numericValue) : formatInr(numericValue);
 }
 
 async function formatDisplayPriceRange(minValue, maxValue, options = {}) {
@@ -804,35 +822,112 @@ async function renderStaticDisplayMoney() {
     }
 
     const suffix = node.getAttribute("data-price-suffix") || "";
+    const preference = readDisplayCurrencyPreference();
+    const priceLabel =
+      preference.currency === "usd" && Number.isFinite(Number(plan?.usdSubtotal))
+        ? await formatPriceInCurrency(Number(plan.usdSubtotal), "usd")
+        : await formatDisplayPrice(plan.subtotal ?? plan.amount ?? 0);
     node.innerHTML = `${plan.oldPrice ? `<span class="old-price">${escapeHtml(await formatDisplayPrice(plan.oldPrice))}</span> ` : ""}${escapeHtml(
-      await formatDisplayPrice(plan.subtotal ?? plan.amount ?? 0)
+      priceLabel
     )}${suffix ? ` <small class="home-price-term">${escapeHtml(suffix)}</small>` : ""}`;
   }
 
   const rangeNodes = Array.from(document.querySelectorAll("[data-bot-range]"));
   for (const node of rangeNodes) {
+    const planKey = String(node.getAttribute("data-bot-plan") || "").trim();
+    const fixedUsdAmount = planKey ? getFixedBotUsdAmount(planKey) : null;
     const [minValue, maxValue] = String(node.getAttribute("data-bot-range") || "").split("|");
     const suffix = node.getAttribute("data-price-suffix") || "";
-    node.innerHTML = `${escapeHtml(await formatDisplayPriceRange(minValue, maxValue))}${suffix ? ` <small>${escapeHtml(suffix)}</small>` : ""}`;
+    const priceLabel =
+      readDisplayCurrencyPreference().currency === "usd" && fixedUsdAmount !== null
+        ? formatUsd(fixedUsdAmount)
+        : await formatDisplayPriceRange(minValue, maxValue);
+    node.innerHTML = `${escapeHtml(priceLabel)}${suffix ? ` <small>${escapeHtml(suffix)}</small>` : ""}`;
   }
 
   const plusNodes = Array.from(document.querySelectorAll("[data-bot-plus]"));
   for (const node of plusNodes) {
+    const planKey = String(node.getAttribute("data-bot-plan") || "").trim();
+    const fixedUsdAmount = planKey ? getFixedBotUsdAmount(planKey) : null;
     const minValue = Number(node.getAttribute("data-bot-plus") || 0);
     const suffix = node.getAttribute("data-price-suffix") || "";
-    node.innerHTML = `${escapeHtml(await formatDisplayPriceRange(minValue, minValue, { plus: true }))}${suffix ? ` <small>${escapeHtml(suffix)}</small>` : ""}`;
+    const priceLabel =
+      readDisplayCurrencyPreference().currency === "usd" && fixedUsdAmount !== null
+        ? `${formatUsd(fixedUsdAmount)}+`
+        : await formatDisplayPriceRange(minValue, minValue, { plus: true });
+    node.innerHTML = `${escapeHtml(priceLabel)}${suffix ? ` <small>${escapeHtml(suffix)}</small>` : ""}`;
   }
 
   const singleNodes = Array.from(document.querySelectorAll("[data-bot-addon-price]"));
   for (const node of singleNodes) {
+    const planKey = String(node.getAttribute("data-bot-plan") || "").trim();
+    const fixedUsdAmount = planKey ? getFixedBotUsdAmount(planKey) : null;
     const value = Number(node.getAttribute("data-bot-addon-price") || 0);
     const suffix = node.getAttribute("data-price-suffix") || "";
-    node.textContent = `${await formatDisplayPrice(value)}${suffix}`;
+    const priceLabel =
+      readDisplayCurrencyPreference().currency === "usd" && fixedUsdAmount !== null
+        ? formatUsd(fixedUsdAmount)
+        : await formatDisplayPrice(value);
+    node.textContent = `${priceLabel}${suffix}`;
   }
 }
 
 function getPlanByKey(planKey) {
   return PLAN_DETAILS[String(planKey || "").trim()] || null;
+}
+
+function getFixedBotUsdAmount(planKey) {
+  const plan = getPlanByKey(planKey);
+  const amount = Number(plan?.usdSubtotal);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+async function getDisplayedPlanPricing(plan, coupon, options = {}) {
+  const fallbackPricing = getPlanPricingWithCoupon(plan, coupon, options);
+  const preference = readDisplayCurrencyPreference();
+  const usdPlanAmount = Number(plan?.usdSubtotal);
+
+  if (preference.currency !== "usd" || !Number.isFinite(usdPlanAmount) || usdPlanAmount <= 0) {
+    return {
+      ...fallbackPricing,
+      currencyCode: "inr",
+    };
+  }
+
+  const rates = await fetchDisplayCurrencyRates();
+  const usdRate = Number(rates?.usd);
+  if (!Number.isFinite(usdRate) || usdRate <= 0) {
+    return {
+      ...fallbackPricing,
+      currencyCode: "inr",
+    };
+  }
+
+  const addOnAmount = Math.round(getPlanAddOnAmount(plan, options.addOnIds) * usdRate * 100) / 100;
+  const fastDeliveryFee = options.fastDelivery ? Math.round(usdPlanAmount * 0.1 * 100) / 100 : 0;
+  const baseAmount = Math.round((usdPlanAmount + addOnAmount + fastDeliveryFee) * 100) / 100;
+  const discountValue = getCouponDiscountValue(coupon);
+  let discountAmount =
+    getCouponDiscountType(coupon) === "fixed"
+      ? Math.round(discountValue * usdRate * 100) / 100
+      : Math.round(((baseAmount * discountValue) / 100) * 100) / 100;
+
+  if (!Number.isFinite(discountAmount) || discountAmount <= 0) {
+    discountAmount = 0;
+  }
+
+  discountAmount = Math.min(baseAmount, discountAmount);
+  const finalAmount = Math.max(0, Math.round((baseAmount - discountAmount) * 100) / 100);
+
+  return {
+    planAmount: usdPlanAmount,
+    addOnAmount,
+    fastDeliveryFee,
+    baseAmount,
+    discountAmount,
+    finalAmount,
+    currencyCode: "usd",
+  };
 }
 
 function isBotPlanKey(planKey) {
@@ -1039,8 +1134,11 @@ async function renderPricingPageFilter(mode = "without-hosting") {
     }
 
     const pricing = getPlanCatalogPricing(plan, { includeHosting: normalizedMode === "with-hosting" });
+    const displayedPricing = await getDisplayedPlanPricing(plan, null, {
+      addOnIds: normalizedMode === "with-hosting" ? pricing.addOnIds : [],
+    });
     priceNode.innerHTML = `<span class="old-price">${escapeHtml(await formatDisplayPrice(pricing.oldPrice))}</span> ${escapeHtml(
-      await formatDisplayPrice(pricing.subtotal)
+      await formatPriceInCurrency(displayedPricing.finalAmount, displayedPricing.currencyCode)
     )} <small>${escapeHtml(card.getAttribute("data-price-suffix") || "/ project")}</small>`;
   });
 
@@ -1378,6 +1476,10 @@ async function syncPlanCouponUi(planKey) {
     fastDelivery: Boolean(fastDeliveryInput?.checked),
     addOnIds: selectedAddOns.map((addOn) => addOn.id),
   });
+  const displayedPricing = await getDisplayedPlanPricing(plan, coupon, {
+    fastDelivery: Boolean(fastDeliveryInput?.checked),
+    addOnIds: selectedAddOns.map((addOn) => addOn.id),
+  });
   const couponToggle = document.getElementById("planCouponToggle");
     const couponForm = document.getElementById("planCouponForm");
   const couponInput = document.getElementById("planCouponCode");
@@ -1432,7 +1534,7 @@ async function syncPlanCouponUi(planKey) {
   }
 
   if (addOnValue) {
-    addOnValue.textContent = `+ ${await formatDisplayPrice(pricing.addOnAmount)}`;
+    addOnValue.textContent = `+ ${await formatPriceInCurrency(displayedPricing.addOnAmount, displayedPricing.currencyCode)}`;
   }
 
   if (couponLabel) {
@@ -1440,11 +1542,13 @@ async function syncPlanCouponUi(planKey) {
   }
 
   if (couponValue) {
-    couponValue.textContent = pricing.discountAmount ? `- ${await formatDisplayPrice(pricing.discountAmount)}` : await formatDisplayPrice(0);
+    couponValue.textContent = displayedPricing.discountAmount
+      ? `- ${await formatPriceInCurrency(displayedPricing.discountAmount, displayedPricing.currencyCode)}`
+      : await formatPriceInCurrency(0, displayedPricing.currencyCode);
   }
 
   if (finalTotal) {
-    finalTotal.textContent = await formatDisplayPrice(pricing.finalAmount);
+    finalTotal.textContent = await formatPriceInCurrency(displayedPricing.finalAmount, displayedPricing.currencyCode);
   }
 
   if (requirementAddOnRow) {
@@ -1452,7 +1556,7 @@ async function syncPlanCouponUi(planKey) {
   }
 
   if (requirementPlanAmount) {
-    requirementPlanAmount.textContent = await formatDisplayPrice(pricing.planAmount);
+    requirementPlanAmount.textContent = await formatPriceInCurrency(displayedPricing.planAmount, displayedPricing.currencyCode);
   }
 
   if (requirementAddOnLabel) {
@@ -1462,7 +1566,7 @@ async function syncPlanCouponUi(planKey) {
   }
 
   if (requirementAddOnValue) {
-    requirementAddOnValue.textContent = `+ ${await formatDisplayPrice(pricing.addOnAmount)}`;
+    requirementAddOnValue.textContent = `+ ${await formatPriceInCurrency(displayedPricing.addOnAmount, displayedPricing.currencyCode)}`;
   }
 
   if (requirementFastDeliveryRow) {
@@ -1470,11 +1574,11 @@ async function syncPlanCouponUi(planKey) {
   }
 
   if (requirementFastDeliveryValue) {
-    requirementFastDeliveryValue.textContent = `+ ${await formatDisplayPrice(pricing.fastDeliveryFee)}`;
+    requirementFastDeliveryValue.textContent = `+ ${await formatPriceInCurrency(displayedPricing.fastDeliveryFee, displayedPricing.currencyCode)}`;
   }
 
   if (requirementBaseAmount) {
-    requirementBaseAmount.textContent = await formatDisplayPrice(pricing.baseAmount);
+    requirementBaseAmount.textContent = await formatPriceInCurrency(displayedPricing.baseAmount, displayedPricing.currencyCode);
   }
 
   if (requirementCouponRow) {
@@ -1486,11 +1590,13 @@ async function syncPlanCouponUi(planKey) {
   }
 
   if (requirementCouponValue) {
-    requirementCouponValue.textContent = pricing.discountAmount ? `- ${await formatDisplayPrice(pricing.discountAmount)}` : await formatDisplayPrice(0);
+    requirementCouponValue.textContent = displayedPricing.discountAmount
+      ? `- ${await formatPriceInCurrency(displayedPricing.discountAmount, displayedPricing.currencyCode)}`
+      : await formatPriceInCurrency(0, displayedPricing.currencyCode);
   }
 
   if (requirementFinalAmount) {
-    requirementFinalAmount.textContent = await formatDisplayPrice(pricing.finalAmount);
+    requirementFinalAmount.textContent = await formatPriceInCurrency(displayedPricing.finalAmount, displayedPricing.currencyCode);
   }
 
   if (requirementCouponNote) {
@@ -3031,6 +3137,9 @@ async function renderPlanDetailsPage() {
   const pricing = getPlanPricingWithCoupon(plan, appliedCoupon, {
     addOnIds: selectedAddOns.map((addOn) => addOn.id),
   });
+  const displayedPricing = await getDisplayedPlanPricing(plan, appliedCoupon, {
+    addOnIds: selectedAddOns.map((addOn) => addOn.id),
+  });
 
   planDetailsRoot.innerHTML = `
     <div class="plan-layout">
@@ -3043,7 +3152,7 @@ async function renderPlanDetailsPage() {
         </div>
         <div class="plan-price-strip">
           ${hasSavings ? `<span class="old-price">${escapeHtml(await formatDisplayPrice(plan.oldPrice))}</span>` : ""}
-          <strong>${escapeHtml(await formatDisplayPrice(plan.subtotal))}</strong>
+          <strong>${escapeHtml(await formatPriceInCurrency(displayedPricing.planAmount, displayedPricing.currencyCode))}</strong>
           ${hasSavings ? `<span class="plan-savings">You save ${escapeHtml(await formatDisplayPrice(savings))}</span>` : ""}
         </div>
         <ul class="plan-feature-list">
@@ -3054,10 +3163,15 @@ async function renderPlanDetailsPage() {
         <h2>Price Breakdown</h2>
         ${(
           await Promise.all(
-            breakdownRows.map(async (row) => `
+            breakdownRows.map(async (row, index) => `
               <div class="plan-summary-row">
                 <span>${escapeHtml(row.label || "Plan Price")}</span>
-                <strong>${escapeHtml(await formatDisplayPrice(row.amount || 0))}</strong>
+                <strong>${escapeHtml(
+                  await formatPriceInCurrency(
+                    breakdownRows.length === 1 && index === 0 ? displayedPricing.planAmount : row.amount || 0,
+                    displayedPricing.currencyCode
+                  )
+                )}</strong>
               </div>
             `)
           )
@@ -3066,7 +3180,7 @@ async function renderPlanDetailsPage() {
           <span id="planAddOnLabel">${escapeHtml(
             selectedAddOns.length ? selectedAddOns.map((addOn) => addOn.name).join(", ") : "Selected Add-ons"
           )}</span>
-          <strong id="planAddOnValue">+ ${escapeHtml(await formatDisplayPrice(pricing.addOnAmount))}</strong>
+          <strong id="planAddOnValue">+ ${escapeHtml(await formatPriceInCurrency(displayedPricing.addOnAmount, displayedPricing.currencyCode))}</strong>
         </div>
         <button
           class="plan-coupon-toggle"
@@ -3095,11 +3209,11 @@ async function renderPlanDetailsPage() {
         </form>
         <div class="plan-summary-row">
           <span id="planCouponLabel">${escapeHtml(appliedCoupon ? `Coupon (${appliedCoupon.coupon_code})` : "Coupon Discount")}</span>
-          <strong id="planCouponDiscountValue">${pricing.discountAmount ? `- ${escapeHtml(await formatDisplayPrice(pricing.discountAmount))}` : escapeHtml(await formatDisplayPrice(0))}</strong>
+          <strong id="planCouponDiscountValue">${displayedPricing.discountAmount ? `- ${escapeHtml(await formatPriceInCurrency(displayedPricing.discountAmount, displayedPricing.currencyCode))}` : escapeHtml(await formatPriceInCurrency(0, displayedPricing.currencyCode))}</strong>
         </div>
         <div class="plan-summary-row total">
           <span>Total Pricing</span>
-          <strong id="planFinalTotal">${escapeHtml(await formatDisplayPrice(pricing.finalAmount))}</strong>
+          <strong id="planFinalTotal">${escapeHtml(await formatPriceInCurrency(displayedPricing.finalAmount, displayedPricing.currencyCode))}</strong>
         </div>
         <p class="plan-note">${escapeHtml(planContext.planNote)}</p>
         <p class="plan-feedback" id="planFeedback">${escapeHtml(planContext.feedbackText)}</p>
@@ -4388,28 +4502,42 @@ async function renderPlanRequirementsPage(user) {
           <div class="plan-currency-shell">
             ${getDisplayCurrencyControlMarkup("Display Currency")}
           </div>
-          <p class="plan-form-price" id="planRequirementFinalAmount">${escapeHtml(await formatDisplayPrice(pricing.finalAmount))}</p>
+          <p class="plan-form-price" id="planRequirementFinalAmount">${escapeHtml(
+            await formatPriceInCurrency(displayedPricing.finalAmount, displayedPricing.currencyCode)
+          )}</p>
           <div class="plan-form-summary-row">
             <span>Plan Price</span>
-            <strong id="planRequirementPlanAmount">${escapeHtml(await formatDisplayPrice(pricing.planAmount))}</strong>
+            <strong id="planRequirementPlanAmount">${escapeHtml(
+              await formatPriceInCurrency(displayedPricing.planAmount, displayedPricing.currencyCode)
+            )}</strong>
           </div>
           <div class="plan-form-summary-row" id="planRequirementAddOnRow" ${selectedAddOns.length ? "" : "hidden"}>
             <span id="planRequirementAddOnLabel">${escapeHtml(
               selectedAddOns.length ? selectedAddOns.map((addOn) => addOn.name).join(", ") : "Selected Add-ons"
             )}</span>
-            <strong id="planRequirementAddOnValue">+ ${escapeHtml(await formatDisplayPrice(pricing.addOnAmount))}</strong>
+            <strong id="planRequirementAddOnValue">+ ${escapeHtml(
+              await formatPriceInCurrency(displayedPricing.addOnAmount, displayedPricing.currencyCode)
+            )}</strong>
           </div>
           <div class="plan-form-summary-row" id="planRequirementFastDeliveryRow" hidden>
             <span>Fast Delivery</span>
-            <strong id="planRequirementFastDeliveryValue">+ ${escapeHtml(await formatDisplayPrice(0))}</strong>
+            <strong id="planRequirementFastDeliveryValue">+ ${escapeHtml(
+              await formatPriceInCurrency(0, displayedPricing.currencyCode)
+            )}</strong>
           </div>
           <div class="plan-form-summary-row">
             <span>Subtotal</span>
-            <strong id="planRequirementBaseAmount">${escapeHtml(await formatDisplayPrice(pricing.baseAmount))}</strong>
+            <strong id="planRequirementBaseAmount">${escapeHtml(
+              await formatPriceInCurrency(displayedPricing.baseAmount, displayedPricing.currencyCode)
+            )}</strong>
           </div>
           <div class="plan-form-summary-row" id="planRequirementCouponRow" ${appliedCoupon ? "" : "hidden"}>
             <span id="planRequirementCouponLabel">${escapeHtml(appliedCoupon ? `Coupon (${appliedCoupon.coupon_code})` : "Coupon Discount")}</span>
-            <strong id="planRequirementCouponValue">${pricing.discountAmount ? `- ${escapeHtml(await formatDisplayPrice(pricing.discountAmount))}` : escapeHtml(await formatDisplayPrice(0))}</strong>
+            <strong id="planRequirementCouponValue">${
+              displayedPricing.discountAmount
+                ? `- ${escapeHtml(await formatPriceInCurrency(displayedPricing.discountAmount, displayedPricing.currencyCode))}`
+                : escapeHtml(await formatPriceInCurrency(0, displayedPricing.currencyCode))
+            }</strong>
           </div>
           <div class="plan-form-summary-row">
             <span>Checkout Currency</span>

@@ -2525,11 +2525,8 @@ textarea { min-height: 150px; resize: vertical; }
   position: absolute;
   top: 14px;
   right: 14px;
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
+  border: none;
+  background: transparent;
   color: var(--secondary);
   font-size: 1.5rem;
   line-height: 1;
@@ -2537,10 +2534,11 @@ textarea { min-height: 150px; resize: vertical; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
 }
 
 .crypto-payment-close:hover {
-  background: #fff;
+  opacity: 0.72;
 }
 
 .crypto-payment-dialog img {

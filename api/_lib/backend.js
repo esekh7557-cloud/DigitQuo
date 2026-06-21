@@ -58,6 +58,7 @@ const PLAN_CATALOG = {
   basic: {
     name: "The Starter",
     amount: 8999,
+    usdAmount: 99,
     addOns: [
       { id: "hosting", name: "Hosting", amount: 4000, kind: "hosting" },
       { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
@@ -66,6 +67,7 @@ const PLAN_CATALOG = {
   business: {
     name: "The Professional",
     amount: 10599,
+    usdAmount: 119,
     addOns: [
       { id: "hosting", name: "Hosting", amount: 4000, kind: "hosting" },
       { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
@@ -74,6 +76,7 @@ const PLAN_CATALOG = {
   professional: {
     name: "Professional Plus",
     amount: 12999,
+    usdAmount: 139,
     addOns: [
       { id: "hosting", name: "Hosting", amount: 4000, kind: "hosting" },
       { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
@@ -82,6 +85,7 @@ const PLAN_CATALOG = {
   ecommerce: {
     name: "Enterprise",
     amount: 22999,
+    usdAmount: 249,
     addOns: [
       { id: "vps-hosting", name: "VPS Hosting", amount: 17000, kind: "hosting" },
       { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
@@ -90,6 +94,7 @@ const PLAN_CATALOG = {
   "advanced-ecommerce": {
     name: "Enterprise Plus",
     amount: 32999,
+    usdAmount: 349,
     addOns: [
       { id: "vps-hosting", name: "VPS Hosting", amount: 17000, kind: "hosting" },
       { id: "connect-bot-website", name: "Connect Bot with Website", amount: 1999, kind: "integration" },
@@ -97,7 +102,8 @@ const PLAN_CATALOG = {
   },
   "bot-basic": {
     name: "Basic Bot",
-    amount: 662,
+    amount: 699,
+    usdAmount: 6.99,
     addOns: [
       { id: "bot-hosting-basic", name: "Bot Hosting Setup", amount: 199, kind: "hosting" },
       { id: "bot-maintenance-starter", name: "Starter Maintenance Setup", amount: 299, kind: "maintenance" },
@@ -106,7 +112,8 @@ const PLAN_CATALOG = {
   },
   "bot-standard": {
     name: "Community Bot",
-    amount: 1891,
+    amount: 1899,
+    usdAmount: 19,
     addOns: [
       { id: "bot-hosting-premium", name: "Premium Bot Hosting Setup", amount: 499, kind: "hosting" },
       { id: "bot-feature-updates", name: "Feature Update Retainer", amount: 599, kind: "maintenance" },
@@ -115,7 +122,8 @@ const PLAN_CATALOG = {
   },
   "bot-premium": {
     name: "Professional Custom Bot",
-    amount: 5674,
+    amount: 5499,
+    usdAmount: 59,
     addOns: [
       { id: "bot-hosting-performance", name: "High-Performance Hosting Setup", amount: 999, kind: "hosting" },
       { id: "bot-priority-support", name: "Priority Support Retainer", amount: 999, kind: "maintenance" },
@@ -124,7 +132,8 @@ const PLAN_CATALOG = {
   },
   "bot-enterprise": {
     name: "Enterprise Bot",
-    amount: 10000,
+    amount: 9999,
+    usdAmount: 99,
     addOns: [
       { id: "bot-hosting-enterprise", name: "Enterprise Hosting Setup", amount: 1499, kind: "hosting" },
       { id: "bot-enterprise-support", name: "Enterprise Support Retainer", amount: 1499, kind: "maintenance" },
@@ -676,6 +685,21 @@ async function getDisplayCurrencyRates() {
   return {
     usd: usdRate,
   };
+}
+
+async function resolvePlanAmountForCryptoInInr(plan) {
+  const usdAmount = Number(plan?.usdAmount);
+  if (!Number.isFinite(usdAmount) || usdAmount <= 0) {
+    return Number((plan?.amount ?? plan?.subtotal) || 0);
+  }
+
+  const rates = await getDisplayCurrencyRates();
+  const usdRate = Number(rates?.usd);
+  if (!Number.isFinite(usdRate) || usdRate <= 0) {
+    throw new Error("Could not convert the USD bot price into INR for crypto checkout.");
+  }
+
+  return Math.round((usdAmount / usdRate) * 100) / 100;
 }
 
 function getPlanConfig(planKey) {
@@ -1460,10 +1484,23 @@ async function handleCreateCryptoOrder(req, res) {
       }
     }
 
-    const pricing = getPlanPricing(plan, appliedCoupon, {
+    const pricingPlan = plan?.usdAmount
+      ? {
+          ...plan,
+          amount: await resolvePlanAmountForCryptoInInr(plan),
+        }
+      : plan;
+
+    const pricing = getPlanPricing(pricingPlan, appliedCoupon, {
       addOnIds,
       fastDelivery,
     });
+
+    if (pricing.finalAmount <= 0) {
+      const error = new Error("Coupon discount cannot reduce the payable amount to zero.");
+      error.status = 400;
+      throw error;
+    }
 
     await supabaseFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(authContext.user.id)}`, {
       method: "PATCH",
