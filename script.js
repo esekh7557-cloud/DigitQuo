@@ -3855,6 +3855,7 @@ function ensureCryptoPaymentModal() {
   modal.setAttribute("hidden", "");
   modal.innerHTML = `
     <div class="plan-success-dialog crypto-payment-dialog">
+      <button class="crypto-payment-close" type="button" id="cryptoExitPaymentBtn" aria-label="Close crypto payment modal">&times;</button>
       <h3 id="cryptoPaymentTitle">Complete Your Crypto Payment</h3>
       <p id="cryptoPaymentSummary">Send the exact amount to the address below.</p>
       <img id="cryptoPaymentQr" alt="Crypto payment summary card" hidden />
@@ -3874,7 +3875,6 @@ function ensureCryptoPaymentModal() {
       </div>
       <p class="crypto-payment-status" id="cryptoPaymentStatus">Waiting for payment detection.</p>
       <div class="plan-form-actions">
-        <button class="btn btn-secondary" type="button" id="cryptoExitPaymentBtn">Exit</button>
         <button class="btn btn-secondary" type="button" id="cryptoCopyAddressBtn">Copy Address</button>
         <a class="btn btn-primary" href="#" id="cryptoOpenWalletBtn" target="_blank" rel="noopener noreferrer">Open Wallet</a>
       </div>
