@@ -4187,13 +4187,7 @@ async function renderPlanRequirementsPage(user) {
   let authenticatedUser = user;
 
   if (!authenticatedUser) {
-    planRequirementsRoot.innerHTML = `
-      <article class="card">
-        <h1 class="section-title">Checking Login</h1>
-        <p class="section-subtitle">Please wait while we confirm your session and load the requirements form.</p>
-      </article>
-    `;
-    authenticatedUser = await waitForAuthenticatedUiUser();
+    authenticatedUser = await resolveAuthenticatedUiUser();
   }
 
   if (!authenticatedUser) {
@@ -4209,6 +4203,9 @@ async function renderPlanRequirementsPage(user) {
   const appliedCoupon = getStoredPlanCoupon(planKey);
   const selectedAddOns = getPlanAddOnsByIds(plan, getStoredPlanAddOnIds(planKey));
   const pricing = getPlanPricingWithCoupon(plan, appliedCoupon, {
+    addOnIds: selectedAddOns.map((addOn) => addOn.id),
+  });
+  const displayedPricing = await getDisplayedPlanPricing(plan, appliedCoupon, {
     addOnIds: selectedAddOns.map((addOn) => addOn.id),
   });
 
@@ -4231,17 +4228,17 @@ async function renderPlanRequirementsPage(user) {
           <div class="field-row">
             <div class="field-block">
               <label for="planCustomerName">Full Name</label>
-              <input id="planCustomerName" name="customerName" type="text" value="${escapeHtml(user.fullName || "")}" required />
+              <input id="planCustomerName" name="customerName" type="text" value="${escapeHtml(authenticatedUser.fullName || "")}" required />
             </div>
             <div class="field-block">
               <label for="planCustomerEmail">Email</label>
-              <input id="planCustomerEmail" name="customerEmail" type="email" value="${escapeHtml(user.email || "")}" readonly required />
+              <input id="planCustomerEmail" name="customerEmail" type="email" value="${escapeHtml(authenticatedUser.email || "")}" readonly required />
             </div>
           </div>
 
           <div class="field-block">
             <label for="planCustomerPhone">Phone</label>
-            <input id="planCustomerPhone" name="customerPhone" type="tel" value="${escapeHtml(user.phone || "")}" placeholder="+91 98765 43210" required />
+            <input id="planCustomerPhone" name="customerPhone" type="tel" value="${escapeHtml(authenticatedUser.phone || "")}" placeholder="+91 98765 43210" required />
           </div>
 
           <div class="field-block">
@@ -4592,10 +4589,10 @@ async function renderPlanRequirementsPage(user) {
       return;
     }
 
-    const client = await dqAuth.getClient();
-    const profile = typeof dqAuth.getCurrentProfile === "function" ? await dqAuth.getCurrentProfile() : null;
-    if (!client || !profile?.id) {
-      window.location.href = "login.html";
+    const session = typeof dqAuth.getSession === "function" ? await dqAuth.getSession() : null;
+    if (!session?.user?.id || !session.access_token) {
+      const currentRequirementsPath = `${window.location.pathname.split("/").pop() || "plan-requirements.html"}${window.location.search}`;
+      window.location.href = `login.html?redirect=${encodeURIComponent(currentRequirementsPath)}`;
       return;
     }
 
@@ -4772,25 +4769,25 @@ async function resolveAuthenticatedUiUser() {
   }
 
   const rawUser = await dqAuth.getCurrentUser();
-  const profile = typeof dqAuth.getCurrentProfile === "function" ? await dqAuth.getCurrentProfile() : null;
-  return mergeUserAndProfile(rawUser, profile);
-}
+  if (!rawUser) {
+    return null;
+  }
 
-async function waitForAuthenticatedUiUser(attempts = 4, delayMs = 250) {
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const user = await resolveAuthenticatedUiUser();
-    if (user) {
-      return user;
-    }
-
-    if (attempt < attempts - 1) {
-      await new Promise((resolve) => {
-        window.setTimeout(resolve, delayMs);
-      });
+  let profile = null;
+  if (typeof dqAuth.getCurrentProfile === "function") {
+    try {
+      profile = await Promise.race([
+        dqAuth.getCurrentProfile(),
+        new Promise((resolve) => {
+          window.setTimeout(() => resolve(null), 1200);
+        }),
+      ]);
+    } catch (error) {
+      profile = null;
     }
   }
 
-  return null;
+  return mergeUserAndProfile(rawUser, profile);
 }
 
 async function initAuthUi() {

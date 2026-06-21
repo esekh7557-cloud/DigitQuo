@@ -437,12 +437,45 @@ async function requireAuthenticatedProfile(req, res) {
     return null;
   }
 
-  const profiles = await supabaseFetch(
+  let profiles = await supabaseFetch(
     `/rest/v1/profiles?select=id,email,full_name,phone,role,is_active,suspension_reason&id=eq.${encodeURIComponent(user.id)}&limit=1`
   );
-  const profile = Array.isArray(profiles) ? profiles[0] : null;
+  let profile = Array.isArray(profiles) ? profiles[0] : null;
 
-  if (!profile || profile.is_active === false) {
+  if (!profile) {
+    const metadata = user.user_metadata || {};
+    profiles = await supabaseFetch("/rest/v1/profiles?on_conflict=id", {
+      method: "POST",
+      headers: {
+        Prefer: "resolution=ignore-duplicates,return=representation",
+      },
+      body: {
+        id: user.id,
+        email: user.email,
+        full_name: metadata.full_name || metadata.fullName || "",
+        phone: metadata.phone || "",
+        country: metadata.country || metadata.address || "",
+        profile_photo: metadata.profile_photo || metadata.profilePhoto || "",
+        role: "customer",
+        is_active: true,
+      },
+    });
+    profile = Array.isArray(profiles) ? profiles[0] : null;
+
+    if (!profile) {
+      profiles = await supabaseFetch(
+        `/rest/v1/profiles?select=id,email,full_name,phone,role,is_active,suspension_reason&id=eq.${encodeURIComponent(user.id)}&limit=1`
+      );
+      profile = Array.isArray(profiles) ? profiles[0] : null;
+    }
+  }
+
+  if (!profile) {
+    sendJson(res, 403, { error: "Your account profile could not be loaded." });
+    return null;
+  }
+
+  if (profile.is_active === false) {
     const suspensionReason = String(profile?.suspension_reason || "").trim();
     sendJson(res, 403, {
       error: suspensionReason ? `You are suspended. ${suspensionReason}` : "You are suspended.",
@@ -1212,6 +1245,15 @@ async function handleCreateRazorpayOrder(req, res) {
             fast_delivery: fastDelivery ? "yes" : "no",
             coupon_code: appliedCoupon?.coupon_code || "",
           },
+        },
+      });
+
+      await supabaseFetch(`/rest/v1/orders?id=eq.${encodeURIComponent(createdOrder.id)}`, {
+        method: "PATCH",
+        body: {
+          payment_method: "razorpay",
+          payment_currency: String(razorpayOrder.currency || "INR").toUpperCase(),
+          payment_reference: razorpayOrder.id,
         },
       });
 
