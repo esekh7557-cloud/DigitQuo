@@ -1701,7 +1701,7 @@ function getOrderPaymentMethodLabel(order) {
     return getCryptoCurrencyDisplayLabel(order?.crypto_currency || "btc");
   }
 
-  return "INR with Razorpay";
+  return "INR";
 }
 
 function createImageFallbackDataUrl(label) {
@@ -3745,7 +3745,7 @@ function ensurePaymentMethodModal() {
       <div class="field-block">
         <label for="paymentMethodModalSelect">Payment Method</label>
         <select id="paymentMethodModalSelect">
-          <option value="inr">INR with Razorpay</option>
+          <option value="inr">INR</option>
           <option value="crypto">Cryptocurrency</option>
         </select>
       </div>
@@ -4493,7 +4493,7 @@ async function renderPlanRequirementsPage(user) {
 
       if (paymentMethodLabel) {
         paymentMethodLabel.textContent =
-          paymentMethod === "crypto" ? getCryptoCurrencyDisplayLabel(cryptoCurrency) : "INR with Razorpay";
+          paymentMethod === "crypto" ? getCryptoCurrencyDisplayLabel(cryptoCurrency) : "INR";
       }
 
       if (submitButton instanceof HTMLButtonElement) {

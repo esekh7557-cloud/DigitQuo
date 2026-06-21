@@ -1845,15 +1845,6 @@ async function handleCreateCryptoOrder(req, res) {
         },
       });
 
-      await supabaseFetch(`/rest/v1/orders?id=eq.${encodeURIComponent(createdOrder.id)}`, {
-        method: "PATCH",
-        body: {
-          payment_reference: razorpayOrder.id,
-          payment_method: "inr",
-          payment_currency: String(razorpayOrder.currency || "INR").toUpperCase(),
-        },
-      });
-
       json(res, 201, {
         siteOrderId: createdOrder.id,
         projectId: createdProject.id,
