@@ -3874,6 +3874,7 @@ function ensureCryptoPaymentModal() {
       </div>
       <p class="crypto-payment-status" id="cryptoPaymentStatus">Waiting for payment detection.</p>
       <div class="plan-form-actions">
+        <button class="btn btn-secondary" type="button" id="cryptoExitPaymentBtn">Exit</button>
         <button class="btn btn-secondary" type="button" id="cryptoCopyAddressBtn">Copy Address</button>
         <a class="btn btn-primary" href="#" id="cryptoOpenWalletBtn" target="_blank" rel="noopener noreferrer">Open Wallet</a>
       </div>
@@ -3946,9 +3947,11 @@ async function openCryptoPaymentModal(checkoutData) {
   const amount = document.getElementById("cryptoPaymentAmount");
   const address = document.getElementById("cryptoPaymentAddress");
   const status = document.getElementById("cryptoPaymentStatus");
+  const exitButton = document.getElementById("cryptoExitPaymentBtn");
   const copyButton = document.getElementById("cryptoCopyAddressBtn");
   const walletLink = document.getElementById("cryptoOpenWalletBtn");
   const crypto = checkoutData?.crypto || {};
+  let userExited = false;
 
   if (title) {
     title.textContent = `Pay with ${crypto.label || String(crypto.currency || "").toUpperCase()}`;
@@ -3996,10 +3999,28 @@ async function openCryptoPaymentModal(checkoutData) {
     }
   };
 
+  if (exitButton instanceof HTMLButtonElement) {
+    exitButton.onclick = () => {
+      const shouldExit = window.confirm(
+        "Exit crypto payment? You can check the payment status later from your orders if you already sent the funds."
+      );
+      if (!shouldExit) {
+        return;
+      }
+
+      userExited = true;
+      modal.setAttribute("hidden", "");
+    };
+  }
+
   modal.removeAttribute("hidden");
 
   const startedAt = Date.now();
   while (Date.now() - startedAt < 15 * 60 * 1000) {
+    if (userExited) {
+      throw new Error("Crypto payment window closed. You can complete the payment later from your order details.");
+    }
+
     await new Promise((resolve) => window.setTimeout(resolve, 8000));
     const response = await getCryptoPaymentStatus(checkoutData.siteOrderId);
     const order = response?.order || {};
