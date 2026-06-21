@@ -4184,7 +4184,13 @@ async function renderPlanRequirementsPage(user) {
     return;
   }
 
-  if (!user) {
+  let authenticatedUser = user;
+
+  if (!authenticatedUser) {
+    authenticatedUser = await resolveAuthenticatedUiUser();
+  }
+
+  if (!authenticatedUser) {
     const currentRequirementsPath = `${window.location.pathname.split("/").pop() || "plan-requirements.html"}${window.location.search}`;
     const loginRedirectTarget = requirementsPage || currentRequirementsPath || "pricing.html";
     window.location.href = `login.html?redirect=${encodeURIComponent(loginRedirectTarget)}`;
@@ -4192,6 +4198,7 @@ async function renderPlanRequirementsPage(user) {
   }
 
   saveSelectedPlan(planKey);
+  currentUiUser = authenticatedUser;
   const planContext = getPlanContext(planKey, plan);
   const appliedCoupon = getStoredPlanCoupon(planKey);
   const selectedAddOns = getPlanAddOnsByIds(plan, getStoredPlanAddOnIds(planKey));
@@ -4753,6 +4760,16 @@ function mergeUserAndProfile(user, profile) {
   };
 }
 
+async function resolveAuthenticatedUiUser() {
+  if (!dqAuth || !dqAuth.isConfigured()) {
+    return null;
+  }
+
+  const rawUser = await dqAuth.getCurrentUser();
+  const profile = typeof dqAuth.getCurrentProfile === "function" ? await dqAuth.getCurrentProfile() : null;
+  return mergeUserAndProfile(rawUser, profile);
+}
+
 async function initAuthUi() {
   if (!dqAuth || !dqAuth.isConfigured()) {
     currentUiUser = null;
@@ -4769,9 +4786,7 @@ async function initAuthUi() {
   }
 
   try {
-    const rawUser = await dqAuth.getCurrentUser();
-    const profile = typeof dqAuth.getCurrentProfile === "function" ? await dqAuth.getCurrentProfile() : null;
-    const user = mergeUserAndProfile(rawUser, profile);
+    const user = await resolveAuthenticatedUiUser();
     if (!user) {
       currentUiUser = null;
       bindPortfolioQuoteTrigger(null);
