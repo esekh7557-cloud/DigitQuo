@@ -1,11 +1,8 @@
 /* ========== ADMIN SCRIPT - Role-Based Access Control ========== */
 
 const dqAuth = window.dqAuth;
-const currencyFormatter = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0,
-});
+const DISPLAY_CURRENCY_STORAGE_KEY = "dq_display_currency";
+let adminDisplayCurrencyRates = {};
 
 let supabaseClient = null;
 let currentUser = null;
@@ -19,6 +16,96 @@ let notificationsPollingId = null;
 const MOBILE_ADMIN_BREAKPOINT = 1024;
 const ADMIN_THEME_STORAGE_KEY = "dq_admin_theme";
 const ADMIN_SEEN_ORDER_IDS_STORAGE_KEY = "dq_admin_seen_order_ids";
+
+function formatInr(value) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
+function formatUsd(value) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
+function readDisplayCurrencyPreference() {
+  try {
+    const raw = window.localStorage.getItem(DISPLAY_CURRENCY_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed?.currency === "usd" ? "usd" : "inr";
+  } catch {
+    return "inr";
+  }
+}
+
+function writeDisplayCurrencyPreference(currency) {
+  window.localStorage.setItem(
+    DISPLAY_CURRENCY_STORAGE_KEY,
+    JSON.stringify({
+      currency: currency === "usd" ? "usd" : "inr",
+    })
+  );
+}
+
+async function ensureAdminDisplayCurrencyRates() {
+  if (readDisplayCurrencyPreference() !== "usd") {
+    return;
+  }
+
+  if (Number(adminDisplayCurrencyRates.usd) > 0) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/payments/display/rates", {
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Could not load display currency rates.");
+    }
+
+    const payload = await response.json();
+    adminDisplayCurrencyRates = payload?.rates || {};
+  } catch (error) {
+    adminDisplayCurrencyRates = {};
+    console.error("Could not load admin display currency rates:", error);
+  }
+}
+
+function formatCurrency(value) {
+  const numericValue = Number(value || 0);
+  if (!Number.isFinite(numericValue)) {
+    return formatInr(0);
+  }
+
+  if (readDisplayCurrencyPreference() !== "usd") {
+    return formatInr(numericValue);
+  }
+
+  const usdRate = Number(adminDisplayCurrencyRates.usd);
+  if (!Number.isFinite(usdRate) || usdRate <= 0) {
+    return formatInr(numericValue);
+  }
+
+  return formatUsd(numericValue * usdRate);
+}
+
+function syncAdminDisplayCurrencyControl() {
+  const select = document.getElementById("adminDisplayCurrency");
+  if (select instanceof HTMLSelectElement) {
+    select.value = readDisplayCurrencyPreference();
+  }
+}
 
 function getPaymentStatusLabel(paymentStatus) {
   return String(paymentStatus || "").trim() === "paid" ? "Paid" : "Unpaid";
@@ -206,10 +293,6 @@ function escapeHtml(value) {
   });
 }
 
-function formatCurrency(value) {
-  return currencyFormatter.format(Number(value || 0));
-}
-
 function getCouponDiscountType(coupon) {
   return String(coupon?.discount_type || "").trim().toLowerCase() === "fixed" ? "fixed" : "percentage";
 }
@@ -379,6 +462,31 @@ function markAllNotificationsRead() {
   writeSeenOrderIds(allOrders.map((order) => order.id));
   unreadOrderNotifications = [];
   renderOrderNotifications();
+}
+
+function rerenderAdminDisplayCurrencyViews() {
+  const totalRevenue = allOrders.reduce((sum, order) => {
+    if (!isRevenueOrder(order)) {
+      return sum;
+    }
+
+    return sum + Number(order.final_amount || 0);
+  }, 0);
+
+  const totalRevenueNode = document.getElementById("totalRevenue");
+  if (totalRevenueNode) {
+    totalRevenueNode.textContent = formatCurrency(totalRevenue);
+  }
+
+  renderRevenueChart(allOrders);
+  const recentOrders = document.getElementById("recentOrders");
+  if (recentOrders) {
+    recentOrders.innerHTML = buildRecentOrdersMarkup(allOrders.slice(0, 5)) || '<p class="empty-state">No recent orders</p>';
+  }
+
+  displayProjects(allProjects);
+  displayCoupons(allCoupons);
+  displayOrders(allOrders);
 }
 
 function refreshProjectOwnerOptions() {
@@ -659,9 +767,10 @@ async function initializeAdmin() {
   document.getElementById("userEmail").textContent = profile.email || "";
   document.getElementById("userAvatar").src = profile.profile_photo || buildAvatarFallback(profile.full_name || "Admin");
   applyAdminTheme(getStoredAdminTheme());
+  syncAdminDisplayCurrencyControl();
 
   setupEventListeners();
-
+  await ensureAdminDisplayCurrencyRates();
   await Promise.all([loadDashboardData(), loadUsers(), loadProjects(), loadCoupons(), loadOrders()]);
   refreshProjectOwnerOptions();
   startNotificationsPolling();
@@ -723,6 +832,15 @@ function setupEventListeners() {
   document.getElementById("themeToggle").addEventListener("click", () => {
     applyAdminTheme(document.body.dataset.theme === "dark" ? "light" : "dark");
   });
+  const currencySelect = document.getElementById("adminDisplayCurrency");
+  if (currencySelect instanceof HTMLSelectElement) {
+    syncAdminDisplayCurrencyControl();
+    currencySelect.addEventListener("change", async () => {
+      writeDisplayCurrencyPreference(currencySelect.value);
+      await ensureAdminDisplayCurrencyRates();
+      rerenderAdminDisplayCurrencyViews();
+    });
+  }
 
   setupModalControls();
 

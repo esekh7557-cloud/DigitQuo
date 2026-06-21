@@ -1681,6 +1681,29 @@ function getPaymentStatusClass(paymentStatus) {
     : "payment-status unpaid";
 }
 
+function getCryptoCurrencyDisplayLabel(currency) {
+  const labels = {
+    btc: "Bitcoin (BTC)",
+    ltc: "Litecoin (LTC)",
+    eth: "Ethereum (ETH)",
+    bch: "Bitcoin Cash (BCH)",
+    bnb: "BNB Smart Chain (BNB)",
+    doge: "Dogecoin (DOGE)",
+    tbtc: "Bitcoin Testnet (TBTC)",
+  };
+
+  return labels[String(currency || "").trim().toLowerCase()] || String(currency || "").toUpperCase();
+}
+
+function getOrderPaymentMethodLabel(order) {
+  const method = String(order?.payment_method || "inr").trim().toLowerCase();
+  if (method === "crypto") {
+    return getCryptoCurrencyDisplayLabel(order?.crypto_currency || "btc");
+  }
+
+  return "INR with Razorpay";
+}
+
 function createImageFallbackDataUrl(label) {
   const safeLabel = String(label || "DigitQuo")
     .replace(/\s+/g, " ")
@@ -2895,6 +2918,10 @@ async function renderOrdersPage(user) {
                         <span>Payment</span>
                         <strong>${escapeHtml(getPaymentStatusLabel(order.payment_status))}</strong>
                       </div>
+                      <div class="order-card-item">
+                        <span>Payment Method</span>
+                        <strong>${escapeHtml(getOrderPaymentMethodLabel(order))}</strong>
+                      </div>
                     </div>
                   </article>
                 `;
@@ -3701,6 +3728,114 @@ function showPlanSuccessModal(options = {}) {
   }, 5000);
 }
 
+function ensurePaymentMethodModal() {
+  let modal = document.getElementById("paymentMethodModal");
+  if (modal) {
+    return modal;
+  }
+
+  modal = document.createElement("div");
+  modal.className = "plan-success-modal";
+  modal.id = "paymentMethodModal";
+  modal.setAttribute("hidden", "");
+  modal.innerHTML = `
+    <div class="plan-success-dialog crypto-payment-dialog">
+      <h3 id="paymentMethodModalTitle">Choose Payment Method</h3>
+      <p id="paymentMethodModalSummary">Select how you want to complete this payment.</p>
+      <div class="field-block">
+        <label for="paymentMethodModalSelect">Payment Method</label>
+        <select id="paymentMethodModalSelect">
+          <option value="inr">INR with Razorpay</option>
+          <option value="crypto">Cryptocurrency</option>
+        </select>
+      </div>
+      <div class="field-block" id="paymentMethodModalCryptoField" hidden>
+        <label for="paymentMethodModalCryptoCurrency">Select Cryptocurrency</label>
+        <select id="paymentMethodModalCryptoCurrency">
+          <option value="btc">Bitcoin (BTC)</option>
+          <option value="ltc">Litecoin (LTC)</option>
+          <option value="eth">Ethereum (ETH)</option>
+          <option value="bch">Bitcoin Cash (BCH)</option>
+          <option value="bnb">BNB Smart Chain (BNB)</option>
+          <option value="doge">Dogecoin (DOGE)</option>
+          <option value="tbtc">Bitcoin Testnet (TBTC)</option>
+        </select>
+        <p class="plan-form-option-note">A unique wallet address will be generated after you continue.</p>
+      </div>
+      <div class="plan-form-actions">
+        <button class="btn btn-secondary" type="button" id="paymentMethodModalCancelBtn">Cancel</button>
+        <button class="btn btn-primary" type="button" id="paymentMethodModalContinueBtn">Continue</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  return modal;
+}
+
+async function openPaymentMethodSelectionModal(planName) {
+  const modal = ensurePaymentMethodModal();
+  const title = document.getElementById("paymentMethodModalTitle");
+  const summary = document.getElementById("paymentMethodModalSummary");
+  const paymentMethodSelect = document.getElementById("paymentMethodModalSelect");
+  const cryptoField = document.getElementById("paymentMethodModalCryptoField");
+  const cryptoCurrencySelect = document.getElementById("paymentMethodModalCryptoCurrency");
+  const cancelButton = document.getElementById("paymentMethodModalCancelBtn");
+  const continueButton = document.getElementById("paymentMethodModalContinueBtn");
+
+  if (!(paymentMethodSelect instanceof HTMLSelectElement) || !(cryptoCurrencySelect instanceof HTMLSelectElement)) {
+    throw new Error("Payment method selection is unavailable.");
+  }
+
+  if (title) {
+    title.textContent = `Choose how to pay for ${planName || "this plan"}`;
+  }
+  if (summary) {
+    summary.textContent = "Select INR to pay with Razorpay, or choose crypto to get the right wallet payment instructions.";
+  }
+
+  paymentMethodSelect.value = "inr";
+  cryptoCurrencySelect.value = "btc";
+  if (cryptoField) {
+    cryptoField.hidden = true;
+  }
+
+  const syncUi = () => {
+    if (cryptoField) {
+      cryptoField.hidden = paymentMethodSelect.value !== "crypto";
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const finish = (callback) => () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      paymentMethodSelect.removeEventListener("change", syncUi);
+      cancelButton?.removeEventListener("click", onCancel);
+      continueButton?.removeEventListener("click", onContinue);
+      modal.setAttribute("hidden", "");
+      callback();
+    };
+
+    const onCancel = finish(() => reject(new Error("Payment was cancelled.")));
+    const onContinue = finish(() =>
+      resolve({
+        paymentMethod: paymentMethodSelect.value === "crypto" ? "crypto" : "inr",
+        cryptoCurrency: cryptoCurrencySelect.value || "btc",
+      })
+    );
+
+    paymentMethodSelect.addEventListener("change", syncUi);
+    cancelButton?.addEventListener("click", onCancel);
+    continueButton?.addEventListener("click", onContinue);
+    syncUi();
+    modal.removeAttribute("hidden");
+  });
+}
+
 function ensureCryptoPaymentModal() {
   let modal = document.getElementById("cryptoPaymentModal");
   if (modal) {
@@ -3715,7 +3850,7 @@ function ensureCryptoPaymentModal() {
     <div class="plan-success-dialog crypto-payment-dialog">
       <h3 id="cryptoPaymentTitle">Complete Your Crypto Payment</h3>
       <p id="cryptoPaymentSummary">Send the exact amount to the address below.</p>
-      <img id="cryptoPaymentQr" alt="Crypto payment QR code" hidden />
+      <img id="cryptoPaymentQr" alt="Crypto payment summary card" hidden />
       <div class="crypto-payment-grid">
         <div>
           <span class="crypto-payment-label">Currency</span>
@@ -3739,6 +3874,51 @@ function ensureCryptoPaymentModal() {
   `;
   document.body.appendChild(modal);
   return modal;
+}
+
+function buildCryptoPaymentSvgDataUrl(crypto = {}) {
+  const currency = String(crypto.currency || "").toUpperCase();
+  const label = String(crypto.label || currency || "CRYPTO");
+  const amount = String(crypto.amount || "-");
+  const address = String(crypto.address || "-");
+  const addressLines = [];
+
+  for (let index = 0; index < address.length; index += 26) {
+    addressLines.push(address.slice(index, index + 26));
+  }
+
+  const escapedLines = addressLines
+    .slice(0, 3)
+    .map(
+      (line, lineIndex) =>
+        `<text x="24" y="${150 + lineIndex * 22}" font-size="16" fill="#d7e3ff" font-family="monospace">${escapeHtml(
+          line
+        )}</text>`
+    )
+    .join("");
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420">
+      <defs>
+        <linearGradient id="cryptoCardBg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#0d2f6f"/>
+          <stop offset="100%" stop-color="#091833"/>
+        </linearGradient>
+      </defs>
+      <rect width="720" height="420" rx="28" fill="url(#cryptoCardBg)"/>
+      <text x="24" y="54" font-size="18" fill="#98b6ff" font-family="Arial, sans-serif">DigitQuo Crypto Payment</text>
+      <text x="24" y="106" font-size="34" font-weight="700" fill="#ffffff" font-family="Arial, sans-serif">${escapeHtml(
+        label
+      )} (${escapeHtml(currency)})</text>
+      <text x="24" y="138" font-size="22" fill="#ffffff" font-family="Arial, sans-serif">${escapeHtml(
+        amount
+      )} ${escapeHtml(currency)}</text>
+      <text x="24" y="186" font-size="16" fill="#98b6ff" font-family="Arial, sans-serif">Payment address</text>
+      ${escapedLines}
+    </svg>
+  `;
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 async function openCryptoPaymentModal(checkoutData) {
@@ -3776,8 +3956,8 @@ async function openCryptoPaymentModal(checkoutData) {
     walletLink.href = crypto.paymentUri || "#";
   }
   if (qr) {
-    if (crypto.qrCodeUrl) {
-      qr.src = crypto.qrCodeUrl;
+    if (crypto.address) {
+      qr.src = buildCryptoPaymentSvgDataUrl(crypto);
       qr.hidden = false;
     } else {
       qr.hidden = true;
@@ -3906,28 +4086,6 @@ async function renderPlanRequirementsPage(user) {
               <span>Fast delivery (+10%)</span>
             </label>
             <p class="plan-form-option-note" id="planFastDeliveryTimingNote" hidden aria-live="polite"></p>
-          </div>
-
-          <div class="field-block">
-            <label for="planPaymentMethod">Payment Method</label>
-            <select id="planPaymentMethod" name="paymentMethod" required>
-              <option value="inr">INR</option>
-              <option value="crypto">Crypto</option>
-            </select>
-          </div>
-
-          <div class="field-block" id="planCryptoCurrencyField" hidden>
-            <label for="planCryptoCurrency">Select Cryptocurrency</label>
-            <select id="planCryptoCurrency" name="cryptoCurrency">
-              <option value="btc">Bitcoin (BTC)</option>
-              <option value="ltc">Litecoin (LTC)</option>
-              <option value="doge">Dogecoin (DOGE)</option>
-              <option value="bch">Bitcoin Cash (BCH)</option>
-              <option value="trx">Tron (TRX)</option>
-              <option value="eth">Ethereum (ETH)</option>
-              <option value="bnb">BNB Smart Chain (BNB)</option>
-            </select>
-            <p class="plan-form-option-note">A unique payment address will be generated after you submit this form.</p>
           </div>
 
           ${
@@ -4234,30 +4392,12 @@ async function renderPlanRequirementsPage(user) {
 
   const form = document.getElementById("planRequirementsForm");
   const fastDeliveryInput = document.getElementById("planFastDelivery");
-  const paymentMethodInput = document.getElementById("planPaymentMethod");
-  const cryptoCurrencyField = document.getElementById("planCryptoCurrencyField");
-  const cryptoCurrencyInput = document.getElementById("planCryptoCurrency");
   const paymentMethodLabel = document.getElementById("planRequirementPaymentMethodLabel");
   fastDeliveryInput?.addEventListener("change", () => {
     syncPlanCouponUi(planKey).catch((error) => {
       console.error("Could not sync plan coupon UI:", error);
     });
   });
-
-  const syncPaymentMethodUi = () => {
-    const paymentMethod = String(paymentMethodInput?.value || "inr").trim().toLowerCase();
-    const cryptoCurrency = String(cryptoCurrencyInput?.value || "btc").trim().toUpperCase();
-    if (cryptoCurrencyField) {
-      cryptoCurrencyField.hidden = paymentMethod !== "crypto";
-    }
-    if (paymentMethodLabel) {
-      paymentMethodLabel.textContent = paymentMethod === "crypto" ? cryptoCurrency : "INR";
-    }
-  };
-
-  paymentMethodInput?.addEventListener("change", syncPaymentMethodUi);
-  cryptoCurrencyInput?.addEventListener("change", syncPaymentMethodUi);
-  syncPaymentMethodUi();
   bindDisplayCurrencyControls();
 
   form?.addEventListener("submit", async (event) => {
@@ -4281,9 +4421,6 @@ async function renderPlanRequirementsPage(user) {
     const customerPhone = String(formData.get("customerPhone") || "").trim();
     const projectName = String(formData.get("projectName") || "").trim();
     const fastDelivery = String(formData.get("fastDelivery") || "").trim() === "yes";
-    const paymentMethod = String(formData.get("paymentMethod") || "inr").trim().toLowerCase();
-    const cryptoCurrency = String(formData.get("cryptoCurrency") || "btc").trim().toLowerCase();
-
     const requirements = {
       delivery: {
         fastDelivery,
@@ -4350,6 +4487,15 @@ async function renderPlanRequirementsPage(user) {
     const submitButton = form.querySelector('button[type="submit"]');
 
     try {
+      const paymentSelection = await openPaymentMethodSelectionModal(plan.name);
+      const paymentMethod = String(paymentSelection?.paymentMethod || "inr").trim().toLowerCase();
+      const cryptoCurrency = String(paymentSelection?.cryptoCurrency || "btc").trim().toLowerCase();
+
+      if (paymentMethodLabel) {
+        paymentMethodLabel.textContent =
+          paymentMethod === "crypto" ? getCryptoCurrencyDisplayLabel(cryptoCurrency) : "INR with Razorpay";
+      }
+
       if (submitButton instanceof HTMLButtonElement) {
         submitButton.disabled = true;
         submitButton.textContent = paymentMethod === "crypto" ? "Creating Crypto Payment..." : "Opening Payment...";

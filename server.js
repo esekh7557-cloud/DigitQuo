@@ -49,6 +49,7 @@ const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "";
 const APP_BASE_URL = process.env.APP_BASE_URL || "";
 const APIRONE_API_BASE = "https://apirone.com/api/v2";
 const FRANKFURTER_API_BASE = "https://api.frankfurter.dev/v2";
+const APIRONE_WEBHOOK_SECRET = process.env.APIRONE_WEBHOOK_SECRET || "";
 const APIRONE_BTC_WALLET_ID = process.env.APIRONE_BTC_WALLET_ID || "";
 const APIRONE_LTC_WALLET_ID = process.env.APIRONE_LTC_WALLET_ID || "";
 const APIRONE_DOGE_WALLET_ID = process.env.APIRONE_DOGE_WALLET_ID || "";
@@ -499,6 +500,10 @@ function hasAppBaseUrl() {
   return Boolean(APP_BASE_URL);
 }
 
+function hasApironeWebhookSecret() {
+  return Boolean(APIRONE_WEBHOOK_SECRET);
+}
+
 function getCryptoWalletId(currency) {
   switch (String(currency || "").trim().toLowerCase()) {
     case "btc":
@@ -883,6 +888,31 @@ async function findCouponByCode(couponCode) {
   return Array.isArray(coupons) ? coupons[0] || null : null;
 }
 
+async function incrementCouponUsageIfNeeded(couponId) {
+  if (!couponId) {
+    return;
+  }
+
+  try {
+    const coupons = await supabaseFetch(
+      `/rest/v1/coupons?select=id,current_uses&id=eq.${encodeURIComponent(couponId)}&limit=1`
+    );
+    const coupon = Array.isArray(coupons) ? coupons[0] : null;
+    if (!coupon?.id) {
+      return;
+    }
+
+    await supabaseFetch(`/rest/v1/coupons?id=eq.${encodeURIComponent(coupon.id)}`, {
+      method: "PATCH",
+      body: {
+        current_uses: Number(coupon.current_uses || 0) + 1,
+      },
+    });
+  } catch (couponUsageError) {
+    console.error("Could not update coupon usage:", couponUsageError);
+  }
+}
+
 async function razorpayFetch(pathname, options = {}) {
   if (!hasRazorpayConfig()) {
     throw new Error("Razorpay is not configured on the server.");
@@ -1001,6 +1031,32 @@ function verifyRazorpaySignature(orderId, paymentId, signature) {
     .digest("hex");
 
   return expectedSignature === signature;
+}
+
+function createCryptoWebhookSignature(orderId, projectId, currency, nonce) {
+  return crypto
+    .createHmac("sha256", APIRONE_WEBHOOK_SECRET)
+    .update(`${orderId}|${projectId}|${currency}|${nonce}`)
+    .digest("hex");
+}
+
+function verifyCryptoWebhookPayload(data = {}) {
+  if (!hasApironeWebhookSecret()) {
+    return false;
+  }
+
+  const orderId = String(data.order_id || "").trim();
+  const projectId = String(data.project_id || "").trim();
+  const currency = String(data.currency || "").trim().toLowerCase();
+  const nonce = String(data.nonce || "").trim();
+  const signature = String(data.signature || "").trim().toLowerCase();
+
+  if (!orderId || !projectId || !currency || !nonce || !signature) {
+    return false;
+  }
+
+  const expected = createCryptoWebhookSignature(orderId, projectId, currency, nonce);
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
 }
 
 function buildApironeCallbackUrl() {
@@ -1493,7 +1549,7 @@ async function handleVerifyRazorpayPayment(req, res) {
 
   try {
     const orders = await supabaseFetch(
-      `/rest/v1/orders?select=id,user_id,project_id,coupon_id,payment_status,status,final_amount&id=eq.${encodeURIComponent(siteOrderId)}&user_id=eq.${encodeURIComponent(authContext.user.id)}&limit=1`
+      `/rest/v1/orders?select=id,user_id,project_id,coupon_id,payment_status,status,final_amount,payment_reference,payment_currency&id=eq.${encodeURIComponent(siteOrderId)}&user_id=eq.${encodeURIComponent(authContext.user.id)}&limit=1`
     );
     const order = Array.isArray(orders) ? orders[0] : null;
 
@@ -1510,6 +1566,11 @@ async function handleVerifyRazorpayPayment(req, res) {
       return;
     }
 
+    if (String(order.payment_reference || "").trim() !== razorpayOrderId) {
+      json(res, 400, { error: "Payment order reference mismatch." });
+      return;
+    }
+
     const payment = await razorpayFetch(`/v1/payments/${encodeURIComponent(razorpayPaymentId)}`);
     if (
       !payment ||
@@ -1517,6 +1578,21 @@ async function handleVerifyRazorpayPayment(req, res) {
       !["authorized", "captured"].includes(String(payment.status || "").toLowerCase())
     ) {
       json(res, 400, { error: "Razorpay payment could not be confirmed." });
+      return;
+    }
+
+    const expectedAmountMinor = Math.round(Number(order.final_amount || 0) * 100);
+    const paymentAmountMinor = Number(payment.amount || 0);
+    const paymentCurrency = String(payment.currency || order.payment_currency || "INR").toUpperCase();
+    const expectedCurrency = String(order.payment_currency || "INR").toUpperCase();
+
+    if (
+      !Number.isFinite(expectedAmountMinor) ||
+      expectedAmountMinor <= 0 ||
+      paymentAmountMinor !== expectedAmountMinor ||
+      paymentCurrency !== expectedCurrency
+    ) {
+      json(res, 400, { error: "Payment amount or currency mismatch." });
       return;
     }
 
@@ -1534,24 +1610,7 @@ async function handleVerifyRazorpayPayment(req, res) {
 
     const updatedOrder = Array.isArray(updatedOrders) ? updatedOrders[0] : null;
 
-    if (order.coupon_id) {
-      try {
-        const coupons = await supabaseFetch(
-          `/rest/v1/coupons?select=id,current_uses&id=eq.${encodeURIComponent(order.coupon_id)}&limit=1`
-        );
-        const coupon = Array.isArray(coupons) ? coupons[0] : null;
-        if (coupon?.id) {
-          await supabaseFetch(`/rest/v1/coupons?id=eq.${encodeURIComponent(coupon.id)}`, {
-            method: "PATCH",
-            body: {
-              current_uses: Number(coupon.current_uses || 0) + 1,
-            },
-          });
-        }
-      } catch (couponUsageError) {
-        console.error("Could not update coupon usage:", couponUsageError);
-      }
-    }
+    await incrementCouponUsageIfNeeded(order.coupon_id);
 
     if (order.project_id) {
       await supabaseFetch(`/rest/v1/projects?id=eq.${encodeURIComponent(order.project_id)}`, {
@@ -1602,6 +1661,13 @@ async function handleCreateCryptoOrder(req, res) {
   if (!hasAppBaseUrl()) {
     json(res, 500, {
       error: "Crypto payments are not configured on the server. Add APP_BASE_URL and Apirone wallet IDs.",
+    });
+    return;
+  }
+
+  if (!hasApironeWebhookSecret()) {
+    json(res, 500, {
+      error: "Crypto payments are not configured on the server. Add APIRONE_WEBHOOK_SECRET.",
     });
     return;
   }
@@ -1742,6 +1808,8 @@ async function handleCreateCryptoOrder(req, res) {
       const quote = await getCryptoQuoteInInr(currency, pricing.finalAmount);
       const paymentUriScheme = getCryptoUriScheme(currency);
       const callbackUrl = buildApironeCallbackUrl();
+      const webhookNonce = crypto.randomBytes(16).toString("hex");
+      const webhookSignature = createCryptoWebhookSignature(createdOrder.id, createdProject.id, currency, webhookNonce);
       const addressResult = await apironeFetch(`/wallets/${encodeURIComponent(walletId)}/addresses`, {
         method: "POST",
         body: {
@@ -1752,6 +1820,8 @@ async function handleCreateCryptoOrder(req, res) {
               order_id: createdOrder.id,
               project_id: createdProject.id,
               currency,
+              nonce: webhookNonce,
+              signature: webhookSignature,
             },
           },
         },
@@ -1772,6 +1842,15 @@ async function handleCreateCryptoOrder(req, res) {
           crypto_amount_expected: quote.cryptoAmountMinor,
           crypto_payment_uri: paymentUri,
           payment_reference: addressResult?.wallet || walletId,
+        },
+      });
+
+      await supabaseFetch(`/rest/v1/orders?id=eq.${encodeURIComponent(createdOrder.id)}`, {
+        method: "PATCH",
+        body: {
+          payment_reference: razorpayOrder.id,
+          payment_method: "inr",
+          payment_currency: String(razorpayOrder.currency || "INR").toUpperCase(),
         },
       });
 
@@ -1806,7 +1885,6 @@ async function handleCreateCryptoOrder(req, res) {
           exchangeRateInr: quote.inrPerCoin,
           paymentUri,
           confirmationsRequired: getCryptoConfirmationRequirement(currency),
-          qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(paymentUri)}`,
         },
       });
     } catch (apironeError) {
@@ -1916,7 +1994,8 @@ async function handleCryptoWebhook(req, res) {
   const confirmations = Number(body.confirmations ?? body.confirmation ?? 0);
   const amountMinor = String(body.value || "0").trim();
   const inputTransactionHash = String(body.input_transaction_hash || "").trim();
-  const orderIdFromCallback = String(body?.data?.order_id || "").trim();
+  const callbackData = body?.data && typeof body.data === "object" ? body.data : {};
+  const orderIdFromCallback = String(callbackData.order_id || "").trim();
 
   if (!address || !currency || !orderIdFromCallback) {
     res.writeHead(400, {
@@ -1924,6 +2003,15 @@ async function handleCryptoWebhook(req, res) {
       "Content-Type": "text/plain; charset=utf-8",
     });
     res.end("invalid");
+    return;
+  }
+
+  if (!verifyCryptoWebhookPayload(callbackData)) {
+    res.writeHead(401, {
+      ...getSecurityHeaders(),
+      "Content-Type": "text/plain; charset=utf-8",
+    });
+    res.end("unauthorized");
     return;
   }
 
@@ -1950,7 +2038,8 @@ async function handleCryptoWebhook(req, res) {
     const confirmationTarget = Number(order.crypto_confirmation_target || getCryptoConfirmationRequirement(currency));
     const isPaidEnough = receivedMinor >= expectedMinor && expectedMinor > 0n;
     const isConfirmed = isPaidEnough && confirmations >= confirmationTarget;
-    const nextPaymentStatus = isConfirmed ? "paid" : order.payment_status || "unpaid";
+    const wasAlreadyPaid = String(order.payment_status || "").trim().toLowerCase() === "paid";
+    const nextPaymentStatus = isConfirmed || wasAlreadyPaid ? "paid" : order.payment_status || "unpaid";
     const nextOrderStatus = isConfirmed ? "pending" : receivedMinor > 0n ? "ongoing" : order.status || "pending";
 
     await supabaseFetch(`/rest/v1/orders?id=eq.${encodeURIComponent(order.id)}`, {
@@ -1972,23 +2061,8 @@ async function handleCryptoWebhook(req, res) {
         },
       });
 
-      if (order.coupon_id) {
-        try {
-          const coupons = await supabaseFetch(
-            `/rest/v1/coupons?select=id,current_uses&id=eq.${encodeURIComponent(order.coupon_id)}&limit=1`
-          );
-          const coupon = Array.isArray(coupons) ? coupons[0] : null;
-          if (coupon?.id) {
-            await supabaseFetch(`/rest/v1/coupons?id=eq.${encodeURIComponent(coupon.id)}`, {
-              method: "PATCH",
-              body: {
-                current_uses: Number(coupon.current_uses || 0) + 1,
-              },
-            });
-          }
-        } catch (couponUsageError) {
-          console.error("Could not update coupon usage after crypto payment:", couponUsageError);
-        }
+      if (!wasAlreadyPaid) {
+        await incrementCouponUsageIfNeeded(order.coupon_id);
       }
     }
 
