@@ -833,6 +833,25 @@ function bindDisplayCurrencyControls() {
 }
 
 async function rerenderDisplayCurrencyViews() {
+  const requirementsForm = document.getElementById("planRequirementsForm");
+  if (planRequirementsRoot && requirementsForm) {
+    const params = new URLSearchParams(window.location.search);
+    const planKey =
+      planRequirementsRoot.dataset.planKey ||
+      params.get("plan") ||
+      readSelectedPlan();
+
+    document.querySelectorAll("[data-display-currency]").forEach((select) => {
+      if (select instanceof HTMLSelectElement) {
+        select.value = readDisplayCurrencyPreference().currency;
+      }
+    });
+
+    await syncPlanCouponUi(planKey);
+    await renderStaticDisplayMoney();
+    return;
+  }
+
   await renderPlanDetailsPage();
   await bindPricingActions();
   await renderPlanRequirementsPage(currentUiUser);
@@ -1540,6 +1559,7 @@ async function syncPlanCouponUi(planKey) {
   const requirementFinalAmount = document.getElementById("planRequirementFinalAmount");
   const requirementCouponNote = document.getElementById("planRequirementCouponNote");
   const requirementFeatureList = document.getElementById("planRequirementFeatureList");
+  const requirementPaymentMethodLabel = document.getElementById("planRequirementPaymentMethodLabel");
   const fastDeliveryTimingNote = document.getElementById("planFastDeliveryTimingNote");
 
   if (couponInput && !couponInput.matches(":focus")) {
@@ -1634,6 +1654,10 @@ async function syncPlanCouponUi(planKey) {
 
   if (requirementFinalAmount) {
     requirementFinalAmount.textContent = await formatPriceInCurrency(displayedPricing.finalAmount, displayedPricing.currencyCode);
+  }
+
+  if (requirementPaymentMethodLabel) {
+    requirementPaymentMethodLabel.textContent = displayedPricing.currencyCode === "usd" ? "USD" : "INR";
   }
 
   if (requirementCouponNote) {

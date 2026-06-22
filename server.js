@@ -607,6 +607,24 @@ function getCryptoUriScheme(currency) {
   }
 }
 
+function buildCryptoPaymentUri(currency, address, amountDecimal, amountMinor) {
+  const normalizedCurrency = String(currency || "").trim().toLowerCase();
+  const safeAddress = String(address || "").trim();
+  const safeDecimalAmount = String(amountDecimal || "").trim();
+  const safeMinorAmount = String(amountMinor || "").trim();
+
+  if (!safeAddress || !safeDecimalAmount || !safeMinorAmount) {
+    throw new Error("Could not build crypto payment instructions.");
+  }
+
+  if (normalizedCurrency === "eth" || normalizedCurrency === "bnb") {
+    const chainId = normalizedCurrency === "bnb" ? 56 : 1;
+    return `ethereum:${safeAddress}@${chainId}?value=${safeMinorAmount}`;
+  }
+
+  return `${getCryptoUriScheme(normalizedCurrency)}:${safeAddress}?amount=${safeDecimalAmount}`;
+}
+
 function getCryptoMinorUnitDecimals(currency) {
   switch (String(currency || "").trim().toLowerCase()) {
     case "btc":
@@ -1974,7 +1992,6 @@ async function handleCreateCryptoOrder(req, res) {
 
     try {
       const quote = await getCryptoQuoteInInr(currency, pricing.finalAmount);
-      const paymentUriScheme = getCryptoUriScheme(currency);
       const callbackUrl = buildApironeCallbackUrl();
       const webhookNonce = crypto.randomBytes(16).toString("hex");
       const webhookSignature = createCryptoWebhookSignature(createdOrder.id, createdProject.id, currency, webhookNonce);
@@ -2000,7 +2017,12 @@ async function handleCreateCryptoOrder(req, res) {
         throw new Error("Apirone did not return a payment address.");
       }
 
-      const paymentUri = `${paymentUriScheme}:${paymentAddress}?amount=${quote.cryptoAmountDecimal}`;
+      const paymentUri = buildCryptoPaymentUri(
+        currency,
+        paymentAddress,
+        quote.cryptoAmountDecimal,
+        quote.cryptoAmountMinor
+      );
 
       await supabaseFetch(`/rest/v1/orders?id=eq.${encodeURIComponent(createdOrder.id)}`, {
         method: "PATCH",
