@@ -701,7 +701,7 @@ function formatUsd(value) {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 6,
   }).format(Number(value || 0));
 }
 
@@ -950,21 +950,21 @@ async function getPlanPricingForDisplayCurrency(plan, coupon, options = {}, requ
     };
   }
 
-  const addOnAmount = Math.round(getPlanAddOnAmount(plan, options.addOnIds) * usdRate * 100) / 100;
-  const fastDeliveryFee = options.fastDelivery ? Math.round(usdPlanAmount * 0.1 * 100) / 100 : 0;
-  const baseAmount = Math.round((usdPlanAmount + addOnAmount + fastDeliveryFee) * 100) / 100;
+  const addOnAmount = getPlanAddOnAmount(plan, options.addOnIds) * usdRate;
+  const fastDeliveryFee = options.fastDelivery ? usdPlanAmount * 0.1 : 0;
+  const baseAmount = usdPlanAmount + addOnAmount + fastDeliveryFee;
   const discountValue = getCouponDiscountValue(coupon);
   let discountAmount =
     getCouponDiscountType(coupon) === "fixed"
-      ? Math.round(discountValue * usdRate * 100) / 100
-      : Math.round(((baseAmount * discountValue) / 100) * 100) / 100;
+      ? discountValue * usdRate
+      : (baseAmount * discountValue) / 100;
 
   if (!Number.isFinite(discountAmount) || discountAmount <= 0) {
     discountAmount = 0;
   }
 
   discountAmount = Math.min(baseAmount, discountAmount);
-  const finalAmount = Math.max(0, Math.round((baseAmount - discountAmount) * 100) / 100);
+  const finalAmount = Math.max(0, baseAmount - discountAmount);
 
   return {
     planAmount: usdPlanAmount,
@@ -1413,7 +1413,7 @@ function calculateCouponDiscount(amount, coupon) {
   }
 
   discountAmount = Math.min(baseAmount, discountAmount);
-  return Math.round(discountAmount * 100) / 100;
+  return discountAmount;
 }
 
 function getPlanDeliveryRange(planKey, options = {}) {
@@ -1470,10 +1470,10 @@ function renderPlanFeatureListMarkup(planKey, options = {}) {
 function getPlanPricingWithCoupon(plan, coupon, options = {}) {
   const planAmount = Number((plan?.subtotal ?? plan?.amount) || 0);
   const addOnAmount = getPlanAddOnAmount(plan, options.addOnIds);
-  const fastDeliveryFee = options.fastDelivery ? Math.round(planAmount * 0.1 * 100) / 100 : 0;
-  const baseAmount = Math.round((planAmount + addOnAmount + fastDeliveryFee) * 100) / 100;
+  const fastDeliveryFee = options.fastDelivery ? planAmount * 0.1 : 0;
+  const baseAmount = planAmount + addOnAmount + fastDeliveryFee;
   const discountAmount = calculateCouponDiscount(baseAmount, coupon);
-  const finalAmount = Math.max(0, Math.round((baseAmount - discountAmount) * 100) / 100);
+  const finalAmount = Math.max(0, baseAmount - discountAmount);
 
   return {
     planAmount,
@@ -1483,6 +1483,22 @@ function getPlanPricingWithCoupon(plan, coupon, options = {}) {
     discountAmount,
     finalAmount,
   };
+}
+
+async function getCouponPricingError(plan, coupon, options = {}) {
+  if (!plan || !coupon) {
+    return "";
+  }
+
+  const inrPricing = getPlanPricingWithCoupon(plan, coupon, options);
+  if (inrPricing.finalAmount <= 0) {
+    return "This coupon would reduce the payable amount to zero. Please use a smaller discount.";
+  }
+
+  const usdPricing = await getPlanPricingForDisplayCurrency(plan, coupon, options, "usd");
+  return usdPricing.currencyCode === "usd" && usdPricing.finalAmount <= 0
+    ? "This coupon would reduce the USD or crypto payable amount to zero. Please use a smaller discount."
+    : "";
 }
 
 async function fetchCouponByCode(code) {
@@ -1693,6 +1709,15 @@ async function revalidateStoredPlanCoupon(planKey, options = {}) {
     const validationError = getCouponValidationError(coupon);
     if (validationError) {
       throw new Error(validationError);
+    }
+
+    const plan = getPlanByKey(planKey);
+    const pricingError = await getCouponPricingError(plan, coupon, {
+      addOnIds: getStoredPlanAddOnIds(planKey),
+      fastDelivery: Boolean(document.getElementById("planFastDelivery")?.checked),
+    });
+    if (pricingError) {
+      throw new Error(pricingError);
     }
 
     setStoredPlanCoupon(planKey, coupon);
@@ -3340,6 +3365,13 @@ async function renderPlanDetailsPage() {
         throw new Error(validationError);
       }
 
+      const pricingError = await getCouponPricingError(plan, coupon, {
+        addOnIds: getStoredPlanAddOnIds(planKey),
+      });
+      if (pricingError) {
+        throw new Error(pricingError);
+      }
+
       setStoredPlanCoupon(planKey, coupon);
       await syncPlanCouponUi(planKey);
       setPlanCouponFeedback(`Coupon ${couponCode} applied successfully.`, "success");
@@ -4140,7 +4172,7 @@ function ensureCryptoPaymentModal() {
       <button class="crypto-payment-close" type="button" id="cryptoExitPaymentBtn" aria-label="Close crypto payment modal">&times;</button>
       <h3 id="cryptoPaymentTitle">Complete Your Crypto Payment</h3>
       <p id="cryptoPaymentSummary">Send the exact amount to the address below.</p>
-      <img id="cryptoPaymentQr" alt="Crypto payment summary card" hidden />
+      <img id="cryptoPaymentQr" alt="Cwallet recipient address QR code" hidden />
       <div class="crypto-payment-grid">
         <div>
           <span class="crypto-payment-label">Currency</span>
@@ -4156,10 +4188,14 @@ function ensureCryptoPaymentModal() {
         <span class="crypto-payment-label">Payment Address</span>
         <code id="cryptoPaymentAddress">-</code>
       </div>
+      <p class="plan-form-option-note" id="cryptoWalletCompatibilityNote">
+        Cwallet scans the address only. Copy the exact amount shown above into Cwallet before sending.
+      </p>
       <p class="crypto-payment-status" id="cryptoPaymentStatus">Waiting for payment detection.</p>
       <div class="plan-form-actions payment-modal-actions">
         <button class="btn btn-secondary" type="button" id="cryptoCopyAddressBtn">Copy Address</button>
-        <a class="btn btn-primary" href="#" id="cryptoOpenWalletBtn" target="_blank" rel="noopener noreferrer">Open Wallet</a>
+        <button class="btn btn-primary" type="button" id="cryptoCopyAmountBtn">Copy Amount</button>
+        <a class="btn btn-secondary" href="#" id="cryptoOpenGenericWalletBtn">Open Compatible Wallet</a>
       </div>
     </div>
   `;
@@ -4233,7 +4269,8 @@ async function openCryptoPaymentModal(checkoutData) {
   const status = document.getElementById("cryptoPaymentStatus");
   const exitButton = document.getElementById("cryptoExitPaymentBtn");
   const copyButton = document.getElementById("cryptoCopyAddressBtn");
-  const walletLink = document.getElementById("cryptoOpenWalletBtn");
+  const copyAmountButton = document.getElementById("cryptoCopyAmountBtn");
+  const genericWalletLink = document.getElementById("cryptoOpenGenericWalletBtn");
   const crypto = checkoutData?.crypto || {};
   const finalAmount = Number(checkoutData?.pricing?.finalAmount || 0);
   const quotedUsdAmount = Number(crypto.amountUsd || 0);
@@ -4252,7 +4289,9 @@ async function openCryptoPaymentModal(checkoutData) {
     title.textContent = `Pay with ${crypto.label || String(crypto.currency || "").toUpperCase()}`;
   }
   if (summary) {
-    summary.textContent = `Send the exact crypto amount for ${formatUsd(finalAmount)}. Order ${checkoutData.siteOrderId} will be confirmed after ${crypto.confirmationsRequired || 1} blockchain confirmation(s).`;
+    summary.textContent = `Scan the address in Cwallet, then enter exactly ${crypto.amount || "-"} ${String(
+      crypto.currency || ""
+    ).toUpperCase()}. Order ${checkoutData.siteOrderId} needs ${crypto.confirmationsRequired || 1} confirmation(s).`;
   }
   if (currency) {
     currency.textContent = `${crypto.label || "-"} (${String(crypto.currency || "").toUpperCase()})`;
@@ -4272,15 +4311,13 @@ async function openCryptoPaymentModal(checkoutData) {
   if (status) {
     status.textContent = "Waiting for payment detection.";
   }
-  if (walletLink) {
-    walletLink.href = crypto.paymentUri || "#";
+  if (genericWalletLink) {
+    genericWalletLink.href = crypto.paymentUri || "#";
+    genericWalletLink.hidden = !crypto.paymentUri;
   }
   if (qr) {
-    if (crypto.paymentUri) {
-      qr.src = getCryptoPaymentQrCodeUrl(crypto.paymentUri);
-      qr.hidden = false;
-    } else if (crypto.address) {
-      qr.src = buildCryptoPaymentSvgDataUrl(crypto);
+    if (crypto.address) {
+      qr.src = getCryptoPaymentQrCodeUrl(crypto.address);
       qr.hidden = false;
     } else {
       qr.hidden = true;
@@ -4299,6 +4336,23 @@ async function openCryptoPaymentModal(checkoutData) {
       }
     }
   };
+
+  if (copyAmountButton instanceof HTMLButtonElement) {
+    copyAmountButton.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(String(crypto.amount || ""));
+        if (status) {
+          status.textContent = `Amount copied: ${crypto.amount || "-"} ${String(
+            crypto.currency || ""
+          ).toUpperCase()}.`;
+        }
+      } catch {
+        if (status) {
+          status.textContent = "Could not copy the amount automatically.";
+        }
+      }
+    };
+  }
 
   if (exitButton instanceof HTMLButtonElement) {
     exitButton.onclick = () => {

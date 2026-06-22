@@ -375,6 +375,37 @@ function convertDecimalAmountToMinorUnits(amount, decimals) {
   return combined || "0";
 }
 
+function truncateNumberToDecimal(value, decimals) {
+  const numericValue = Number(value);
+  const safeDecimals = Number.isFinite(decimals) ? Math.max(0, Math.trunc(decimals)) : 8;
+  if (!Number.isFinite(numericValue) || numericValue < 0) {
+    throw new Error("Invalid amount for conversion.");
+  }
+
+  const [coefficient, exponentText = "0"] = numericValue.toString().toLowerCase().split("e");
+  const exponent = Number(exponentText);
+  const [wholePart, fractionPart = ""] = coefficient.split(".");
+  const digits = `${wholePart}${fractionPart}`;
+  const decimalIndex = wholePart.length + exponent;
+  let expanded;
+
+  if (decimalIndex <= 0) {
+    expanded = `0.${"0".repeat(-decimalIndex)}${digits}`;
+  } else if (decimalIndex >= digits.length) {
+    expanded = `${digits}${"0".repeat(decimalIndex - digits.length)}`;
+  } else {
+    expanded = `${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
+  }
+
+  const [expandedWhole = "0", expandedFraction = ""] = expanded.split(".");
+  const normalizedWhole = expandedWhole.replace(/^0+(?=\d)/, "") || "0";
+  if (safeDecimals === 0) {
+    return normalizedWhole;
+  }
+
+  return `${normalizedWhole}.${expandedFraction.padEnd(safeDecimals, "0").slice(0, safeDecimals)}`;
+}
+
 async function supabaseFetch(pathname, options = {}) {
   if (!hasSupabaseAdminConfig()) {
     throw new Error("Supabase admin backend is not configured.");
@@ -683,8 +714,12 @@ async function getCryptoQuoteInInr(currency, inrAmount) {
   }
 
   const decimals = getCryptoMinorUnitDecimals(normalizedCurrency);
-  const cryptoAmountDecimal = (amountValue / inrPerCoin).toFixed(decimals);
-  const cryptoAmountMinor = convertDecimalAmountToMinorUnits(cryptoAmountDecimal, decimals);
+  const unroundedCryptoAmount = truncateNumberToDecimal(amountValue / inrPerCoin, decimals);
+  const cryptoAmountMinor = convertDecimalAmountToMinorUnits(unroundedCryptoAmount, decimals);
+  if (BigInt(cryptoAmountMinor) <= 0n) {
+    throw new Error("The payable amount is too small for this crypto currency.");
+  }
+  const cryptoAmountDecimal = formatCryptoDecimalFromMinorUnits(cryptoAmountMinor, decimals);
 
   return {
     inrPerCoin,
@@ -834,17 +869,17 @@ function calculateCouponDiscount(amount, coupon) {
   }
 
   discountAmount = Math.min(baseAmount, discountAmount);
-  return Math.round(discountAmount * 100) / 100;
+  return discountAmount;
 }
 
 function getPlanPricing(plan, coupon, options = {}) {
   const planAmount = Number((plan?.amount ?? plan?.subtotal) || 0);
   const selectedAddOns = getPlanAddOns(plan, options.addOnIds);
   const addOnAmount = selectedAddOns.reduce((sum, addOn) => sum + Number(addOn?.amount || addOn?.price || 0), 0);
-  const fastDeliveryFee = options.fastDelivery ? Math.round(planAmount * 0.1 * 100) / 100 : 0;
-  const baseAmount = Math.round((planAmount + addOnAmount + fastDeliveryFee) * 100) / 100;
+  const fastDeliveryFee = options.fastDelivery ? planAmount * 0.1 : 0;
+  const baseAmount = planAmount + addOnAmount + fastDeliveryFee;
   const discountAmount = calculateCouponDiscount(baseAmount, coupon);
-  const finalAmount = Math.max(0, Math.round((baseAmount - discountAmount) * 100) / 100);
+  const finalAmount = Math.max(0, baseAmount - discountAmount);
 
   return {
     planAmount,
@@ -855,10 +890,6 @@ function getPlanPricing(plan, coupon, options = {}) {
     discountAmount,
     finalAmount,
   };
-}
-
-function roundCurrencyAmount(value) {
-  return Math.round(Number(value || 0) * 100) / 100;
 }
 
 async function getCheckoutPricing(plan, coupon, options = {}, requestedCurrency = "INR") {
@@ -880,33 +911,30 @@ async function getCheckoutPricing(plan, coupon, options = {}, requestedCurrency 
   }
 
   const catalogUsdAmount = Number(plan?.usdAmount);
-  const planAmount = roundCurrencyAmount(
+  const planAmount =
     Number.isFinite(catalogUsdAmount) && catalogUsdAmount > 0
       ? catalogUsdAmount
-      : inrPricing.planAmount * usdRate
-  );
+      : inrPricing.planAmount * usdRate;
   const selectedAddOns = inrPricing.selectedAddOns.map((addOn) => ({
     ...addOn,
-    displayAmount: roundCurrencyAmount(Number(addOn?.amount || addOn?.price || 0) * usdRate),
+    displayAmount: Number(addOn?.amount || addOn?.price || 0) * usdRate,
   }));
-  const addOnAmount = roundCurrencyAmount(
-    selectedAddOns.reduce((sum, addOn) => sum + Number(addOn.displayAmount || 0), 0)
-  );
-  const fastDeliveryFee = options.fastDelivery ? roundCurrencyAmount(planAmount * 0.1) : 0;
-  const baseAmount = roundCurrencyAmount(planAmount + addOnAmount + fastDeliveryFee);
+  const addOnAmount = selectedAddOns.reduce((sum, addOn) => sum + Number(addOn.displayAmount || 0), 0);
+  const fastDeliveryFee = options.fastDelivery ? planAmount * 0.1 : 0;
+  const baseAmount = planAmount + addOnAmount + fastDeliveryFee;
   const discountValue = getCouponDiscountValue(coupon);
   let discountAmount =
     getCouponDiscountType(coupon) === "fixed"
-      ? roundCurrencyAmount(discountValue * usdRate)
-      : roundCurrencyAmount((baseAmount * discountValue) / 100);
+      ? discountValue * usdRate
+      : (baseAmount * discountValue) / 100;
 
   if (!coupon || !Number.isFinite(discountAmount) || discountAmount <= 0) {
     discountAmount = 0;
   }
 
   discountAmount = Math.min(baseAmount, discountAmount);
-  const finalAmount = Math.max(0, roundCurrencyAmount(baseAmount - discountAmount));
-  const toInr = (value) => roundCurrencyAmount(Number(value || 0) / usdRate);
+  const finalAmount = Math.max(0, baseAmount - discountAmount);
+  const toInr = (value) => Number(value || 0) / usdRate;
 
   return {
     currencyCode,
