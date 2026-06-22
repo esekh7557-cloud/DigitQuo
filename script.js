@@ -910,12 +910,12 @@ function getFixedBotUsdAmount(planKey) {
   return Number.isFinite(amount) && amount > 0 ? amount : null;
 }
 
-async function getDisplayedPlanPricing(plan, coupon, options = {}) {
+async function getPlanPricingForDisplayCurrency(plan, coupon, options = {}, requestedCurrency = "inr") {
   const fallbackPricing = getPlanPricingWithCoupon(plan, coupon, options);
-  const preference = readDisplayCurrencyPreference();
+  const currency = String(requestedCurrency || "inr").trim().toLowerCase() === "usd" ? "usd" : "inr";
   const usdPlanAmount = Number(plan?.usdSubtotal);
 
-  if (preference.currency !== "usd" || !Number.isFinite(usdPlanAmount) || usdPlanAmount <= 0) {
+  if (currency !== "usd" || !Number.isFinite(usdPlanAmount) || usdPlanAmount <= 0) {
     return {
       ...fallbackPricing,
       currencyCode: "inr",
@@ -956,6 +956,15 @@ async function getDisplayedPlanPricing(plan, coupon, options = {}) {
     finalAmount,
     currencyCode: "usd",
   };
+}
+
+async function getDisplayedPlanPricing(plan, coupon, options = {}) {
+  return getPlanPricingForDisplayCurrency(
+    plan,
+    coupon,
+    options,
+    readDisplayCurrencyPreference().currency
+  );
 }
 
 function isBotPlanKey(planKey) {
@@ -3770,7 +3779,14 @@ async function getCryptoPaymentStatus(siteOrderId) {
 async function openRazorpayCheckout(checkoutData) {
   await loadRazorpayCheckout();
 
-  const finalAmount = Number(checkoutData?.pricing?.finalAmount || 0);
+  const finalAmount = Number(
+    checkoutData?.pricing?.chargeAmountInr ?? checkoutData?.pricing?.finalAmount ?? 0
+  );
+  const displayFinalAmount = Number(checkoutData?.pricing?.finalAmount || 0);
+  const displayCurrencyCode =
+    String(checkoutData?.pricing?.currencyCode || "inr").trim().toLowerCase() === "usd"
+      ? "usd"
+      : "inr";
   const gatewayAmountMinor = Number(checkoutData?.razorpayOrder?.amount || 0);
   const expectedAmountMinor = Math.round(finalAmount * 100);
   if (
@@ -3803,7 +3819,9 @@ async function openRazorpayCheckout(checkoutData) {
       amount: checkoutData.razorpayOrder?.amount,
       currency: checkoutData.razorpayOrder?.currency || "INR",
       name: "DigitQuo",
-      description: `${checkoutData.planName || "Website"} Payment - ${formatInr(finalAmount)}`,
+      description: `${checkoutData.planName || "Website"} Payment - ${
+        displayCurrencyCode === "usd" ? formatUsd(displayFinalAmount) : formatInr(displayFinalAmount)
+      }`,
       order_id: checkoutData.razorpayOrder?.id,
       prefill: {
         name: checkoutData.customer?.name || "",
@@ -3893,14 +3911,15 @@ function ensurePaymentMethodModal() {
   modal.id = "paymentMethodModal";
   modal.setAttribute("hidden", "");
   modal.innerHTML = `
-    <div class="plan-success-dialog crypto-payment-dialog">
+    <div class="plan-success-dialog crypto-payment-dialog payment-choice-dialog">
+      <button class="crypto-payment-close" type="button" id="paymentMethodModalCloseBtn" aria-label="Close payment method dialog">&times;</button>
       <h3 id="paymentMethodModalTitle">Choose Payment Method</h3>
       <p id="paymentMethodModalSummary">Select how you want to complete this payment.</p>
       <div class="field-block">
         <label for="paymentMethodModalSelect">Payment Method</label>
         <select id="paymentMethodModalSelect">
-          <option value="inr">INR</option>
-          <option value="crypto">Cryptocurrency</option>
+          <option value="inr">Razorpay (INR settlement)</option>
+          <option value="crypto">Cryptocurrency (USD pricing)</option>
         </select>
       </div>
       <div class="field-block" id="paymentMethodModalCryptoField" hidden>
@@ -3916,9 +3935,10 @@ function ensurePaymentMethodModal() {
         </select>
         <p class="plan-form-option-note">A unique wallet address will be generated after you continue.</p>
       </div>
+      <p class="checkout-currency-label" id="paymentMethodPricingCurrency">Pricing in INR</p>
       <div class="checkout-price-breakdown" id="paymentMethodPriceBreakdown" aria-live="polite"></div>
       <p class="plan-form-option-note">The server will revalidate this total before opening the selected payment gateway.</p>
-      <div class="plan-form-actions">
+      <div class="plan-form-actions payment-modal-actions">
         <button class="btn btn-secondary" type="button" id="paymentMethodModalCancelBtn">Cancel</button>
         <button class="btn btn-primary" type="button" id="paymentMethodModalContinueBtn">Continue</button>
       </div>
@@ -3931,27 +3951,30 @@ function ensurePaymentMethodModal() {
 function renderCheckoutPriceBreakdown(pricing = {}) {
   const selectedAddOns = Array.isArray(pricing.selectedAddOns) ? pricing.selectedAddOns : [];
   const couponCode = normalizeCouponCode(pricing.couponCode);
+  const currencyCode =
+    String(pricing.currencyCode || "inr").trim().toLowerCase() === "usd" ? "usd" : "inr";
+  const formatMoney = (value) => (currencyCode === "usd" ? formatUsd(value) : formatInr(value));
   const rows = [
     {
       label: "Plan price",
-      value: formatInr(pricing.planAmount ?? pricing.baseAmount),
+      value: formatMoney(pricing.planAmount ?? pricing.baseAmount),
       hidden: false,
     },
     {
       label: selectedAddOns.length
         ? `Add-ons (${selectedAddOns.map((addOn) => addOn.name).filter(Boolean).join(", ")})`
         : "Add-ons",
-      value: `+ ${formatInr(pricing.addOnAmount)}`,
+      value: `+ ${formatMoney(pricing.addOnAmount)}`,
       hidden: Number(pricing.addOnAmount || 0) <= 0,
     },
     {
       label: "Fast delivery",
-      value: `+ ${formatInr(pricing.fastDeliveryFee)}`,
+      value: `+ ${formatMoney(pricing.fastDeliveryFee)}`,
       hidden: Number(pricing.fastDeliveryFee || 0) <= 0,
     },
     {
       label: couponCode ? `Coupon (${couponCode})` : "Coupon",
-      value: `- ${formatInr(pricing.discountAmount)}`,
+      value: `- ${formatMoney(pricing.discountAmount)}`,
       hidden: Number(pricing.discountAmount || 0) <= 0,
     },
   ];
@@ -3970,21 +3993,27 @@ function renderCheckoutPriceBreakdown(pricing = {}) {
       .join("")}
     <div class="checkout-price-row checkout-price-total">
       <span>Amount to pay</span>
-      <strong>${escapeHtml(formatInr(pricing.finalAmount))}</strong>
+      <strong>${escapeHtml(formatMoney(pricing.finalAmount))}</strong>
     </div>
   `;
 }
 
-async function openPaymentMethodSelectionModal(planName, pricing = {}) {
+async function openPaymentMethodSelectionModal(planName, pricingOptions = {}) {
   const modal = ensurePaymentMethodModal();
   const title = document.getElementById("paymentMethodModalTitle");
   const summary = document.getElementById("paymentMethodModalSummary");
   const priceBreakdown = document.getElementById("paymentMethodPriceBreakdown");
+  const pricingCurrencyLabel = document.getElementById("paymentMethodPricingCurrency");
   const paymentMethodSelect = document.getElementById("paymentMethodModalSelect");
   const cryptoField = document.getElementById("paymentMethodModalCryptoField");
   const cryptoCurrencySelect = document.getElementById("paymentMethodModalCryptoCurrency");
+  const closeButton = document.getElementById("paymentMethodModalCloseBtn");
   const cancelButton = document.getElementById("paymentMethodModalCancelBtn");
   const continueButton = document.getElementById("paymentMethodModalContinueBtn");
+  const preferredCurrency =
+    String(pricingOptions.preferredCurrency || "inr").trim().toLowerCase() === "usd" ? "usd" : "inr";
+  const inrPricing = pricingOptions.inrPricing || {};
+  const usdPricing = pricingOptions.usdPricing || inrPricing;
 
   if (!(paymentMethodSelect instanceof HTMLSelectElement) || !(cryptoCurrencySelect instanceof HTMLSelectElement)) {
     throw new Error("Payment method selection is unavailable.");
@@ -3996,9 +4025,6 @@ async function openPaymentMethodSelectionModal(planName, pricing = {}) {
   if (summary) {
     summary.textContent = "Review the complete amount, then choose Razorpay or cryptocurrency.";
   }
-  if (priceBreakdown) {
-    priceBreakdown.innerHTML = renderCheckoutPriceBreakdown(pricing);
-  }
 
   paymentMethodSelect.value = "inr";
   cryptoCurrencySelect.value = "btc";
@@ -4008,14 +4034,35 @@ async function openPaymentMethodSelectionModal(planName, pricing = {}) {
   }
 
   const syncUi = () => {
+    const showCrypto = paymentMethodSelect.value === "crypto";
+    const displayCurrency = showCrypto ? "usd" : preferredCurrency;
+    const pricing = displayCurrency === "usd" ? usdPricing : inrPricing;
+
     if (cryptoField) {
-      const showCrypto = paymentMethodSelect.value === "crypto";
       cryptoField.hidden = !showCrypto;
       cryptoField.style.display = showCrypto ? "" : "none";
       cryptoCurrencySelect.disabled = !showCrypto;
       if (!showCrypto) {
         cryptoCurrencySelect.value = "btc";
       }
+    }
+    if (pricingCurrencyLabel) {
+      pricingCurrencyLabel.textContent =
+        displayCurrency === "usd"
+          ? showCrypto
+            ? "Crypto uses USD pricing"
+            : "Pricing in USD"
+          : "Pricing in INR";
+    }
+    if (priceBreakdown) {
+      priceBreakdown.innerHTML = renderCheckoutPriceBreakdown(pricing);
+    }
+    if (summary) {
+      summary.textContent = showCrypto
+        ? "Crypto pricing is shown in USD. The exact coin amount is generated after you continue."
+        : displayCurrency === "usd"
+        ? "USD pricing is selected. Razorpay will receive the live INR settlement equivalent."
+        : "INR pricing is selected. Razorpay will charge this exact INR total.";
     }
   };
 
@@ -4028,6 +4075,7 @@ async function openPaymentMethodSelectionModal(planName, pricing = {}) {
       }
       settled = true;
       paymentMethodSelect.removeEventListener("change", syncUi);
+      closeButton?.removeEventListener("click", onCancel);
       cancelButton?.removeEventListener("click", onCancel);
       continueButton?.removeEventListener("click", onContinue);
       modal.setAttribute("hidden", "");
@@ -4039,10 +4087,13 @@ async function openPaymentMethodSelectionModal(planName, pricing = {}) {
       resolve({
         paymentMethod: paymentMethodSelect.value === "crypto" ? "crypto" : "inr",
         cryptoCurrency: cryptoCurrencySelect.value || "btc",
+        pricingCurrency:
+          paymentMethodSelect.value === "crypto" || preferredCurrency === "usd" ? "USD" : "INR",
       })
     );
 
     paymentMethodSelect.addEventListener("change", syncUi);
+    closeButton?.addEventListener("click", onCancel);
     cancelButton?.addEventListener("click", onCancel);
     continueButton?.addEventListener("click", onContinue);
     syncUi();
@@ -4082,7 +4133,7 @@ function ensureCryptoPaymentModal() {
         <code id="cryptoPaymentAddress">-</code>
       </div>
       <p class="crypto-payment-status" id="cryptoPaymentStatus">Waiting for payment detection.</p>
-      <div class="plan-form-actions">
+      <div class="plan-form-actions payment-modal-actions">
         <button class="btn btn-secondary" type="button" id="cryptoCopyAddressBtn">Copy Address</button>
         <a class="btn btn-primary" href="#" id="cryptoOpenWalletBtn" target="_blank" rel="noopener noreferrer">Open Wallet</a>
       </div>
@@ -4161,14 +4212,14 @@ async function openCryptoPaymentModal(checkoutData) {
   const walletLink = document.getElementById("cryptoOpenWalletBtn");
   const crypto = checkoutData?.crypto || {};
   const finalAmount = Number(checkoutData?.pricing?.finalAmount || 0);
-  const quotedInrAmount = Number(crypto.amountInr || 0);
+  const quotedUsdAmount = Number(crypto.amountUsd || 0);
   let userExited = false;
 
   if (
     !Number.isFinite(finalAmount) ||
     finalAmount <= 0 ||
-    !Number.isFinite(quotedInrAmount) ||
-    Math.abs(finalAmount - quotedInrAmount) > 0.001
+    !Number.isFinite(quotedUsdAmount) ||
+    Math.abs(finalAmount - quotedUsdAmount) > 0.001
   ) {
     throw new Error("The crypto quote does not match the checkout total. Please try again.");
   }
@@ -4177,7 +4228,7 @@ async function openCryptoPaymentModal(checkoutData) {
     title.textContent = `Pay with ${crypto.label || String(crypto.currency || "").toUpperCase()}`;
   }
   if (summary) {
-    summary.textContent = `Send the exact crypto amount for ${formatInr(finalAmount)}. Order ${checkoutData.siteOrderId} will be confirmed after ${crypto.confirmationsRequired || 1} blockchain confirmation(s).`;
+    summary.textContent = `Send the exact crypto amount for ${formatUsd(finalAmount)}. Order ${checkoutData.siteOrderId} will be confirmed after ${crypto.confirmationsRequired || 1} blockchain confirmation(s).`;
   }
   if (currency) {
     currency.textContent = `${crypto.label || "-"} (${String(crypto.currency || "").toUpperCase()})`;
@@ -4664,8 +4715,10 @@ async function renderPlanRequirementsPage(user) {
             }</strong>
           </div>
           <div class="plan-form-summary-row">
-            <span>Checkout Currency</span>
-            <strong id="planRequirementPaymentMethodLabel">INR</strong>
+            <span>Pricing Currency</span>
+            <strong id="planRequirementPaymentMethodLabel">${
+              displayedPricing.currencyCode === "usd" ? "USD" : "INR"
+            }</strong>
           </div>
           <p class="plan-form-coupon-note" id="planRequirementCouponNote">
             ${
@@ -4782,21 +4835,38 @@ async function renderPlanRequirementsPage(user) {
       const selectedAddOnIds = getStoredPlanAddOnIds(planKey);
       const selectedCheckoutAddOns = getPlanAddOnsByIds(plan, selectedAddOnIds);
       const checkoutCoupon = getStoredPlanCoupon(planKey);
-      const checkoutPricing = getPlanPricingWithCoupon(plan, checkoutCoupon, {
+      const pricingOptions = {
         addOnIds: selectedAddOnIds,
         fastDelivery,
-      });
-      const paymentSelection = await openPaymentMethodSelectionModal(plan.name, {
-        ...checkoutPricing,
+      };
+      const [checkoutPricingInr, checkoutPricingUsd] = await Promise.all([
+        getPlanPricingForDisplayCurrency(plan, checkoutCoupon, pricingOptions, "inr"),
+        getPlanPricingForDisplayCurrency(plan, checkoutCoupon, pricingOptions, "usd"),
+      ]);
+      const withCheckoutDetails = (pricing) => ({
+        ...pricing,
         selectedAddOns: selectedCheckoutAddOns,
         couponCode: checkoutCoupon?.coupon_code || "",
       });
+      const paymentSelection = await openPaymentMethodSelectionModal(plan.name, {
+        preferredCurrency: readDisplayCurrencyPreference().currency,
+        inrPricing: withCheckoutDetails(checkoutPricingInr),
+        usdPricing: withCheckoutDetails(checkoutPricingUsd),
+      });
       const paymentMethod = String(paymentSelection?.paymentMethod || "inr").trim().toLowerCase();
       const cryptoCurrency = String(paymentSelection?.cryptoCurrency || "btc").trim().toLowerCase();
+      const pricingCurrency =
+        paymentMethod === "crypto" || String(paymentSelection?.pricingCurrency || "").toUpperCase() === "USD"
+          ? "USD"
+          : "INR";
 
       if (paymentMethodLabel) {
         paymentMethodLabel.textContent =
-          paymentMethod === "crypto" ? getCryptoCurrencyDisplayLabel(cryptoCurrency) : "INR";
+          paymentMethod === "crypto"
+            ? `USD / ${getCryptoCurrencyDisplayLabel(cryptoCurrency)}`
+            : pricingCurrency === "USD"
+            ? "USD pricing / INR settlement"
+            : "INR";
       }
 
       if (submitButton instanceof HTMLButtonElement) {
@@ -4814,6 +4884,7 @@ async function renderPlanRequirementsPage(user) {
         ideaSummary,
         fastDelivery,
         couponCode: checkoutCoupon?.coupon_code || "",
+        pricingCurrency,
         requirements,
       };
 

@@ -917,6 +917,80 @@ function getPlanPricing(plan, coupon, options = {}) {
   };
 }
 
+function roundCurrencyAmount(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
+}
+
+async function getCheckoutPricing(plan, coupon, options = {}, requestedCurrency = "INR") {
+  const inrPricing = getPlanPricing(plan, coupon, options);
+  const currencyCode = String(requestedCurrency || "INR").trim().toUpperCase() === "USD" ? "USD" : "INR";
+
+  if (currencyCode === "INR") {
+    return {
+      currencyCode,
+      displayPricing: inrPricing,
+      chargePricing: inrPricing,
+    };
+  }
+
+  const rates = await getDisplayCurrencyRates();
+  const usdRate = Number(rates?.usd);
+  if (!Number.isFinite(usdRate) || usdRate <= 0) {
+    throw new Error("Could not load the USD pricing rate.");
+  }
+
+  const catalogUsdAmount = Number(plan?.usdAmount);
+  const planAmount = roundCurrencyAmount(
+    Number.isFinite(catalogUsdAmount) && catalogUsdAmount > 0
+      ? catalogUsdAmount
+      : inrPricing.planAmount * usdRate
+  );
+  const selectedAddOns = inrPricing.selectedAddOns.map((addOn) => ({
+    ...addOn,
+    displayAmount: roundCurrencyAmount(Number(addOn?.amount || addOn?.price || 0) * usdRate),
+  }));
+  const addOnAmount = roundCurrencyAmount(
+    selectedAddOns.reduce((sum, addOn) => sum + Number(addOn.displayAmount || 0), 0)
+  );
+  const fastDeliveryFee = options.fastDelivery ? roundCurrencyAmount(planAmount * 0.1) : 0;
+  const baseAmount = roundCurrencyAmount(planAmount + addOnAmount + fastDeliveryFee);
+  const discountValue = getCouponDiscountValue(coupon);
+  let discountAmount =
+    getCouponDiscountType(coupon) === "fixed"
+      ? roundCurrencyAmount(discountValue * usdRate)
+      : roundCurrencyAmount((baseAmount * discountValue) / 100);
+
+  if (!coupon || !Number.isFinite(discountAmount) || discountAmount <= 0) {
+    discountAmount = 0;
+  }
+
+  discountAmount = Math.min(baseAmount, discountAmount);
+  const finalAmount = Math.max(0, roundCurrencyAmount(baseAmount - discountAmount));
+  const toInr = (value) => roundCurrencyAmount(Number(value || 0) / usdRate);
+
+  return {
+    currencyCode,
+    displayPricing: {
+      planAmount,
+      selectedAddOns,
+      addOnAmount,
+      fastDeliveryFee,
+      baseAmount,
+      discountAmount,
+      finalAmount,
+    },
+    chargePricing: {
+      planAmount: toInr(planAmount),
+      selectedAddOns: inrPricing.selectedAddOns,
+      addOnAmount: toInr(addOnAmount),
+      fastDeliveryFee: toInr(fastDeliveryFee),
+      baseAmount: toInr(baseAmount),
+      discountAmount: toInr(discountAmount),
+      finalAmount: toInr(finalAmount),
+    },
+  };
+}
+
 async function findCouponByCode(couponCode) {
   const normalizedCode = normalizeCouponCode(couponCode);
   if (!normalizedCode) {
@@ -1365,6 +1439,8 @@ async function handleCreateRazorpayOrder(req, res) {
     body.fastDelivery === true || String(body.fastDelivery || "").trim().toLowerCase() === "yes";
   const couponCode = normalizeCouponCode(body.couponCode);
   const addOnIds = normalizePlanAddOnIds(body.addOnIds);
+  const pricingCurrency =
+    String(body.pricingCurrency || "").trim().toUpperCase() === "USD" ? "USD" : "INR";
 
   if (!plan) {
     json(res, 400, { error: "Invalid plan selected." });
@@ -1404,7 +1480,14 @@ async function handleCreateRazorpayOrder(req, res) {
 
     }
 
-    const pricing = getPlanPricing(plan, appliedCoupon, { fastDelivery, addOnIds });
+    const checkoutPricing = await getCheckoutPricing(
+      plan,
+      appliedCoupon,
+      { fastDelivery, addOnIds },
+      pricingCurrency
+    );
+    const pricing = checkoutPricing.chargePricing;
+    const displayPricing = checkoutPricing.displayPricing;
     if (pricing.finalAmount <= 0) {
       json(res, 400, { error: "Coupon discount cannot reduce the payable amount to zero." });
       return;
@@ -1451,6 +1534,10 @@ async function handleCreateRazorpayOrder(req, res) {
             coupon_code: appliedCoupon?.coupon_code || null,
             discount_amount: pricing.discountAmount,
             final_price: pricing.finalAmount,
+            pricing_currency: checkoutPricing.currencyCode,
+            display_price: displayPricing.baseAmount,
+            display_discount_amount: displayPricing.discountAmount,
+            display_final_price: displayPricing.finalAmount,
           },
           summary: {
             project_name: projectName,
@@ -1510,6 +1597,8 @@ async function handleCreateRazorpayOrder(req, res) {
             coupon_code: appliedCoupon?.coupon_code || "",
             discount_amount: String(pricing.discountAmount),
             final_amount: String(pricing.finalAmount),
+            pricing_currency: checkoutPricing.currencyCode,
+            display_final_amount: String(displayPricing.finalAmount),
           },
         },
       });
@@ -1540,18 +1629,20 @@ async function handleCreateRazorpayOrder(req, res) {
           phone: customerPhone,
         },
         pricing: {
-          amount: pricing.baseAmount,
-          baseAmount: pricing.planAmount,
-          planAmount: pricing.planAmount,
-          selectedAddOns: pricing.selectedAddOns.map((addOn) => ({
+          currencyCode: checkoutPricing.currencyCode.toLowerCase(),
+          amount: displayPricing.baseAmount,
+          baseAmount: displayPricing.planAmount,
+          planAmount: displayPricing.planAmount,
+          selectedAddOns: displayPricing.selectedAddOns.map((addOn) => ({
             id: addOn.id,
             name: addOn.name,
-            amount: Number(addOn.amount || addOn.price || 0),
+            amount: Number(addOn.displayAmount ?? addOn.amount ?? addOn.price ?? 0),
           })),
-          addOnAmount: pricing.addOnAmount,
-          fastDeliveryFee: pricing.fastDeliveryFee,
-          discountAmount: pricing.discountAmount,
-          finalAmount: pricing.finalAmount,
+          addOnAmount: displayPricing.addOnAmount,
+          fastDeliveryFee: displayPricing.fastDeliveryFee,
+          discountAmount: displayPricing.discountAmount,
+          finalAmount: displayPricing.finalAmount,
+          chargeAmountInr: pricing.finalAmount,
         },
         coupon: appliedCoupon
           ? {
@@ -1777,10 +1868,14 @@ async function handleCreateCryptoOrder(req, res) {
       }
     }
 
-    const pricing = getPlanPricing(plan, appliedCoupon, {
-      addOnIds,
-      fastDelivery,
-    });
+    const checkoutPricing = await getCheckoutPricing(
+      plan,
+      appliedCoupon,
+      { addOnIds, fastDelivery },
+      "USD"
+    );
+    const pricing = checkoutPricing.chargePricing;
+    const displayPricing = checkoutPricing.displayPricing;
 
     if (pricing.finalAmount <= 0) {
       const error = new Error("Coupon discount cannot reduce the payable amount to zero.");
@@ -1829,6 +1924,10 @@ async function handleCreateCryptoOrder(req, res) {
             coupon_code: appliedCoupon?.coupon_code || null,
             discount_amount: pricing.discountAmount,
             final_price: pricing.finalAmount,
+            pricing_currency: "USD",
+            display_price: displayPricing.baseAmount,
+            display_discount_amount: displayPricing.discountAmount,
+            display_final_price: displayPricing.finalAmount,
             payment_method: "crypto",
             crypto_currency: currency,
           },
@@ -1927,18 +2026,20 @@ async function handleCreateCryptoOrder(req, res) {
           phone: customerPhone,
         },
         pricing: {
-          amount: pricing.baseAmount,
-          baseAmount: pricing.planAmount,
-          planAmount: pricing.planAmount,
-          selectedAddOns: pricing.selectedAddOns.map((addOn) => ({
+          currencyCode: "usd",
+          amount: displayPricing.baseAmount,
+          baseAmount: displayPricing.planAmount,
+          planAmount: displayPricing.planAmount,
+          selectedAddOns: displayPricing.selectedAddOns.map((addOn) => ({
             id: addOn.id,
             name: addOn.name,
-            amount: Number(addOn.amount || addOn.price || 0),
+            amount: Number(addOn.displayAmount ?? addOn.amount ?? addOn.price ?? 0),
           })),
-          addOnAmount: pricing.addOnAmount,
-          fastDeliveryFee: pricing.fastDeliveryFee,
-          discountAmount: pricing.discountAmount,
-          finalAmount: pricing.finalAmount,
+          addOnAmount: displayPricing.addOnAmount,
+          fastDeliveryFee: displayPricing.fastDeliveryFee,
+          discountAmount: displayPricing.discountAmount,
+          finalAmount: displayPricing.finalAmount,
+          chargeAmountInr: pricing.finalAmount,
         },
         coupon: appliedCoupon
           ? {
@@ -1954,6 +2055,7 @@ async function handleCreateCryptoOrder(req, res) {
           address: paymentAddress,
           amount: quote.cryptoAmountDecimal,
           amountMinor: quote.cryptoAmountMinor,
+          amountUsd: displayPricing.finalAmount,
           amountInr: pricing.finalAmount,
           exchangeRateInr: quote.inrPerCoin,
           paymentUri,
