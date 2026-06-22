@@ -3974,8 +3974,8 @@ function ensurePaymentMethodModal() {
       <div class="field-block">
         <label for="paymentMethodModalSelect">Payment Method</label>
         <select id="paymentMethodModalSelect">
-          <option value="inr">Razorpay (INR settlement)</option>
-          <option value="crypto">Cryptocurrency (USD pricing)</option>
+          <option value="inr">INR</option>
+          <option value="crypto">Cryptocurrency</option>
         </select>
       </div>
       <div class="field-block" id="paymentMethodModalCryptoField" hidden>
@@ -4082,7 +4082,7 @@ async function openPaymentMethodSelectionModal(planName, pricingOptions = {}) {
     summary.textContent = "Review the complete amount, then choose Razorpay or cryptocurrency.";
   }
 
-  paymentMethodSelect.value = "inr";
+  paymentMethodSelect.value = preferredCurrency === "usd" ? "crypto" : "inr";
   cryptoCurrencySelect.value = "btc";
   if (cryptoField) {
     cryptoField.hidden = true;
