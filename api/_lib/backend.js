@@ -720,21 +720,6 @@ async function getDisplayCurrencyRates() {
   };
 }
 
-async function resolvePlanAmountForCryptoInInr(plan) {
-  const usdAmount = Number(plan?.usdAmount);
-  if (!Number.isFinite(usdAmount) || usdAmount <= 0) {
-    return Number((plan?.amount ?? plan?.subtotal) || 0);
-  }
-
-  const rates = await getDisplayCurrencyRates();
-  const usdRate = Number(rates?.usd);
-  if (!Number.isFinite(usdRate) || usdRate <= 0) {
-    throw new Error("Could not convert the USD bot price into INR for crypto checkout.");
-  }
-
-  return Math.round((usdAmount / usdRate) * 100) / 100;
-}
-
 function getPlanConfig(planKey) {
   return PLAN_CATALOG[String(planKey || "").trim()] || null;
 }
@@ -1101,7 +1086,8 @@ async function handleCreateRazorpayOrder(req, res) {
   const projectName = normalizeName(body.projectName);
   const ideaSummary = normalizeName(body.ideaSummary);
   const requirements = body.requirements && typeof body.requirements === "object" ? body.requirements : {};
-  const fastDelivery = body.fastDelivery === true;
+  const fastDelivery =
+    body.fastDelivery === true || String(body.fastDelivery || "").trim().toLowerCase() === "yes";
   const couponCode = normalizeCouponCode(body.couponCode);
   const addOnIds = normalizePlanAddOnIds(body.addOnIds);
 
@@ -1242,8 +1228,13 @@ async function handleCreateRazorpayOrder(req, res) {
             customer_name: customerName,
             customer_email: customerEmail,
             add_ons: pricing.selectedAddOns.map((addOn) => addOn.name).join(", "),
+            plan_amount: String(pricing.planAmount),
+            add_on_amount: String(pricing.addOnAmount),
             fast_delivery: fastDelivery ? "yes" : "no",
+            fast_delivery_fee: String(pricing.fastDeliveryFee),
             coupon_code: appliedCoupon?.coupon_code || "",
+            discount_amount: String(pricing.discountAmount),
+            final_amount: String(pricing.finalAmount),
           },
         },
       });
@@ -1276,6 +1267,12 @@ async function handleCreateRazorpayOrder(req, res) {
         pricing: {
           amount: pricing.baseAmount,
           baseAmount: pricing.planAmount,
+          planAmount: pricing.planAmount,
+          selectedAddOns: pricing.selectedAddOns.map((addOn) => ({
+            id: addOn.id,
+            name: addOn.name,
+            amount: Number(addOn.amount || addOn.price || 0),
+          })),
           addOnAmount: pricing.addOnAmount,
           fastDeliveryFee: pricing.fastDeliveryFee,
           discountAmount: pricing.discountAmount,
@@ -1526,14 +1523,7 @@ async function handleCreateCryptoOrder(req, res) {
       }
     }
 
-    const pricingPlan = plan?.usdAmount
-      ? {
-          ...plan,
-          amount: await resolvePlanAmountForCryptoInInr(plan),
-        }
-      : plan;
-
-    const pricing = getPlanPricing(pricingPlan, appliedCoupon, {
+    const pricing = getPlanPricing(plan, appliedCoupon, {
       addOnIds,
       fastDelivery,
     });
@@ -1685,11 +1675,24 @@ async function handleCreateCryptoOrder(req, res) {
         pricing: {
           amount: pricing.baseAmount,
           baseAmount: pricing.planAmount,
+          planAmount: pricing.planAmount,
+          selectedAddOns: pricing.selectedAddOns.map((addOn) => ({
+            id: addOn.id,
+            name: addOn.name,
+            amount: Number(addOn.amount || addOn.price || 0),
+          })),
           addOnAmount: pricing.addOnAmount,
           fastDeliveryFee: pricing.fastDeliveryFee,
           discountAmount: pricing.discountAmount,
           finalAmount: pricing.finalAmount,
         },
+        coupon: appliedCoupon
+          ? {
+              code: appliedCoupon.coupon_code,
+              discountType: getCouponDiscountType(appliedCoupon),
+              discountValue: getCouponDiscountValue(appliedCoupon),
+            }
+          : null,
         crypto: {
           currency,
           label: getCryptoCurrencyLabel(currency),

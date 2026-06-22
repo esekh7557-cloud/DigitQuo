@@ -692,7 +692,7 @@ function formatInr(value) {
     style: "currency",
     currency: "INR",
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(Number(value || 0));
 }
 
@@ -701,7 +701,7 @@ function formatUsd(value) {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(Number(value || 0));
 }
 
@@ -3770,6 +3770,18 @@ async function getCryptoPaymentStatus(siteOrderId) {
 async function openRazorpayCheckout(checkoutData) {
   await loadRazorpayCheckout();
 
+  const finalAmount = Number(checkoutData?.pricing?.finalAmount || 0);
+  const gatewayAmountMinor = Number(checkoutData?.razorpayOrder?.amount || 0);
+  const expectedAmountMinor = Math.round(finalAmount * 100);
+  if (
+    !Number.isFinite(finalAmount) ||
+    finalAmount <= 0 ||
+    !Number.isFinite(gatewayAmountMinor) ||
+    gatewayAmountMinor !== expectedAmountMinor
+  ) {
+    throw new Error("The Razorpay amount does not match the checkout total. Please try again.");
+  }
+
   return new Promise((resolve, reject) => {
     if (typeof window.Razorpay !== "function") {
       reject(new Error("Razorpay checkout is unavailable."));
@@ -3791,7 +3803,7 @@ async function openRazorpayCheckout(checkoutData) {
       amount: checkoutData.razorpayOrder?.amount,
       currency: checkoutData.razorpayOrder?.currency || "INR",
       name: "DigitQuo",
-      description: `${checkoutData.planName || "Website"} Payment`,
+      description: `${checkoutData.planName || "Website"} Payment - ${formatInr(finalAmount)}`,
       order_id: checkoutData.razorpayOrder?.id,
       prefill: {
         name: checkoutData.customer?.name || "",
@@ -3904,6 +3916,8 @@ function ensurePaymentMethodModal() {
         </select>
         <p class="plan-form-option-note">A unique wallet address will be generated after you continue.</p>
       </div>
+      <div class="checkout-price-breakdown" id="paymentMethodPriceBreakdown" aria-live="polite"></div>
+      <p class="plan-form-option-note">The server will revalidate this total before opening the selected payment gateway.</p>
       <div class="plan-form-actions">
         <button class="btn btn-secondary" type="button" id="paymentMethodModalCancelBtn">Cancel</button>
         <button class="btn btn-primary" type="button" id="paymentMethodModalContinueBtn">Continue</button>
@@ -3914,10 +3928,58 @@ function ensurePaymentMethodModal() {
   return modal;
 }
 
-async function openPaymentMethodSelectionModal(planName) {
+function renderCheckoutPriceBreakdown(pricing = {}) {
+  const selectedAddOns = Array.isArray(pricing.selectedAddOns) ? pricing.selectedAddOns : [];
+  const couponCode = normalizeCouponCode(pricing.couponCode);
+  const rows = [
+    {
+      label: "Plan price",
+      value: formatInr(pricing.planAmount ?? pricing.baseAmount),
+      hidden: false,
+    },
+    {
+      label: selectedAddOns.length
+        ? `Add-ons (${selectedAddOns.map((addOn) => addOn.name).filter(Boolean).join(", ")})`
+        : "Add-ons",
+      value: `+ ${formatInr(pricing.addOnAmount)}`,
+      hidden: Number(pricing.addOnAmount || 0) <= 0,
+    },
+    {
+      label: "Fast delivery",
+      value: `+ ${formatInr(pricing.fastDeliveryFee)}`,
+      hidden: Number(pricing.fastDeliveryFee || 0) <= 0,
+    },
+    {
+      label: couponCode ? `Coupon (${couponCode})` : "Coupon",
+      value: `- ${formatInr(pricing.discountAmount)}`,
+      hidden: Number(pricing.discountAmount || 0) <= 0,
+    },
+  ];
+
+  return `
+    ${rows
+      .filter((row) => !row.hidden)
+      .map(
+        (row) => `
+          <div class="checkout-price-row">
+            <span>${escapeHtml(row.label)}</span>
+            <strong>${escapeHtml(row.value)}</strong>
+          </div>
+        `
+      )
+      .join("")}
+    <div class="checkout-price-row checkout-price-total">
+      <span>Amount to pay</span>
+      <strong>${escapeHtml(formatInr(pricing.finalAmount))}</strong>
+    </div>
+  `;
+}
+
+async function openPaymentMethodSelectionModal(planName, pricing = {}) {
   const modal = ensurePaymentMethodModal();
   const title = document.getElementById("paymentMethodModalTitle");
   const summary = document.getElementById("paymentMethodModalSummary");
+  const priceBreakdown = document.getElementById("paymentMethodPriceBreakdown");
   const paymentMethodSelect = document.getElementById("paymentMethodModalSelect");
   const cryptoField = document.getElementById("paymentMethodModalCryptoField");
   const cryptoCurrencySelect = document.getElementById("paymentMethodModalCryptoCurrency");
@@ -3932,7 +3994,10 @@ async function openPaymentMethodSelectionModal(planName) {
     title.textContent = `Choose how to pay for ${planName || "this plan"}`;
   }
   if (summary) {
-    summary.textContent = "Select INR to pay with Razorpay, or choose crypto to get the right wallet payment instructions.";
+    summary.textContent = "Review the complete amount, then choose Razorpay or cryptocurrency.";
+  }
+  if (priceBreakdown) {
+    priceBreakdown.innerHTML = renderCheckoutPriceBreakdown(pricing);
   }
 
   paymentMethodSelect.value = "inr";
@@ -4011,6 +4076,7 @@ function ensureCryptoPaymentModal() {
           <strong id="cryptoPaymentAmount">-</strong>
         </div>
       </div>
+      <div class="checkout-price-breakdown" id="cryptoPaymentPriceBreakdown" aria-live="polite"></div>
       <div class="crypto-payment-address-box">
         <span class="crypto-payment-label">Payment Address</span>
         <code id="cryptoPaymentAddress">-</code>
@@ -4087,25 +4153,43 @@ async function openCryptoPaymentModal(checkoutData) {
   const qr = document.getElementById("cryptoPaymentQr");
   const currency = document.getElementById("cryptoPaymentCurrency");
   const amount = document.getElementById("cryptoPaymentAmount");
+  const priceBreakdown = document.getElementById("cryptoPaymentPriceBreakdown");
   const address = document.getElementById("cryptoPaymentAddress");
   const status = document.getElementById("cryptoPaymentStatus");
   const exitButton = document.getElementById("cryptoExitPaymentBtn");
   const copyButton = document.getElementById("cryptoCopyAddressBtn");
   const walletLink = document.getElementById("cryptoOpenWalletBtn");
   const crypto = checkoutData?.crypto || {};
+  const finalAmount = Number(checkoutData?.pricing?.finalAmount || 0);
+  const quotedInrAmount = Number(crypto.amountInr || 0);
   let userExited = false;
+
+  if (
+    !Number.isFinite(finalAmount) ||
+    finalAmount <= 0 ||
+    !Number.isFinite(quotedInrAmount) ||
+    Math.abs(finalAmount - quotedInrAmount) > 0.001
+  ) {
+    throw new Error("The crypto quote does not match the checkout total. Please try again.");
+  }
 
   if (title) {
     title.textContent = `Pay with ${crypto.label || String(crypto.currency || "").toUpperCase()}`;
   }
   if (summary) {
-    summary.textContent = `Order ${checkoutData.siteOrderId} will be confirmed after ${crypto.confirmationsRequired || 1} blockchain confirmation(s).`;
+    summary.textContent = `Send the exact crypto amount for ${formatInr(finalAmount)}. Order ${checkoutData.siteOrderId} will be confirmed after ${crypto.confirmationsRequired || 1} blockchain confirmation(s).`;
   }
   if (currency) {
     currency.textContent = `${crypto.label || "-"} (${String(crypto.currency || "").toUpperCase()})`;
   }
   if (amount) {
     amount.textContent = `${crypto.amount || "-"} ${String(crypto.currency || "").toUpperCase()}`;
+  }
+  if (priceBreakdown) {
+    priceBreakdown.innerHTML = renderCheckoutPriceBreakdown({
+      ...(checkoutData?.pricing || {}),
+      couponCode: checkoutData?.coupon?.code || "",
+    });
   }
   if (address) {
     address.textContent = crypto.address || "-";
@@ -4695,7 +4779,18 @@ async function renderPlanRequirementsPage(user) {
     const submitButton = form.querySelector('button[type="submit"]');
 
     try {
-      const paymentSelection = await openPaymentMethodSelectionModal(plan.name);
+      const selectedAddOnIds = getStoredPlanAddOnIds(planKey);
+      const selectedCheckoutAddOns = getPlanAddOnsByIds(plan, selectedAddOnIds);
+      const checkoutCoupon = getStoredPlanCoupon(planKey);
+      const checkoutPricing = getPlanPricingWithCoupon(plan, checkoutCoupon, {
+        addOnIds: selectedAddOnIds,
+        fastDelivery,
+      });
+      const paymentSelection = await openPaymentMethodSelectionModal(plan.name, {
+        ...checkoutPricing,
+        selectedAddOns: selectedCheckoutAddOns,
+        couponCode: checkoutCoupon?.coupon_code || "",
+      });
       const paymentMethod = String(paymentSelection?.paymentMethod || "inr").trim().toLowerCase();
       const cryptoCurrency = String(paymentSelection?.cryptoCurrency || "btc").trim().toLowerCase();
 
@@ -4711,14 +4806,14 @@ async function renderPlanRequirementsPage(user) {
 
       const orderPayload = {
         planKey,
-        addOnIds: getStoredPlanAddOnIds(planKey),
+        addOnIds: selectedAddOnIds,
         customerName,
         customerEmail,
         customerPhone,
         projectName,
         ideaSummary,
         fastDelivery,
-        couponCode: getStoredPlanCoupon(planKey)?.coupon_code || "",
+        couponCode: checkoutCoupon?.coupon_code || "",
         requirements,
       };
 

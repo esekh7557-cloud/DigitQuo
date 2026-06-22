@@ -22,7 +22,7 @@ function formatInr(value) {
     style: "currency",
     currency: "INR",
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(Number(value || 0));
 }
 
@@ -31,7 +31,7 @@ function formatUsd(value) {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(Number(value || 0));
 }
 
@@ -697,6 +697,44 @@ function buildRecentOrdersMarkup(orders) {
 function buildOrderDetailsMarkup(order) {
   const customer = getOrderCustomerDetails(order);
   const planName = getOrderPlanName(order);
+  const planPricing = order?.projects?.site_config?.plan || {};
+  const selectedAddOns = Array.isArray(planPricing.add_ons) ? planPricing.add_ons : [];
+  const addOnAmount = Number(planPricing.add_on_amount || 0);
+  const fastDeliveryFee = Number(planPricing.fast_delivery_fee || 0);
+  const pricingRows = [
+    {
+      label: "Plan Price",
+      value: formatCurrency(
+        planPricing.base_price ??
+          Math.max(0, Number(order.amount || 0) - addOnAmount - fastDeliveryFee)
+      ),
+    },
+    ...(addOnAmount > 0
+      ? [
+          {
+            label: selectedAddOns.length
+              ? `Add-ons (${selectedAddOns.map((addOn) => addOn.name).filter(Boolean).join(", ")})`
+              : "Add-ons",
+            value: `+ ${formatCurrency(addOnAmount)}`,
+          },
+        ]
+      : []),
+    ...(fastDeliveryFee > 0
+      ? [{ label: "Fast Delivery", value: `+ ${formatCurrency(fastDeliveryFee)}` }]
+      : []),
+    { label: "Subtotal", value: formatCurrency(order.amount || 0) },
+    ...(Number(order.discount_amount || 0) > 0
+      ? [
+          {
+            label: planPricing.coupon_code
+              ? `Coupon (${planPricing.coupon_code})`
+              : "Discount",
+            value: `- ${formatCurrency(order.discount_amount || 0)}`,
+          },
+        ]
+      : []),
+    { label: "Final Amount", value: formatCurrency(order.final_amount || 0) },
+  ];
   const orderNumber = getOrderSequenceNumber(order.id);
   const createdAt = formatDate(order.created_at, {
     day: "numeric",
@@ -720,11 +758,7 @@ function buildOrderDetailsMarkup(order) {
         { label: "Email", value: customer.email },
         { label: "Phone", value: customer.phone },
       ])}
-      ${buildProjectDetailSection("Pricing", [
-        { label: "Order Amount", value: formatCurrency(order.amount || 0) },
-        { label: "Discount", value: formatCurrency(order.discount_amount || 0) },
-        { label: "Final Amount", value: formatCurrency(order.final_amount || 0) },
-      ])}
+      ${buildProjectDetailSection("Pricing", pricingRows)}
     </div>
   `;
 }
