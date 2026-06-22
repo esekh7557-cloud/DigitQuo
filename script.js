@@ -54,27 +54,27 @@ const FOOTER_FAQ_ITEMS = [
       "<p>Basic SEO setup such as meta tags, page speed optimization, sitemap, and indexing setup is included. Advanced SEO can be provided as an additional service.</p>",
   },
   {
-    question: "8. Do you provide e-commerce functionality?",
+    question: "7. Do you provide e-commerce functionality?",
     answer:
       "<p>Yes. We can build fully functional online stores with payment gateway integration, product management, order tracking, and email notifications.</p>",
   },
   {
-    question: "9. What happens after the project is completed?",
+    question: "8. What happens after the project is completed?",
     answer:
       "<p>We perform final deployment and testing. After handover:</p><ul><li>Domain ownership is transferred if purchased via us</li><li>Client must follow deployment and hosting guidelines</li><li>Optional maintenance support can be continued</li></ul>",
   },
   {
-    question: "10. Do you offer revisions?",
+    question: "9. Do you offer revisions?",
     answer:
       "<p>Yes. Limited revisions are included depending on the selected plan. Additional revisions or major changes may involve extra cost.</p>",
   },
   {
-    question: "11. What are your payment terms?",
+    question: "10. What are your payment terms?",
     answer:
       "<p>Typically, an advance payment is required to start the project and the remaining payment is due before final deployment or handover.</p>",
   },
   {
-    question: "12. Do you provide website maintenance?",
+    question: "11. Do you provide website maintenance?",
     answer:
       "<p>Yes. We offer monthly or yearly maintenance plans including updates, backups, security monitoring, and minor content changes.</p>",
   },
@@ -588,6 +588,33 @@ function initAutoTechRows() {
 
     window.requestAnimationFrame(animate);
   });
+}
+
+function applyImageFallbacks() {
+  document.querySelectorAll("img").forEach((img) => {
+    if (img.dataset.fallbackBound === "true") {
+      return;
+    }
+    img.dataset.fallbackBound = "true";
+    img.addEventListener("error", () => {
+      if (img.dataset.fallbackApplied === "true") {
+        return;
+      }
+      img.dataset.fallbackApplied = "true";
+      img.style.display = "none";
+    });
+  });
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    headers: { "Accept": "application/json", ...options.headers },
+    ...options,
+  });
+  if (!response.ok) {
+    throw new Error(`fetchJson failed: ${response.status} ${response.statusText}`);
+  }
+  return response.json();
 }
 
 applyImageFallbacks();
@@ -4910,4 +4937,4 @@ initAuthUi().catch((error) => {
 initAutoTechRows();
 window.addEventListener("load", initAutoTechRows, { once: true });
 window.addEventListener("resize", initAutoTechRows);
-  bindDisplayCurrencyControls();
+bindDisplayCurrencyControls();

@@ -6,3 +6,9 @@ vercel.env
 
 # Vercel CLI state
 .vercel/
+
+# Local data files (may contain PII)
+data/
+
+# Dependencies
+node_modules/
