@@ -959,12 +959,13 @@ async function getPlanPricingForDisplayCurrency(plan, coupon, options = {}, requ
       ? discountValue * usdRate
       : (baseAmount * discountValue) / 100;
 
+
   if (!Number.isFinite(discountAmount) || discountAmount <= 0) {
     discountAmount = 0;
   }
 
   discountAmount = Math.min(baseAmount, discountAmount);
-  const finalAmount = Math.max(0, baseAmount - discountAmount);
+  const finalAmount = Number(Math.max(0, baseAmount - discountAmount).toFixed(2));
 
   return {
     planAmount: usdPlanAmount,
@@ -1473,7 +1474,7 @@ function getPlanPricingWithCoupon(plan, coupon, options = {}) {
   const fastDeliveryFee = options.fastDelivery ? planAmount * 0.1 : 0;
   const baseAmount = planAmount + addOnAmount + fastDeliveryFee;
   const discountAmount = calculateCouponDiscount(baseAmount, coupon);
-  const finalAmount = Math.max(0, baseAmount - discountAmount);
+  const finalAmount = Number(Math.max(0, baseAmount - discountAmount).toFixed(2));
 
   return {
     planAmount,
@@ -4316,8 +4317,8 @@ async function openCryptoPaymentModal(checkoutData) {
     genericWalletLink.hidden = !crypto.paymentUri;
   }
   if (qr) {
-    if (crypto.address) {
-      qr.src = getCryptoPaymentQrCodeUrl(crypto.address);
+    if (crypto.paymentUri || crypto.address) {
+      qr.src = getCryptoPaymentQrCodeUrl(crypto.paymentUri || crypto.address);
       qr.hidden = false;
     } else {
       qr.hidden = true;

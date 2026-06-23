@@ -953,7 +953,7 @@ function getPlanPricing(plan, coupon, options = {}) {
   const fastDeliveryFee = options.fastDelivery ? planAmount * 0.1 : 0;
   const baseAmount = planAmount + addOnAmount + fastDeliveryFee;
   const discountAmount = calculateCouponDiscount(baseAmount, coupon);
-  const finalAmount = Math.max(0, baseAmount - discountAmount);
+  const finalAmount = Number(Math.max(0, baseAmount - discountAmount).toFixed(2));
 
   return {
     planAmount,
@@ -1007,8 +1007,8 @@ async function getCheckoutPricing(plan, coupon, options = {}, requestedCurrency 
   }
 
   discountAmount = Math.min(baseAmount, discountAmount);
-  const finalAmount = Math.max(0, baseAmount - discountAmount);
-  const toInr = (value) => Number(value || 0) / usdRate;
+  const finalAmount = Number(Math.max(0, baseAmount - discountAmount).toFixed(2));
+  const toInr = (value) => Number((Number(value || 0) / usdRate).toFixed(2));
 
   return {
     currencyCode,
