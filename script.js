@@ -22,6 +22,7 @@ const dqAuth = window.dqAuth;
 let currentUiUser = null;
 let authUiSubscriptionBound = false;
 let displayCurrencyRatesCache = null;
+const DISPLAY_CURRENCY_FALLBACK_USD_RATE = 1 / 90;
 const FOOTER_FAQ_ITEMS = [
   {
     question: "1. What services do you provide?",
@@ -174,15 +175,17 @@ const PLAN_DETAILS = {
     name: "The Starter",
     oldPrice: 11000,
     subtotal: 8999,
-    usdSubtotal: 99,
+    usdOldPrice: 399,
+    usdSubtotal: 199,
     domainPrice: 999,
     addOns: [
       {
         id: "hosting",
-        name: "Hosting",
+        name: "Website Hosting",
         description: "Launch support with hosting setup, SSL, and deployment assistance.",
         kind: "hosting",
         price: 4000,
+        usdPrice: 50,
       },
       {
         id: "connect-bot-website",
@@ -205,15 +208,17 @@ const PLAN_DETAILS = {
     name: "The Professional",
     oldPrice: 14000,
     subtotal: 10599,
-    usdSubtotal: 119,
+    usdOldPrice: 799,
+    usdSubtotal: 399,
     domainPrice: 999,
     addOns: [
       {
         id: "hosting",
-        name: "Hosting",
+        name: "Website Hosting",
         description: "Launch support with hosting setup, SSL, and deployment assistance.",
         kind: "hosting",
         price: 4000,
+        usdPrice: 50,
       },
       {
         id: "connect-bot-website",
@@ -237,15 +242,17 @@ const PLAN_DETAILS = {
     name: "Professional Plus",
     oldPrice: 18000,
     subtotal: 12999,
-    usdSubtotal: 139,
+    usdOldPrice: 1199,
+    usdSubtotal: 799,
     domainPrice: 999,
     addOns: [
       {
         id: "hosting",
-        name: "Hosting",
+        name: "Website Hosting",
         description: "Launch support with hosting setup, SSL, and deployment assistance.",
         kind: "hosting",
         price: 4000,
+        usdPrice: 50,
       },
       {
         id: "connect-bot-website",
@@ -269,7 +276,8 @@ const PLAN_DETAILS = {
     name: "Enterprise",
     oldPrice: 33000,
     subtotal: 22999,
-    usdSubtotal: 249,
+    usdOldPrice: 1799,
+    usdSubtotal: 1199,
     domainPrice: 999,
     addOns: [
       {
@@ -277,7 +285,8 @@ const PLAN_DETAILS = {
         name: "VPS Hosting",
         description: "Higher-performance hosting for stores, portals, and heavier traffic.",
         kind: "hosting",
-        price: 17000,
+        price: 16000,
+        usdPrice: 200,
       },
       {
         id: "connect-bot-website",
@@ -301,7 +310,8 @@ const PLAN_DETAILS = {
     name: "Enterprise Plus",
     oldPrice: 53000,
     subtotal: 32999,
-    usdSubtotal: 349,
+    usdOldPrice: 2999,
+    usdSubtotal: 1999,
     domainPrice: 999,
     addOns: [
       {
@@ -309,7 +319,8 @@ const PLAN_DETAILS = {
         name: "VPS Hosting",
         description: "Higher-performance hosting for stores, portals, and heavier traffic.",
         kind: "hosting",
-        price: 17000,
+        price: 16000,
+        usdPrice: 200,
       },
       {
         id: "connect-bot-website",
@@ -708,13 +719,14 @@ function formatUsd(value) {
 function readDisplayCurrencyPreference() {
   try {
     const raw = window.localStorage.getItem(DISPLAY_CURRENCY_STORAGE_KEY);
+    if (raw === "usd" || raw === "inr") {
+      return { currency: raw };
+    }
+
     const parsed = raw ? JSON.parse(raw) : null;
-    const currency =
-      parsed?.currency === "usd" || parsed?.mode === "crypto"
-        ? "usd"
-        : parsed?.mode === "inr"
-        ? "inr"
-        : "inr";
+    const storedCurrency =
+      typeof parsed === "string" ? parsed : parsed?.currency || parsed?.mode || "inr";
+    const currency = storedCurrency === "usd" || storedCurrency === "crypto" ? "usd" : "inr";
     return { currency };
   } catch {
     return { currency: "inr" };
@@ -762,11 +774,10 @@ async function formatDisplayPrice(value, options = {}) {
 
   const rates = await fetchDisplayCurrencyRates();
   const usdRate = Number(rates?.usd);
-  if (!Number.isFinite(usdRate) || usdRate <= 0) {
-    return formatInr(numericValue);
-  }
+  const safeUsdRate =
+    Number.isFinite(usdRate) && usdRate > 0 ? usdRate : DISPLAY_CURRENCY_FALLBACK_USD_RATE;
 
-  return formatUsd(numericValue * usdRate);
+  return formatUsd(numericValue * safeUsdRate);
 }
 
 async function formatPriceInCurrency(value, currencyCode) {
@@ -870,11 +881,19 @@ async function renderStaticDisplayMoney() {
 
     const suffix = node.getAttribute("data-price-suffix") || "";
     const preference = readDisplayCurrencyPreference();
+    const fixedUsdPrice = getFixedPlanUsdAmount(plan, "usdSubtotal");
+    const fixedUsdOldPrice = getFixedPlanUsdAmount(plan, "usdOldPrice");
     const priceLabel =
-      preference.currency === "usd" && Number.isFinite(Number(plan?.usdSubtotal))
-        ? await formatPriceInCurrency(Number(plan.usdSubtotal), "usd")
+      preference.currency === "usd" && fixedUsdPrice !== null
+        ? formatUsd(fixedUsdPrice)
         : await formatDisplayPrice(plan.subtotal ?? plan.amount ?? 0);
-    node.innerHTML = `${plan.oldPrice ? `<span class="old-price">${escapeHtml(await formatDisplayPrice(plan.oldPrice))}</span> ` : ""}${escapeHtml(
+    const oldPriceLabel =
+      plan.oldPrice && preference.currency === "usd" && fixedUsdOldPrice !== null
+        ? formatUsd(fixedUsdOldPrice)
+        : plan.oldPrice
+        ? await formatDisplayPrice(plan.oldPrice)
+        : "";
+    node.innerHTML = `${oldPriceLabel ? `<span class="old-price">${escapeHtml(oldPriceLabel)}</span> ` : ""}${escapeHtml(
       priceLabel
     )}${suffix ? ` <small class="home-price-term">${escapeHtml(suffix)}</small>` : ""}`;
   }
@@ -929,34 +948,54 @@ function getFixedBotUsdAmount(planKey) {
   return Number.isFinite(amount) && amount > 0 ? amount : null;
 }
 
+function getFixedPlanUsdAmount(plan, fieldName = "usdSubtotal") {
+  const amount = Number(plan?.[fieldName]);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
 async function getPlanPricingForDisplayCurrency(plan, coupon, options = {}, requestedCurrency = "inr") {
   const fallbackPricing = getPlanPricingWithCoupon(plan, coupon, options);
   const currency = String(requestedCurrency || "inr").trim().toLowerCase() === "usd" ? "usd" : "inr";
-  const usdPlanAmount = Number(plan?.usdSubtotal);
+  const usdPlanAmount = getFixedPlanUsdAmount(plan, "usdSubtotal");
 
-  if (currency !== "usd" || !Number.isFinite(usdPlanAmount) || usdPlanAmount <= 0) {
+  if (currency !== "usd" || usdPlanAmount === null) {
     return {
       ...fallbackPricing,
       currencyCode: "inr",
     };
   }
 
-  const rates = await fetchDisplayCurrencyRates();
-  const usdRate = Number(rates?.usd);
-  if (!Number.isFinite(usdRate) || usdRate <= 0) {
-    return {
-      ...fallbackPricing,
-      currencyCode: "inr",
-    };
+  const selectedAddOns = getPlanAddOnsByIds(plan, options.addOnIds);
+  const needsConvertedAddOnPrice = selectedAddOns.some((addOn) => {
+    const fixedUsdAmount = Number(addOn?.usdPrice);
+    return (!Number.isFinite(fixedUsdAmount) || fixedUsdAmount <= 0) && Number(addOn?.price || 0) > 0;
+  });
+  const fixedDiscountNeedsRate =
+    getCouponDiscountType(coupon) === "fixed" && getCouponDiscountValue(coupon) > 0;
+  let usdRate = null;
+
+  if (needsConvertedAddOnPrice || fixedDiscountNeedsRate) {
+    const rates = await fetchDisplayCurrencyRates();
+    const rate = Number(rates?.usd);
+    usdRate = Number.isFinite(rate) && rate > 0 ? rate : DISPLAY_CURRENCY_FALLBACK_USD_RATE;
   }
 
-  const addOnAmount = getPlanAddOnAmount(plan, options.addOnIds) * usdRate;
+  const addOnAmount = selectedAddOns.reduce((sum, addOn) => {
+    const fixedUsdAmount = Number(addOn?.usdPrice);
+    if (Number.isFinite(fixedUsdAmount) && fixedUsdAmount > 0) {
+      return sum + fixedUsdAmount;
+    }
+
+    return usdRate !== null ? sum + Number(addOn?.price || 0) * usdRate : sum;
+  }, 0);
   const fastDeliveryFee = options.fastDelivery ? usdPlanAmount * 0.1 : 0;
   const baseAmount = usdPlanAmount + addOnAmount + fastDeliveryFee;
   const discountValue = getCouponDiscountValue(coupon);
   let discountAmount =
     getCouponDiscountType(coupon) === "fixed"
-      ? discountValue * usdRate
+      ? usdRate !== null
+        ? discountValue * usdRate
+        : 0
       : (baseAmount * discountValue) / 100;
 
 
@@ -1124,62 +1163,29 @@ function getPlanAddOnAmount(plan, addOnIds = []) {
   return getPlanAddOnsByIds(plan, addOnIds).reduce((sum, addOn) => sum + Number(addOn?.price || 0), 0);
 }
 
-function isHostingPlanAddOn(addOn) {
-  const kind = String(addOn?.kind || "").trim().toLowerCase();
-  const id = String(addOn?.id || "").trim().toLowerCase();
-  const name = String(addOn?.name || "").trim().toLowerCase();
-
-  return kind === "hosting" || id.includes("hosting") || name.includes("hosting");
-}
-
-function getPlanHostingAddOnIds(plan) {
-  return (Array.isArray(plan?.addOns) ? plan.addOns : [])
-    .filter((addOn) => isHostingPlanAddOn(addOn))
-    .map((addOn) => String(addOn?.id || "").trim())
-    .filter(Boolean);
-}
-
-function getPricingPageMode() {
-  if (!pricingPlansSection) {
-    return "without-hosting";
+async function formatAddOnDisplayPrice(addOn) {
+  const fixedUsdAmount = Number(addOn?.usdPrice);
+  if (
+    readDisplayCurrencyPreference().currency === "usd" &&
+    Number.isFinite(fixedUsdAmount) &&
+    fixedUsdAmount > 0
+  ) {
+    return formatUsd(fixedUsdAmount);
   }
 
-  return pricingPlansSection.dataset.pricingMode === "with-hosting" ? "with-hosting" : "without-hosting";
+  return formatDisplayPrice(addOn?.price || 0);
 }
 
-function getPlanCatalogPricing(plan, options = {}) {
-  const includeHosting = options.includeHosting === true;
-  const addOnIds = includeHosting ? getPlanHostingAddOnIds(plan) : [];
-  const addOnAmount = getPlanAddOnAmount(plan, addOnIds);
-
+function getPlanCatalogPricing(plan) {
   return {
-    oldPrice: Math.round((Number(plan?.oldPrice || 0) + addOnAmount) * 100) / 100,
-    subtotal: Math.round((Number((plan?.subtotal ?? plan?.amount) || 0) + addOnAmount) * 100) / 100,
-    addOnIds,
+    oldPrice: Number(plan?.oldPrice || 0),
+    subtotal: Number((plan?.subtotal ?? plan?.amount) || 0),
   };
 }
 
-async function renderPricingPageFilter(mode = "without-hosting") {
+async function renderPricingPageFilter() {
   if (!pricingPlansSection) {
     return;
-  }
-
-  const normalizedMode = mode === "with-hosting" ? "with-hosting" : "without-hosting";
-  pricingPlansSection.dataset.pricingMode = normalizedMode;
-
-  pricingPlansSection.querySelectorAll("[data-pricing-mode]").forEach((button) => {
-    const isActive = button.getAttribute("data-pricing-mode") === normalizedMode;
-    button.classList.toggle("is-active", isActive);
-    button.setAttribute("aria-pressed", isActive ? "true" : "false");
-  });
-
-  const filterNote = document.getElementById("pricingFilterNote");
-  if (filterNote) {
-    const currencyCode = getSelectedDisplayCurrencyCode();
-    filterNote.textContent =
-      normalizedMode === "with-hosting"
-        ? `Showing package prices with hosting add-ons included in ${currencyCode}.`
-        : `Showing base package prices without hosting add-ons in ${currencyCode}.`;
   }
 
   const pricingTasks = Array.from(pricingPlansSection.querySelectorAll("[data-pricing-plan]")).map(async (card) => {
@@ -1190,11 +1196,14 @@ async function renderPricingPageFilter(mode = "without-hosting") {
       return;
     }
 
-    const pricing = getPlanCatalogPricing(plan, { includeHosting: normalizedMode === "with-hosting" });
-    const displayedPricing = await getDisplayedPlanPricing(plan, null, {
-      addOnIds: normalizedMode === "with-hosting" ? pricing.addOnIds : [],
-    });
-    priceNode.innerHTML = `<span class="old-price">${escapeHtml(await formatDisplayPrice(pricing.oldPrice))}</span> ${escapeHtml(
+    const pricing = getPlanCatalogPricing(plan);
+    const displayedPricing = await getDisplayedPlanPricing(plan, null);
+    const fixedUsdOldPrice = getFixedPlanUsdAmount(plan, "usdOldPrice");
+    const oldPriceLabel =
+      displayedPricing.currencyCode === "usd" && fixedUsdOldPrice !== null
+        ? formatUsd(fixedUsdOldPrice + displayedPricing.addOnAmount)
+        : await formatDisplayPrice(pricing.oldPrice);
+    priceNode.innerHTML = `<span class="old-price">${escapeHtml(oldPriceLabel)}</span> ${escapeHtml(
       await formatPriceInCurrency(displayedPricing.finalAmount, displayedPricing.currencyCode)
     )} <small>${escapeHtml(card.getAttribute("data-price-suffix") || "/ project")}</small>`;
   });
@@ -1228,7 +1237,7 @@ async function renderPlanAddOnsMarkup(plan, planKey) {
                   <p>${escapeHtml(addOn.description || "Optional add-on for this package.")}</p>
                 </div>
                 <div class="plan-addon-actions">
-                  <strong>${escapeHtml(await formatDisplayPrice(addOn.price))}</strong>
+                  <strong>${escapeHtml(await formatAddOnDisplayPrice(addOn))}</strong>
                   <button
                     class="btn ${selectedIds.has(String(addOn.id || "").trim()) ? "btn-secondary" : "btn-primary"}"
                     type="button"
@@ -3227,6 +3236,36 @@ async function renderPlanDetailsPage() {
   const displayedPricing = await getDisplayedPlanPricing(plan, appliedCoupon, {
     addOnIds: selectedAddOns.map((addOn) => addOn.id),
   });
+  const fixedUsdOldPrice = getFixedPlanUsdAmount(plan, "usdOldPrice");
+  const displayedOldPriceLabel =
+    hasSavings && displayedPricing.currencyCode === "usd" && fixedUsdOldPrice !== null
+      ? formatUsd(fixedUsdOldPrice)
+      : hasSavings
+      ? await formatDisplayPrice(plan.oldPrice)
+      : "";
+  const displayedSavingsAmount =
+    displayedPricing.currencyCode === "usd" && fixedUsdOldPrice !== null
+      ? Math.max(0, fixedUsdOldPrice - displayedPricing.planAmount)
+      : savings;
+  const displayedSavingsLabel =
+    hasSavings && displayedPricing.currencyCode === "usd"
+      ? formatUsd(displayedSavingsAmount)
+      : hasSavings
+      ? await formatDisplayPrice(displayedSavingsAmount)
+      : "";
+  const planSubtotal = Number((plan.subtotal ?? plan.amount) || 0);
+  const getBreakdownDisplayAmount = (amount, index) => {
+    if (breakdownRows.length === 1 && index === 0) {
+      return displayedPricing.planAmount;
+    }
+
+    const numericAmount = Number(amount || 0);
+    if (displayedPricing.currencyCode !== "usd" || !Number.isFinite(planSubtotal) || planSubtotal <= 0) {
+      return numericAmount;
+    }
+
+    return (numericAmount / planSubtotal) * displayedPricing.planAmount;
+  };
 
   planDetailsRoot.innerHTML = `
     <div class="plan-layout">
@@ -3238,9 +3277,9 @@ async function renderPlanDetailsPage() {
           ${getDisplayCurrencyControlMarkup("Display Currency")}
         </div>
         <div class="plan-price-strip">
-          ${hasSavings ? `<span class="old-price">${escapeHtml(await formatDisplayPrice(plan.oldPrice))}</span>` : ""}
+          ${displayedOldPriceLabel ? `<span class="old-price">${escapeHtml(displayedOldPriceLabel)}</span>` : ""}
           <strong>${escapeHtml(await formatPriceInCurrency(displayedPricing.planAmount, displayedPricing.currencyCode))}</strong>
-          ${hasSavings ? `<span class="plan-savings">You save ${escapeHtml(await formatDisplayPrice(savings))}</span>` : ""}
+          ${displayedSavingsLabel ? `<span class="plan-savings">You save ${escapeHtml(displayedSavingsLabel)}</span>` : ""}
         </div>
         <ul class="plan-feature-list">
           ${plan.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}
@@ -3255,7 +3294,7 @@ async function renderPlanDetailsPage() {
                 <span>${escapeHtml(row.label || "Plan Price")}</span>
                 <strong>${escapeHtml(
                   await formatPriceInCurrency(
-                    breakdownRows.length === 1 && index === 0 ? displayedPricing.planAmount : row.amount || 0,
+                    getBreakdownDisplayAmount(row.amount, index),
                     displayedPricing.currencyCode
                   )
                 )}</strong>
@@ -3412,19 +3451,7 @@ function bindPortfolioQuoteTrigger(user) {
 
 async function bindPricingActions() {
   if (pricingPlansSection) {
-    pricingPlansSection.querySelectorAll("[data-pricing-mode]").forEach((button) => {
-      if (button.dataset.bound === "true") {
-        return;
-      }
-      button.dataset.bound = "true";
-      button.addEventListener("click", () => {
-        renderPricingPageFilter(button.getAttribute("data-pricing-mode") || "without-hosting").catch((error) => {
-          console.error("Could not update pricing filter:", error);
-        });
-      });
-    });
-
-    await renderPricingPageFilter(getPricingPageMode());
+    await renderPricingPageFilter();
   }
 
   document.querySelectorAll("[data-plan-link]").forEach((link) => {
@@ -3437,11 +3464,7 @@ async function bindPricingActions() {
       const plan = getPlanByKey(planKey);
 
       if (plan && pricingPlansSection?.contains(link)) {
-        if (getPricingPageMode() === "with-hosting") {
-          setStoredPlanAddOnIds(planKey, getPlanHostingAddOnIds(plan));
-        } else {
-          clearStoredPlanAddOnIds(planKey);
-        }
+        clearStoredPlanAddOnIds(planKey);
       }
 
       saveSelectedPlan(planKey);

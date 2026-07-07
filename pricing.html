@@ -24,8 +24,13 @@
         <li><a href="services.html">Services</a></li>
         <li><a href="portfolio.html">Portfolio</a></li>
         <li><a href="about.html">About</a></li>
-        <li><a class="active" href="pricing.html">Pricing</a></li>
-        <li><a href="bot-pricing.html">Bot Pricing</a></li>
+        <li class="nav-dropdown">
+          <a class="nav-dropdown-trigger active" href="pricing.html" aria-haspopup="true">Pricing <span class="nav-dropdown-caret" aria-hidden="true">&#9662;</span></a>
+          <ul class="nav-dropdown-menu" aria-label="Pricing options">
+            <li><a class="active" href="pricing.html">Website Pricing</a></li>
+            <li><a href="bot-pricing.html">Bot Pricing</a></li>
+          </ul>
+        </li>
         <li><a href="contact.html">Support</a></li>
         <li id="adminNavItem" style="display: none;"><a href="admin.html" style="color: #ef4444; font-weight: 600;">&#9889; Admin Panel</a></li>
       </ul>
@@ -44,14 +49,6 @@
           <span class="eyebrow pricing-plans-eyebrow">All Plans</span>
           <h2 class="section-title">Transparent Pricing. Exceptional Value.</h2>
           <p class="section-subtitle">We do not believe in hidden fees. These plans give you a clear starting point based on the size and complexity of your project, with room to tailor the final scope around your business goals.</p>
-          <div class="pricing-filter-bar" aria-label="Pricing view filter">
-            <span class="pricing-filter-label">Show Pricing</span>
-            <div class="pricing-filter-actions">
-              <button type="button" class="pricing-filter-btn is-active" data-pricing-mode="without-hosting" aria-pressed="true">Without Hosting</button>
-              <button type="button" class="pricing-filter-btn" data-pricing-mode="with-hosting" aria-pressed="false">With Hosting</button>
-            </div>
-            <p class="pricing-filter-note" id="pricingFilterNote">Showing base package prices without hosting add-ons.</p>
-          </div>
           <div class="display-currency-bar" aria-label="Display currency">
             <span class="pricing-filter-label">Display Currency</span>
             <div class="display-currency-controls">

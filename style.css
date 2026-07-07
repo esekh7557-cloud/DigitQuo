@@ -153,6 +153,71 @@ button {
 .nav-links a.active::after {
   height: 4px;
 }
+.nav-dropdown {
+  position: relative;
+}
+.nav-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.nav-dropdown-caret {
+  font-size: 0.68rem;
+  line-height: 1;
+  transition: transform 0.28s ease;
+}
+.nav-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 14px);
+  left: 50%;
+  z-index: 1100;
+  min-width: 188px;
+  padding: 10px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid rgba(216, 180, 254, 0.7);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(76, 29, 149, 0.14);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, 8px);
+  transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s ease;
+}
+.nav-dropdown-menu::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -14px;
+  height: 14px;
+}
+.nav-dropdown:hover .nav-dropdown-menu,
+.nav-dropdown:focus-within .nav-dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+.nav-dropdown:hover .nav-dropdown-caret,
+.nav-dropdown:focus-within .nav-dropdown-caret {
+  transform: rotate(180deg);
+}
+.nav-dropdown-menu a {
+  display: block;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 0.94rem;
+  white-space: nowrap;
+}
+.nav-dropdown-menu a::after {
+  display: none;
+}
+.nav-dropdown-menu a:hover,
+.nav-dropdown-menu a.active {
+  background: var(--bg-soft);
+  color: var(--primary);
+}
 .menu-toggle {
   display: none;
   background: none;
@@ -5070,6 +5135,32 @@ footer {
     margin-left: 0;
   }
   .nav-links.open { transform: translateX(0); }
+  .nav-dropdown {
+    width: 100%;
+  }
+  .nav-dropdown-trigger {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .nav-dropdown-caret {
+    transform: rotate(0deg) !important;
+  }
+  .nav-dropdown-menu {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    margin-top: 8px;
+    padding: 8px;
+    background: #fff;
+    box-shadow: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+  }
+  .nav-dropdown-menu::before {
+    display: none;
+  }
   .menu-toggle {
     display: block;
     order: -1;
